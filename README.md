@@ -2,6 +2,15 @@
 
 다섯알은 고혈압·제2형 당뇨병·이상지질혈증 등 만성질환 사용자가 처방전을 이해하고 자신의 복약 상태와 어려움을 관리할 수 있도록 돕는 서비스입니다. 처방전을 안전하게 구조화하고, 사용자가 확인한 처방을 기준으로 복약 안내와 질문 응답을 제공하며, 처방 변경이나 임상 판단이 필요한 상황에서는 약사·의료진 확인으로 연결하는 것을 목표로 합니다.
 
+## 포트폴리오 안내
+
+이 저장소는 [AI-HealthCare-05/AH_05_04](https://github.com/AI-HealthCare-05/AH_05_04) 팀 프로젝트의 코드 미러입니다. 팀 전체의 구현을 개인 단독 성과로 표현하지 않습니다.
+
+**정현우의 담당 범위:** medication retrieval, evidence/citation/provenance 경계, canonical Guide runtime assembly와 Backend provider 연동.
+[개인 기여와 한계](https://hyunwoo-jung-portfolio.vercel.app/case-studies/healthcare-rag)는 원본 팀 저장소의 [PR #919](https://github.com/AI-HealthCare-05/AH_05_04/pull/919), [PR #924](https://github.com/AI-HealthCare-05/AH_05_04/pull/924), [PR #926](https://github.com/AI-HealthCare-05/AH_05_04/pull/926)에서 확인할 수 있습니다.
+
+아래 기존 구현 상태 설명의 **‘현재’는 2026-08-27 시점을 뜻합니다.** 이후 현황은 원본 팀 저장소와 PR 기록에서 확인하고, 당시 구현·목표 서술과 구분해서 읽어 주세요. End-to-End 제품 완료나 임상 유효성을 주장하지 않습니다.
+
 ## 해결하려는 문제
 
 - 처방전의 약품명·용량·횟수·복용법을 한눈에 이해하기 어렵습니다.
@@ -26,7 +35,7 @@
 5. 미복용 사유에 따른 Barrier/Support
 6. 기존 챗봇에서 처방약–OTC Rule과 승인 근거를 이용한 병용 질문
 
-## 현재 구현과 목표 범위
+## 2026-08-27 구현 상태와 목표 범위
 
 Backend 기능 구현과 End-to-End 제품 MVP 완료를 구분합니다.
 
