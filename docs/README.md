@@ -38,3 +38,9 @@
 - Post-MVP-1 상태 해석과 원본 충돌 처리는 [문서 권위 규칙](./governance/post-mvp-1-document-authority.md)을 따릅니다.
 - `.superpowers/`와 `docs/superpowers/`는 로컬 작업 초안 경로이며 Git에 올리지 않습니다. 검토할 한국어
   설계와 구현 계획은 `docs/designs/<담당자>/`에 두고, 이관 전 경로 참조가 남지 않았는지 확인합니다.
+
+## 개발 에이전트 연속성
+
+- [시작·복구·종료 workflow](ai/workflow.md)와 [task 템플릿](ai/task-template.md)
+- [지식 인덱스](ai/knowledge-index.md)와 [실패 기록 안내](failures/README.md)
+- [검증 기록](testing/agent-workflow-20261111.md)과 [시각 보고서](testing/agent-continuity-20261111.html)

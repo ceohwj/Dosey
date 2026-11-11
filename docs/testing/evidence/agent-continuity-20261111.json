@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-11-11",
+  "repository": "ceohwj/Dosey",
+  "publication_base": "da4de67144f92ac1d1bdca23ddb375daec94df1f",
+  "original_implementation_base": "bcac7835420118e13ee235410c6b9fdd21224b14",
+  "scope": "developer workflow only; no product/API/DB/Source/Docker/model-default changes",
+  "source_sha256": {
+    "scripts/agent_workflow.py": "ed444478a1305e1fee25d1ba875963db5df08dfd1d1ee9b70673e2b40256c511",
+    "scripts/ci/check_agent_hygiene.py": "93f76ac4f800cc563a71933ed3d9ce4bc99c4e3d80fbd8233beb2510952ef3a7",
+    "tests/services/test_agent_workflow.py": "a749a8c5733c560f562ba2f5c5f0e0b9628496cb426e53075b3528ebfdd85b14",
+    "tests/services/test_agent_hygiene.py": "73c3ab062b1ccf8459eedec7e5d375f94790f87d58697c0dd49a9ea28c1f33c4"
+  },
+  "historical_local_tests": {
+    "new_workflow": 56,
+    "new_hygiene": 27,
+    "other_existing": 79,
+    "integrated_run": {
+      "passed": 161,
+      "failed": 1,
+      "failure": "test-shaped review snapshot outside configured execution lanes"
+    },
+    "inventory_recheck": {
+      "passed": 17,
+      "failed": 0
+    },
+    "single_full_run_pass_claim": false
+  },
+  "historical_synthetic_repair": {
+    "initial_test_count": 1,
+    "red": {
+      "passed": 1,
+      "failed": 2
+    },
+    "green": {
+      "passed": 4,
+      "failed": 0
+    },
+    "scoped_review": "ADDRESSED",
+    "main_recheck_passed": 4,
+    "user_result_transfers": 0
+  },
+  "historical_context_restore": {
+    "task_id_supplied": false,
+    "cache_present": false,
+    "verification": "UNKNOWN",
+    "cycles_used_preserved": 1,
+    "seconds_preserved": 15,
+    "user_context_explanations": 0
+  },
+  "historical_review": {
+    "hygiene_file_uri": "RED2/25 -> GREEN27 -> scoped ADDRESSED",
+    "final_docs_recovery_boundary": "MEDIUM -> docs fix -> scoped ADDRESSED/APPROVE/CLEAR",
+    "human_merge_approval": false
+  },
+  "publication_checks": {
+    "status": "PASS",
+    "tests": {
+      "passed": 138,
+      "failed": 0,
+      "elapsed_seconds": 6.75
+    },
+    "command_root_normalized": true,
+    "commands": [
+      {
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "-m",
+          "pytest",
+          "-c",
+          "/dev/null",
+          "--rootdir=.",
+          "tests/services/test_agent_workflow.py",
+          "tests/services/test_agent_hygiene.py",
+          "tests/contract/test_ci_scope_classifier.py",
+          "tests/contract/test_python_test_inventory.py",
+          "tests/contract/test_database_logic_policy.py",
+          "tests/contract/test_protected_table_write_policy.py",
+          "-q",
+          "-p",
+          "no:cacheprovider"
+        ],
+        "exit": 0,
+        "stdout": "........................................................................ [ 52%]\n..................................................................       [100%]\n138 passed in 6.75s\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "scripts/ci/check_agent_hygiene.py",
+          "--check"
+        ],
+        "exit": 0,
+        "stdout": "{\"findings\": [], \"checked_paths\": [\"AGENTS.md\", \"docs/ai/workflow.md\", \"docs/ai/task-template.md\", \"docs/ai/knowledge-index.md\", \"docs/failures/README.md\"], \"mutation\": false}\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "scripts/ci/check_python_test_inventory.py"
+        ],
+        "exit": 0,
+        "stdout": "Python test inventory is fully classified.\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "-m",
+          "ruff",
+          "check",
+          "--no-cache",
+          "scripts/agent_workflow.py",
+          "scripts/ci/check_agent_hygiene.py",
+          "tests/services/test_agent_workflow.py",
+          "tests/services/test_agent_hygiene.py"
+        ],
+        "exit": 0,
+        "stdout": "All checks passed!\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "-m",
+          "ruff",
+          "format",
+          "--no-cache",
+          "--check",
+          "scripts/agent_workflow.py",
+          "scripts/ci/check_agent_hygiene.py",
+          "tests/services/test_agent_workflow.py",
+          "tests/services/test_agent_hygiene.py"
+        ],
+        "exit": 0,
+        "stdout": "4 files already formatted\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.14/bin/python3",
+          "scripts/ci/check_agent_hygiene.py",
+          "--document",
+          "docs/testing/agent-workflow-20261111.md",
+          "--document",
+          "docs/failures/20261111-hygiene-file-uri.md",
+          "--document",
+          "docs/failures/20261111-test-snapshot-inventory.md",
+          "--document",
+          "docs/README.md",
+          "--check"
+        ],
+        "exit": 0,
+        "stdout": "{\"findings\": [], \"checked_paths\": [\"docs/testing/agent-workflow-20261111.md\", \"docs/failures/20261111-hygiene-file-uri.md\", \"docs/failures/20261111-test-snapshot-inventory.md\", \"docs/README.md\"], \"mutation\": false}\n",
+        "stderr": ""
+      }
+    ],
+    "html": {
+      "relative_links": 8,
+      "javascript": false,
+      "absolute_local_paths": false
+    },
+    "syntax_files": 4,
+    "snapshot_note": "Code4 hashes match historical reviewed sources; documentation projected onto pinned remote base; remoteCI and merge are separate."
+  },
+  "not_run": [
+    "mypy unavailable offline",
+    "Python3.13",
+    "remote GitHub CI at record creation",
+    "external Claude review",
+    "unaffected product/DB/provider/medical evals"
+  ],
+  "limits": [
+    "cooperative writer admission is not OS confinement",
+    "unknown budget/new claim recovery is unsupported and BLOCKED",
+    "bounded report-only Markdown/source-name hygiene; no automatic deletion or semantic dead-code proof",
+    "no Appstartup hook or permanent conversation memory"
+  ]
+}

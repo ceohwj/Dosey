@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Dosey 개발 에이전트 연속성 구현 결과. 맥락 복원, 역할 분담, 독립 검토와 수리, 실패 지식, 위생 검사 및 실제 검증 범위.">
+<title>Dosey — 에이전트 개발 운영 구현 결과</title>
+<style>
+:root{--paper:#f3f5f9;--card:#fff;--ink:#17243c;--muted:#56647a;--line:#dde4ed;--blue:#284bd2;--blue-soft:#edf1ff;--green:#16644d;--green-soft:#e8f4ed;--amber:#815313;--amber-soft:#fff4df;--red:#a73b41;--red-soft:#fff0f0;--radius:22px}
+*{box-sizing:border-box}
+html{scroll-behavior:auto}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.65;letter-spacing:-.025em;word-break:keep-all;overflow-wrap:anywhere}
+a{color:var(--blue);text-underline-offset:4px}
+a:focus-visible{outline:3px solid var(--blue);outline-offset:4px;border-radius:3px}
+.skip{position:absolute;left:20px;top:-80px;background:white;padding:12px;z-index:9}.skip:focus{top:12px}
+.page{max-width:1240px;margin:auto;padding:32px 32px 24px}
+.mast{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:850;font-size:23px;letter-spacing:-.055em}
+.mark{display:grid;place-items:center;width:33px;height:33px;border-radius:11px;background:var(--blue);color:#fff;font-size:21px}
+.meta{font-size:12px;color:var(--muted);text-align:right;letter-spacing:.035em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+.hero{display:grid;grid-template-columns:1.35fr 1fr;gap:38px;padding:36px 38px;background:linear-gradient(115deg,#fff 65%,#f4f7ff);box-shadow:0 12px 36px #18284c06}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.13em;color:var(--muted);text-transform:uppercase}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:100px;font-size:12px;font-weight:750;background:var(--green-soft);color:var(--green)}
+.dot{height:6px;width:6px;background:currentColor;border-radius:50%;flex-shrink:0}
+h1{font-size:clamp(34px,3.6vw,49px);line-height:1.23;letter-spacing:-.065em;margin:20px 0 18px;font-weight:850}
+h1 span{color:var(--blue)}
+.lead{font-size:15px;color:var(--muted);max-width:540px;margin:0}
+.verdict{border-left:1px solid var(--line);padding-left:30px;display:flex;flex-direction:column;justify-content:center}
+.verdict h2{font-size:25px;line-height:1.4;margin:11px 0 11px;letter-spacing:-.055em}
+.verdict p{font-size:14px;color:var(--muted);margin:0}
+.ownership{padding-top:16px;margin-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.ownership b{color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.stat{padding:21px 24px;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:17px}
+.number{font-size:39px;font-weight:850;letter-spacing:-.06em;line-height:1.1;color:var(--blue);font-variant-numeric:tabular-nums}
+.stat strong{display:block;font-size:14px}.stat small{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+section{margin-top:30px}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:13px}
+.section-head h2{margin:0;font-size:21px;line-height:1.5;letter-spacing:-.05em}
+.section-head h2 span{color:var(--blue);font-size:12px;margin-right:10px;letter-spacing:0}
+.note{margin:0;font-size:12px;color:var(--muted)}
+.arch{display:grid;grid-template-columns:1.38fr 1fr;gap:16px}
+.diagram,.memory{padding:25px 26px}
+.subhead{font-size:15px;font-weight:800;margin:0 0 17px}
+.human{background:var(--amber-soft);border:1px solid #f0dfc0;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.human strong{color:var(--amber);font-size:14px}.human small{font-size:12px;color:#765d38}
+.arrow{text-align:center;color:#7385a2;font-size:15px;line-height:1.3;padding:6px 0}
+.main-agent{padding:17px 19px;background:var(--blue);color:white;border-radius:14px}
+.main-agent strong{font-size:19px;display:block}.main-agent small{font-size:12px;color:#e4eaff;display:block;margin-top:3px}
+.lanes{display:grid;grid-template-columns:1.15fr 1fr;gap:10px}
+.lane{background:var(--blue-soft);border-radius:12px;padding:13px 15px}
+.lane strong{font-size:14px;display:block}.lane p{font-size:12px;color:#495f91;margin:5px 0 0}
+.loop{margin-top:12px;padding:13px 15px;border:1px solid #cce3d6;background:var(--green-soft);border-radius:12px;font-size:12px;color:var(--green)}
+.loop strong{display:block;font-size:13px;margin-bottom:3px}
+.caption{font-size:12px;color:var(--muted);margin:14px 0 0}
+.memory-item{padding:14px 0;border-top:1px solid var(--line)}
+.memory-item:first-of-type{padding-top:0;border-top:0}
+.memory-item h4{font-size:14px;margin:0 0 5px;display:flex;justify-content:space-between;gap:10px}
+.memory-item p{font-size:13px;color:var(--muted);margin:0}
+.label{font-size:11px;white-space:nowrap;color:var(--blue);font-weight:650}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;letter-spacing:0;overflow-wrap:anywhere}
+.memory-foot{margin:10px 0 0;padding:11px 13px;border-radius:10px;background:#f4f6fa;font-size:12px;color:var(--muted)}
+.pilots{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pilot{padding:24px 26px}
+.pilot-top{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.pilot h3{font-size:17px;margin:8px 0 10px;letter-spacing:-.045em}
+.state{display:inline-block;font-size:11px;border-radius:6px;background:var(--green-soft);color:var(--green);padding:3px 8px;font-weight:800;white-space:nowrap}
+.pilot p{font-size:13px;color:var(--muted);margin:0}
+.flow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:17px 0 15px}
+.flow-box{padding:12px;border-radius:10px;background:#f4f6fa;font-size:12px;text-align:center;line-height:1.5}
+.flow-box b{display:block;font-size:15px;margin:3px 0}
+.red{color:var(--red);background:var(--red-soft)}.green{color:var(--green);background:var(--green-soft)}
+.result{border-top:1px solid var(--line);padding-top:12px;margin-top:13px;font-size:12px;color:var(--muted)}
+.result strong{color:var(--ink)}
+.matrix{overflow:hidden}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;text-align:left;width:100%;font-size:13px;min-width:650px}
+th{background:#f8f9fc;color:var(--muted);font-size:12px;font-weight:700}
+th,td{padding:14px 22px;vertical-align:top}
+td{border-top:1px solid var(--line);line-height:1.65}
+td:first-child{font-weight:750;width:16%}th:nth-child(2){width:44%}th:last-child{width:40%}
+.bound{color:var(--muted)}
+.audit{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.audit-main,.audit-side{padding:24px 26px}
+.audit h3{font-size:16px;margin:0 0 13px}
+.run{display:grid;grid-template-columns:35px 1fr;gap:11px;margin-bottom:12px}
+.run-num{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;color:var(--blue);background:var(--blue-soft);font-size:12px;font-weight:800}
+.run strong{font-size:14px;display:block}.run p{font-size:12px;color:var(--muted);margin:4px 0 0}
+.audit-note{font-size:12px;color:var(--muted);padding-top:12px;margin:0;border-top:1px solid var(--line)}
+.checks{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+.check{font-size:12px;padding:5px 9px;background:var(--green-soft);color:var(--green);border-radius:7px}
+.audit-side p{font-size:12px;color:var(--muted);margin:12px 0 0}
+.audit-side b{color:var(--ink)}
+.warning{padding:11px 13px;border:1px solid #ecd9b4;background:var(--amber-soft);border-radius:11px;color:var(--amber);font-size:12px;margin-top:15px}
+.handoff{padding:23px 26px;display:grid;grid-template-columns:1.1fr 1fr;gap:25px}
+.handoff h3{font-size:16px;margin:0 0 9px}.handoff p{font-size:13px;color:var(--muted);margin:0}
+.path{font-size:11px;line-height:1.7;display:block;margin-top:11px;padding:11px 13px;background:#f5f7fb;border-radius:10px;color:var(--muted);word-break:break-all}
+.refs{display:flex;flex-wrap:wrap;gap:7px 17px;margin-top:13px}
+.refs a{font-size:12px}
+.scope{border-left:1px solid var(--line);padding-left:25px}
+.scope ul{padding-left:18px;margin:10px 0 0;color:var(--muted);font-size:13px}
+.scope li{margin:5px 0}
+footer{display:flex;justify-content:space-between;gap:20px;font-size:11px;color:var(--muted);margin-top:22px;padding:0 2px}
+@media(max-width:850px){
+.page{padding:24px 20px}.hero{gap:25px;padding:28px}.hero{grid-template-columns:1fr}.verdict{border-left:0;border-top:1px solid var(--line);padding:23px 0 0}.verdict h2{font-size:23px}
+.arch,.audit{grid-template-columns:1fr}.stat{display:block;padding:20px}.stat .number{margin-bottom:10px}.handoff{grid-template-columns:1fr}.scope{border-left:0;border-top:1px solid var(--line);padding:20px 0 0}
+}
+@media(max-width:560px){
+.page{padding:20px 14px}.mast{margin-bottom:19px}.meta{font-size:10px}.hero{padding:24px 22px}h1{font-size:34px}.lead{font-size:14px}
+.stats{gap:8px}.stat{padding:16px 11px}.number{font-size:31px}.stat strong{font-size:12px}.stat small{font-size:11px}
+.section-head{display:block}.section-head .note{margin-top:5px}.pilots{grid-template-columns:1fr}.diagram,.memory,.pilot,.audit-main,.audit-side,.handoff{padding:21px}
+.human{display:block}.human small{display:block;margin-top:4px}.lanes{grid-template-columns:1fr}.lane p{margin-top:3px}
+th,td{padding:13px 17px}.flow{gap:7px}.flow-box{padding:11px 7px}footer{display:block}footer span{display:block;margin-top:6px}
+}
+@page{size:A4;margin:12mm}
+@media print{
+body{background:white;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{max-width:none;padding:0}.hero{box-shadow:none;padding:22px;grid-template-columns:1.35fr 1fr;gap:23px}h1{font-size:32px}
+section{margin-top:20px}.card,.pilot,.handoff,.run{break-inside:avoid}.arch,.audit{grid-template-columns:1.25fr 1fr}.pilots{grid-template-columns:1fr 1fr}.stats{gap:8px}
+.diagram,.memory,.pilot,.audit-main,.audit-side,.handoff{padding:18px}.section-head h2{font-size:17px}.scroll{overflow:visible}table{min-width:0;font-size:11px}th,td{padding:10px 12px}.refs{display:none}.skip{display:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">본문으로 이동</a>
+<div class="page">
+<header class="mast">
+<div class="brand"><span class="mark" aria-hidden="true">d</span>Dosey <span style="font-size:12px;letter-spacing:0;font-weight:600;color:var(--muted);margin-left:6px">DEVELOPMENT OPERATIONS</span></div>
+<div class="meta">IMPLEMENTATION REPORT<br><time datetime="2026-11-11">2026. 11. 11</time> · 정적 스냅샷</div>
+</header>
+<main id="main">
+<p class="warning"><b>게시 스냅샷 로컬 검증: 테스트 138통과(6.75초).</b> CLI56+hygiene27+기존 CI·정책55이며 게시하지 않는 review helper24는 제외했습니다. 기본5개 문서 hygiene·inventory·Ruff check/format·syntax도 통과했습니다. 최종 문서·HTML 참조 검사도 통과했습니다. 원격 GitHub CI는 이 기록 시점 NOT_RUN입니다. 아래162개 수치는 최초 구현의 역사적 실행이며 merge·공개 승인을 뜻하지 않습니다. <a href="agent-workflow-20261111.md">검증 기록</a> · <a href="evidence/agent-continuity-20261111.json">근거 JSON</a></p>
+<div class="hero card">
+<div>
+<span class="pill"><span class="dot" aria-hidden="true"></span>최초 로컬 구현 · 역사적 검증</span>
+<h1>맥락을 다시 찾고,<br><span>검토를 수정으로 잇다.</span></h1>
+<p class="lead">메인 에이전트가 진행 기록을 읽고 역할별 작업을 배정합니다. 검토에서 발견한 문제는 지정 구현자에게 돌아가고, 테스트와 재검토로 닫힙니다.</p>
+</div>
+<div class="verdict">
+<div class="eyebrow">구현한 개발 방식</div>
+<h2>메인 에이전트가 조정하는<br>Human-in-the-loop 개발</h2>
+<p>맥락 복원·협력적 쓰기 조정·지식 기록·수리 절차를 로컬 도구와 규약으로 구현했습니다. 실행과 재시도는 메인 에이전트가 조정합니다.</p>
+<div class="ownership"><b>사람이 결정</b> 제품 범위 · 구조 · 계약 · 안전 · 병합 · 출시<br><b>에이전트가 수행</b> 조사 · 구현 · 검토 · 수정 · 검증 근거 정리</div>
+</div>
+</div>
+
+<div class="stats" aria-label="주요 검증 수치">
+<div class="stat card"><div class="number">83</div><div><strong>신규 동작 테스트</strong><small>맥락·쓰기 CLI 56 + 위생 검사 27</small></div></div>
+<div class="stat card"><div class="number">2</div><div><strong>실제 실패 지식 기록</strong><small>관측 · 원인 · 수정 · 재검토 조건</small></div></div>
+<div class="stat card"><div class="number">0</div><div><strong>사용자의 중간 전달</strong><small>합성 시연 내 맥락 재설명·결과 복사</small></div></div>
+</div>
+
+<section aria-labelledby="architecture">
+<div class="section-head"><h2 id="architecture"><span>01</span>작업과 지식은 이렇게 이어집니다</h2><p class="note">최초 환경의 역할 배정 예시 · 게시 범위에 설정 미포함</p></div>
+<div class="arch">
+<div class="diagram card">
+<h3 class="subhead">실행 조정</h3>
+<div class="human"><strong>Human Owner</strong><small>목표·중요 결정·병합·출시</small></div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="main-agent"><strong>메인 에이전트 · Integrator</strong><small>맥락 복원 → 범위·파일 소유권 → 배정 → 결과 통합</small></div>
+<div class="arrow" aria-hidden="true">↓</div>
+<div class="lanes">
+<div class="lane"><strong>지정 구현 에이전트</strong><p>사용 가능한 native 역할<br>작업별 허용 파일에서 구현</p></div>
+<div class="lane"><strong>독립 조사·검토 에이전트</strong><p>사용 가능한 읽기 전용 역할<br>구현과 분리해 사실·오류 확인</p></div>
+</div>
+<div class="loop"><strong>검토 finding → 원래 지정 구현자 → 회귀 테스트 → 수정 → 재검토</strong>메인 에이전트가 사용량·진행·남은 문제를 기록하고 다음 실행을 판단합니다.</div>
+<p class="caption">역할은 작업별 전문성입니다. 특정 디렉터리를 영구 소유하거나 별도 팀을 자동 실행하는 구조가 아닙니다.</p>
+</div>
+<aside class="memory card" aria-label="맥락과 지식의 저장 구조">
+<h3 class="subhead">다음 작업이 읽는 근거</h3>
+<div class="memory-item"><h4>① 작업의 현재 상태 <span class="label">정본</span></h4><p><code>task.json</code>에 목표·허용 파일·완료·gap·다음 행동·사용량을 보존합니다. task ID를 몰라도 discover로 찾습니다.</p></div>
+<div class="memory-item"><h4>② 검증 시점의 파일 상태 <span class="label">파생 cache</span></h4><p><code>checkpoint.json</code>은 재생성 가능한 snapshot입니다. cache가 사라져도 작업 진행은 정본에 남습니다.</p></div>
+<div class="memory-item"><h4>③ 프로젝트 판단과 교훈 <span class="label">지식 인덱스</span></h4><p>기존 Decision·ADR·계약에 연결하고 <code>failures/</code>에서 기각·관측·가설·검증을 구분합니다.</p></div>
+<div class="memory-foot"><b>복원 순서</b> 정책 → 작업 정본 → 관련 지식 → 허용 파일·검증 근거.<br>과거 대화 전체를 매번 전달하는 대신 필요한 근거를 선택해 읽습니다.</div>
+</aside>
+</div>
+</section>
+
+<section aria-labelledby="pilots">
+<div class="section-head"><h2 id="pilots"><span>02</span>실제로 확인한 두 장면</h2><p class="note">제품 코드 밖의 합성 시연 · 실제 native 에이전트 사용</p></div>
+<div class="pilots">
+<article class="pilot card">
+<div class="pilot-top"><div class="eyebrow">CONTEXT RESTORE</div><span class="state">복원 확인</span></div>
+<h3>task ID와 cache 없이 다음 행동 찾기</h3>
+<p>새 읽기 전용 에이전트가 문서와 canonical 작업 기록을 읽고 목표·범위·완료 사항·gap·다음 행동을 찾았습니다.</p>
+<div class="flow"><div class="flow-box">입력 조건<b>ID 미전달</b>checkpoint 없음</div><div aria-hidden="true">→</div><div class="flow-box green">복원 결과<b>다음 행동 확보</b>사용 1회 / 15초 유지</div></div>
+<div class="result"><strong>검증 상태는 UNKNOWN 유지.</strong> cache 부재를 테스트 통과로 바꾸지 않았습니다. App 재시작이나 다른 호스트의 자동 복원 시연은 아닙니다.</div>
+</article>
+<article class="pilot card">
+<div class="pilot-top"><div class="eyebrow">REVIEW → REPAIR</div><span class="state">수리 확인</span></div>
+<h3>독립 검토의 실제 지적이 수정으로 연결</h3>
+<p>초기 테스트가 놓친 단수·복수 출력 오류를 reviewer가 발견했습니다. 담당 writer가 회귀 테스트를 먼저 추가했습니다.</p>
+<div class="flow"><div class="flow-box red">회귀 테스트 RED<b>2 실패 / 1 통과</b>수정 전에 결함 재현</div><div aria-hidden="true">→</div><div class="flow-box green">수정 후 GREEN<b>4 통과</b>입력 보존도 확인</div></div>
+<div class="result"><strong>scoped review: ADDRESSED.</strong> 메인 에이전트도 4개를 재실행하고 완료 기록 저장과 정확한 claim 해제를 확인했습니다.</div>
+</article>
+</div>
+</section>
+
+<section aria-labelledby="coverage">
+<div class="section-head"><h2 id="coverage"><span>03</span>구현 범위와 현재 경계</h2><p class="note">정책·도구·시연을 구분해 읽기</p></div>
+<div class="matrix card"><div class="scroll" role="region" tabindex="0" aria-label="구현 범위 표, 좁은 화면에서 가로 스크롤 가능">
+<table>
+<thead><tr><th scope="col">영역</th><th scope="col">이번 구현</th><th scope="col">현재 경계</th></tr></thead>
+<tbody>
+<tr><td>맥락 유지</td><td>canonical 작업 발견·복원, 다음 행동·사용량 보존, 파일·정책 변경 감지</td><td class="bound">새 opt-in 작업부터 사용. 영구 대화 기억·App 시작 hook은 없음.</td></tr>
+<tr><td>역할 분담</td><td>메인 에이전트가 목표·파일 소유권·검증 기준을 정해 사용 가능한 역할에 배정</td><td class="bound">상시 daemon이나 자동 작업 스케줄러는 없음.</td></tr>
+<tr><td>지식 축적</td><td>기존 Decision·ADR 연결, 실패 분류·증거·중복 방지·재검토 규약, 실제 기록 2건</td><td class="bound">모든 잘못된 제안을 자동 판별·저장하는 별도 엔진은 없음.</td></tr>
+<tr><td>쓰기·중단 보호</td><td>배정 전 worktree writer claim, revision CAS, canonical 우선 저장, 사용량 한도</td><td class="bound">협력하는 controller 사이의 조정. OS 접근 권한이나 격리 장치는 아님.</td></tr>
+<tr><td>가비지 컬렉션</td><td>문서 링크·anchor와 한정된 소스 경로의 임시 파일명 후보 보고. docs-only CI 연결</td><td class="bound">자동 삭제 없음. 전역 미사용 코드·문서와 코드의 의미적 불일치는 별도 검토 필요.</td></tr>
+<tr><td>복구</td><td>정확한 기존 claim과 알려진 누적 counter로 증거를 반영해 in-flight 해제 가능</td><td class="bound">null 사용량의 확정값 갱신·차단 작업의 새 claim 획득은 미지원. 기록 보존 후 BLOCKED 보고.</td></tr>
+</tbody>
+</table></div></div>
+</section>
+
+<section aria-labelledby="verification">
+<div class="section-head"><h2 id="verification"><span>04</span>최초 검증 숫자와 검토 결과</h2><p class="note">Python 3.14 · stdlib 도구의 동기 테스트</p></div>
+<div class="audit">
+<div class="audit-main card">
+<h3>최초 로컬 실행 기록을 표시합니다</h3>
+<div class="run"><div class="run-num">1</div><div><strong>전체 관련 실행: 161 통과 / 1 실패</strong><p>신규 83개와 기존 관련 검증을 실행했습니다. 유일한 실패는 검토용 Python 복사본이 테스트 inventory에 수집된 문제였습니다.</p></div></div>
+<div class="run"><div class="run-num">2</div><div><strong>복사본 정리 후 inventory: 17개 통과</strong><p>소유 복사본의 확장자만 <code>.py.snapshot</code>으로 변경했습니다. 구현·테스트·분류기에 면제를 추가하지 않았습니다.</p></div></div>
+<p class="audit-note">최초 162개 사례의 통과 근거는 이 두 실행에 나뉩니다. 신규 83개 = CLI 56 + hygiene 27, 기존 관련 79개 = review helper 24 + CI·정책 55. 합성 수리 4개는 별도 시연입니다.</p>
+</div>
+<aside class="audit-side card">
+<h3>최초 검증의 추가 확인</h3>
+<div class="checks"><span class="check">Ruff · format</span><span class="check">syntax</span><span class="check">문서 8개 clean</span><span class="check">inventory</span><span class="check">diff check</span></div>
+<p><b>독립 검토</b> 링크 검사 결함은 회귀 테스트 후 수정·재검토했습니다. 최종 전체 검토의 복구 설명 지적도 문서 수정 후 <b>ADDRESSED / APPROVE</b>, 해당 수정 범위 <b>Architectural CLEAR</b>로 닫혔습니다.</p>
+<p><b>미실행</b> mypy · 원격 GitHub CI · Python 3.13 · 외부 Claude review. 제품·DB·의료 eval은 관련 실행 코드 변경이 없어 이번 검증 범위에서 제외했습니다.</p>
+<div class="warning"><b>검증 상태 읽기</b><br>MATCHED_SNAPSHOT은 파일 상태 일치입니다. 테스트 통과·병합·출시 승인을 뜻하지 않습니다.</div>
+</aside>
+</div>
+</section>
+
+<section aria-labelledby="delivery">
+<div class="section-head"><h2 id="delivery"><span>05</span>전달 상태와 근거 파일</h2><p class="note">이 보고서는 실행 상태를 실시간으로 갱신하지 않습니다</p></div>
+<div class="handoff card">
+<div>
+<h3>게시 스냅샷 로컬 검증 통과 · 16개 파일</h3>
+<p>최초 구현은 당시 baseline 대비 13개 파일을 검토했습니다. 게시용 스냅샷은 다른 세션의 baseline을 제외해 별도로 구성하며 파일 수와 검증 범위가 다릅니다.</p>
+<code class="path">&lt;isolated-worktree&gt;</code>
+<div class="refs" aria-label="저장소 근거 파일">
+<a href="../ai/workflow.md">운영 workflow ↗</a>
+<a href="../ai/knowledge-index.md">지식 인덱스 ↗</a>
+<a href="../failures/README.md">실패 기록 2건 ↗</a>
+<a href="agent-workflow-20261111.md">검증·판단 원문 ↗</a>
+</div>
+<p style="font-size:11px;margin-top:9px">근거 링크는 저장소의 상대 경로입니다. 게시용 검증 상태는 검증 기록과 근거 JSON을 확인합니다.</p>
+</div>
+<div class="scope">
+<h3>다른 세션 작업은 포함하지 않았습니다</h3>
+<ul><li>Source publisher · Docker · credential 격리 작업</li><li>제품 UI · 사용자 확보·문제 검증 작업</li><li>제품 API·DB·의료 판단·출시 경계 변경</li></ul>
+<p style="margin-top:14px">최초 구현 때 원래 develop checkout과 범위 밖 입력 21개의 해시를 보존했고 commit·merge·push·배포는 하지 않았습니다. 게시 진행·원격 CI·실제 업무 채택은 별도 확인 대상입니다.</p>
+</div>
+</div>
+</section>
+</main>
+<footer><span>Dosey / Agent continuity · Superpowers 구현 결과</span><span><a href="agent-workflow-20261111.md">검증 기록 보기</a> · 외부 리소스·JavaScript 없는 단일 HTML</span></footer>
+</div>
+</body>
+</html>

@@ -49,6 +49,20 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: python scripts/ci/classify_ci_scope.py --event-name "$EVENT_NAME" --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" --github-output "$GITHUB_OUTPUT"
 
+  agent-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Check agent document hygiene (report-only)
+        run: python scripts/ci/check_agent_hygiene.py --check
+
   test-inventory:
     runs-on: ubuntu-latest
     steps:

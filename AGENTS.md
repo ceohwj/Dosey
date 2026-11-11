@@ -74,3 +74,8 @@ A shared contract is an externally consumed API, request or response shape, erro
 - Shared-contract changes require the relevant contract and integration tests. Medical AI changes require the applicable `evals/` checks.
 - For documentation-only changes, review the rendered content, references, repository scope, `git diff --check`, and the complete `git diff`.
 - Keep each pull request small, issue-focused, and easy for the designated reviewers to review. Clearly report checks that were run, skipped, or could not run.
+
+
+## Agent continuity (opt-in)
+
+새 opt-in 개발 작업의 시작·복구·종료와 협력적 writer claim은 [workflow](docs/ai/workflow.md)와 [task 템플릿](docs/ai/task-template.md)을 따른다. [지식 인덱스](docs/ai/knowledge-index.md)와 [실패 기록](docs/failures/README.md)은 근거를 찾는 안내다. 기존 작업을 자동 이관하거나 이 기록으로 sandbox·제품·공개 권한을 확대하지 않는다.
