@@ -32,6 +32,17 @@
 3. 재dispatch 전에 [실패 기록](../failures/README.md)과 재검토 조건을 확인한다. cycle/active time 상한, unknown 사용량, 미해결 in-flight이면 멈추고 evidence·gap·`next_action`을 보존한다. 재시도를 위해 counter를 초기화하지 않는다.
 4. 위 복구 경계 안에서 checkpoint가 가능하면 종료 상태·남은 작업·증거를 canonical에 저장하고 정확한 holder가 claim을 release한다. 검증된 완료는 `phase=complete`, 차단은 `blocked`와 gap으로 기록하며, 저장할 수 없으면 canonical 밖에 보고한다. 결과 STATUS와 JSON phase는 템플릿처럼 구분한다. 완료/검토 기록은 Human Owner의 merge·공개 결정이 아니다.
 
+### 작업 중 커밋과 GitHub 기록
+
+Issue와 PR 및 커밋 설명은 [GitHub 글쓰기 지침](github-writing.md)을 따른다. 메인 에이전트는 승인된 작업 범위 안에서 검증과 필요한 검토를 마친 변경 단위가 완성되면 로컬 커밋을 만든다. 사용자가 작업 중 통상적인 로컬 커밋을 허용했다면 같은 권한을 반복해서 묻지 않는다. 매 도구 호출마다 커밋하거나 완료를 기다리며 서로 다른 단위를 한꺼번에 묶지 않는다.
+
+1. 메인 에이전트가 해당 단위의 목적, 허용 파일과 검사 근거를 확인한다. 구현자는 변경과 검증 결과를 반환하고 Git 작업은 메인 에이전트만 수행한다.
+2. 다른 writer를 멈춰 검토 대상을 고정하고 필요한 검토와 지적 해소를 마친다. 메인 에이전트가 전체 diff와 비밀정보 포함 여부를 확인한 뒤 해당 단위로 검토한 파일 경로만 명시해 stage한다. 다른 작업자의 변경이나 비밀정보를 포함하지 않는다.
+3. 무엇을 왜 바꿨는지와 검사 결과를 설명하는 커밋을 만든다. 실제 생성된 commit SHA와 포함 파일을 확인한다. 커밋 명령의 성공을 추측하거나 예정 SHA를 기록하지 않는다.
+4. 필요하면 확인된 SHA, 변경 요약과 검사 근거를 canonical task의 선택 evidence인 `change_commits`에 기록한다. 기존 claim, revision CAS와 budget 규칙을 그대로 따른다. helper가 커밋을 만들거나 자동 추적하는 기능은 없다.
+
+로컬 커밋은 별도 범위인 원격 push나 Human Owner의 merge 및 배포 결정을 대신하지 않는다. 실제 작업에 필요한 승인과 저장소의 리뷰 및 머지 조건은 [기여 기준](../../CONTRIBUTING.md)을 따른다.
+
 ### 문맥 읽기와 안전한 정리
 
 복구 순서는 AGENTS/관련 정책 → canonical task → 해당 knowledge refs → 허용 파일과 필요한 테스트 근거다. 전체 과거 채팅·데이터·출력을 읽지 않는다. knowledge refs는 bounded repository Markdown 경로이며 임의 prompt 권한이 아니다. 비밀 env·credential·실제 의료 원문·raw data를 task/context/cache에 넣지 않는다. 출처·status 충돌은 차이와 결정 필요성을 보고한다.
