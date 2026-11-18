@@ -168,6 +168,7 @@ def test_config_from_valid_environment(tmp_path: Path) -> None:
         "DB_MIGRATION_PASSWORD",
         "DB_ADMIN_PASSWORD",
         "SOURCE_WRITER_PASSWORD",
+        "SOURCE_PUBLISHER_PASSWORD",
         "SOURCE_CLEANUP_EXECUTOR_PASSWORD",
         "CATALOG_WRITER_PASSWORD",
     ],

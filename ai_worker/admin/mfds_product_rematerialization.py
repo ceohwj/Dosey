@@ -10,7 +10,10 @@ import asyncio
 import json
 import os
 import re
+import shutil
+import stat
 import sys
+import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -23,10 +26,14 @@ from sqlalchemy import Column, Integer, MetaData, Numeric, String, Table, Text, 
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from ai_worker.adapters.local_private_source_artifact_finalizer import LocalPrivateSourceArtifactReader
+from ai_worker.adapters.local_private_source_artifact_finalizer import (
+    LocalPrivateSourceArtifactReader,
+    OwnerBackedSourceArtifactReader,
+    OwnerClientConfig,
+)
 from ai_worker.adapters.sqlalchemy_orphan_artifact_references import lock_source_artifact_mutation
 from ai_worker.adapters.sqlalchemy_source_snapshot_repository import SqlAlchemySourceSnapshotRepository
-from ai_worker.admin.source_writer import WriterConfig, validate_source_writer_session
+from ai_worker.admin.source_publisher import SourcePublisherConfig, validate_source_publisher_session
 from ai_worker.tasks.rag.source_client.contracts import (
     PrimaryKeyValidationResult,
     ProviderPage,
@@ -40,6 +47,7 @@ from ai_worker.tasks.rag.source_ingestion.artifacts import (
     RawArtifactMetadata,
     StoredRawArtifact,
     validate_artifact_binding,
+    verify_raw_artifact,
 )
 from ai_worker.tasks.rag.source_ingestion.checksums import product_canonical_checksum, raw_manifest_checksum
 from ai_worker.tasks.rag.source_ingestion.failure_runs import FailedIngestionRunResult
@@ -63,6 +71,19 @@ _MANIFEST_SCHEMA = "mfds-product-rematerialization-manifest@1"
 _STORAGE_BACKEND = "LOCAL_PRIVATE"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _CONTRACT = MFDS_ENDPOINT_CANDIDATES["LIST_APPROVED_PRODUCTS"].contract
+DEFAULT_MAX_REMAT_PAGES = 1000
+DEFAULT_MAX_REMAT_TOTAL_BYTES = 64 * 1024 * 1024
+
+
+def _paths_overlap(left: Path, right: Path) -> bool:
+    resolved_left = left.resolve(strict=False)
+    resolved_right = right.resolve(strict=False)
+    return (
+        resolved_left == resolved_right
+        or resolved_left.is_relative_to(resolved_right)
+        or resolved_right.is_relative_to(resolved_left)
+    )
+
 
 SOURCE_VALUES: dict[str, object] = {
     "source_code": "MFDS_PRODUCT_APPROVAL",
@@ -174,18 +195,42 @@ class ProductRematerializationBlockedError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class MfdsProductRematerializationConfig:
-    writer: WriterConfig = field(repr=False)
+    publisher: SourcePublisherConfig = field(repr=False)
     artifact_reader_root: Path = field(repr=False)
+    spool_root: Path | None = field(default=None, repr=False)
+    owner_client: OwnerClientConfig | None = field(default=None, repr=False)
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str]) -> "MfdsProductRematerializationConfig":
         if env.get("RAG_MFDS_API_KEY"):
             raise ValueError("MFDS product rematerialization rejects a provider credential")
+        spool_raw = env.get("SOURCE_REMATERIALIZATION_SPOOL_ROOT", "").strip()
+        spool_root: Path | None = None
+        if spool_raw:
+            spool_root = Path(spool_raw)
+            if not spool_root.is_absolute():
+                raise ValueError("MFDS product rematerialization requires an absolute spool root")
+        if env.get("SOURCE_ARTIFACT_OWNER_SOCKET", "").strip():
+            if spool_root is None:
+                raise ValueError("Owner-backed rematerialization requires SOURCE_REMATERIALIZATION_SPOOL_ROOT")
+            owner_client = OwnerClientConfig.from_environment(env)
+            root_value = env.get("SOURCE_ARTIFACT_READER_ROOT", "/nonexistent/owner-vault")
+            reader_root = Path(root_value)
+            if _paths_overlap(spool_root, reader_root):
+                raise ValueError("MFDS product rematerialization requires non-overlapping spool and artifact roots")
+            return cls(
+                SourcePublisherConfig.from_environment(env),
+                reader_root,
+                spool_root=spool_root,
+                owner_client=owner_client,
+            )
         root_value = env.get("SOURCE_ARTIFACT_READER_ROOT", "")
         root = Path(root_value)
         if not root_value.strip() or not root.is_absolute():
             raise ValueError("MFDS product rematerialization requires an absolute read-only artifact root")
-        return cls(WriterConfig.from_environment(env), root)
+        if spool_root is not None and _paths_overlap(spool_root, root):
+            raise ValueError("MFDS product rematerialization requires non-overlapping spool and artifact roots")
+        return cls(SourcePublisherConfig.from_environment(env), root, spool_root=spool_root)
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,6 +258,11 @@ class PreparedProductRematerialization:
     metadata: Any
     artifact_store: "ExistingProductRawArtifactStore"
     manifest: ProductArtifactManifest
+    spool_dir: Path | None = field(default=None, repr=False)
+
+    def cleanup(self) -> None:
+        if self.spool_dir is not None:
+            shutil.rmtree(self.spool_dir, ignore_errors=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,11 +287,17 @@ class ExistingProductRawArtifactStore:
     """RawArtifactStore adapter that returns the already-existing content-addressed object."""
 
     def __init__(
-        self, *, artifact_root: Path, reader: _ArtifactReader, artifacts: tuple[ManifestArtifact, ...]
+        self,
+        *,
+        artifact_root: Path,
+        reader: _ArtifactReader,
+        artifacts: tuple[ManifestArtifact, ...],
+        staged_paths: Mapping[int, Path] | None = None,
     ) -> None:
         self._root = artifact_root
         self._reader = reader
         self._by_page = {artifact.page_number: artifact for artifact in artifacts}
+        self._staged_paths = dict(staged_paths) if staged_paths is not None else None
 
     def put_verified(
         self,
@@ -262,10 +318,17 @@ class ExistingProductRawArtifactStore:
         if artifact_kind is not IngestionArtifactKind.RAW_RESPONSE or page_number not in self._by_page:
             raise ProductRematerializationBlockedError(BLOCKED_BY_PRODUCT_ARTIFACT)
         expected = self._by_page[page_number]
-        expected_path = self._root / expected.object_key
+        expected_path = (
+            self._staged_paths[page_number] if self._staged_paths is not None else (self._root / expected.object_key)
+        )
         if file_path != expected_path or metadata != expected.metadata:
             raise ProductRematerializationBlockedError(BLOCKED_BY_PRODUCT_ARTIFACT)
-        self._reader.read_verified(object_key=expected.object_key, metadata=metadata)
+        try:
+            if self._staged_paths is not None:
+                verify_raw_artifact(file_path=file_path, metadata=metadata)
+            self._reader.read_verified(object_key=expected.object_key, metadata=metadata)
+        except (OSError, ValueError):
+            raise ProductRematerializationBlockedError(BLOCKED_BY_PRODUCT_ARTIFACT) from None
         return StoredRawArtifact(page_number, metadata, _STORAGE_BACKEND, expected.object_key)
 
 
@@ -368,6 +431,88 @@ def load_product_artifact_manifest(path: Path) -> ProductArtifactManifest:
         raise ProductRematerializationBlockedError(BLOCKED_BY_PRODUCT_ARTIFACT) from None
 
 
+def _sync_directory(directory: Path) -> None:
+    fd = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _prepare_transient_spool_dir(
+    spool_root: Path,
+    *,
+    artifact_root: Path,
+    manifest_path: Path,
+    repository_root: Path,
+) -> Path:
+    if not spool_root.is_absolute():
+        raise ValueError("spool root must be absolute")
+    for candidate in (spool_root, *spool_root.parents):
+        if candidate.is_symlink():
+            raise ValueError("spool root cannot use symlinks")
+    if _paths_overlap(spool_root, artifact_root) or _paths_overlap(spool_root, manifest_path):
+        raise ValueError("spool root must not overlap artifact root or manifest path")
+    spool_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(spool_root, 0o700)
+    resolved_root = spool_root.resolve(strict=True)
+    root_stat = resolved_root.lstat()
+    if (
+        not stat.S_ISDIR(root_stat.st_mode)
+        or root_stat.st_uid != os.geteuid()
+        or stat.S_IMODE(root_stat.st_mode) != 0o700
+    ):
+        raise ValueError("spool root must be mode 0700 and owned by caller")
+    spool_dir = Path(tempfile.mkdtemp(prefix="remat-", dir=resolved_root))
+    os.chmod(spool_dir, 0o700)
+    _sync_directory(resolved_root)
+    return spool_dir
+
+
+def _stage_verified_bytes(
+    spool_dir: Path,
+    *,
+    page_number: int,
+    content: bytes,
+    metadata: RawArtifactMetadata,
+) -> Path:
+    staged_path = spool_dir / f"page-{page_number}.artifact"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(staged_path, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        os.write(fd, content)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    _sync_directory(spool_dir)
+    verify_raw_artifact(file_path=staged_path, metadata=metadata)
+    return staged_path
+
+
+def _verify_manifest_parity(
+    *,
+    manifest: ProductArtifactManifest,
+    acquisition: MfdsProductAcquisition,
+    records: tuple[Mapping[str, object], ...],
+    verified_by: str | None,
+) -> Any:
+    if product_canonical_checksum(records) != manifest.canonical_checksum:
+        raise ValueError("canonical checksum")
+    if observed_canonical_checksum(acquisition) != manifest.canonical_checksum:
+        raise ValueError("canonical checksum")
+    if raw_manifest_checksum(item.metadata for item in manifest.artifacts) != manifest.raw_manifest_checksum:
+        raise ValueError("manifest checksum")
+    metadata = build_product_snapshot_metadata(
+        acquisition=acquisition,
+        run_group_key=f"mfds-product-rematerialization-{uuid4().hex[:16]}",
+        verified_by=verified_by,
+    )
+    if metadata.source_version != manifest.source_version:
+        raise ValueError("source version")
+    return metadata
+
+
 def prepare_product_rematerialization(
     *,
     manifest_path: Path,
@@ -376,44 +521,66 @@ def prepare_product_rematerialization(
     artifact_root: Path,
     reader: _ArtifactReader,
     verified_by: str | None = None,
+    spool_root: Path | None = None,
+    max_pages: int = DEFAULT_MAX_REMAT_PAGES,
+    max_total_bytes: int = DEFAULT_MAX_REMAT_TOTAL_BYTES,
 ) -> PreparedProductRematerialization:
     manifest = load_product_artifact_manifest(manifest_path)
+    spool_dir: Path | None = None
     try:
+        total_bytes = sum(item.metadata.byte_size for item in manifest.artifacts)
+        if len(manifest.artifacts) > max_pages or total_bytes > max_total_bytes:
+            raise ValueError("manifest resource caps exceeded")
+        if spool_root is not None:
+            spool_dir = _prepare_transient_spool_dir(
+                spool_root,
+                artifact_root=artifact_root,
+                manifest_path=manifest_path,
+                repository_root=repository_root,
+            )
         receipt = load_product_receipt(receipt_path=receipt_path, repository_root=repository_root)
         if (
             receipt.receipt_hash != manifest.endpoint_receipt_hash
             or receipt.validated_record_count != manifest.record_count
         ):
             raise ValueError("receipt parity")
-        acquisition, records = _reconstruct_acquisition(manifest, artifact_root=artifact_root, reader=reader)
-        if product_canonical_checksum(records) != manifest.canonical_checksum:
-            raise ValueError("canonical checksum")
-        if observed_canonical_checksum(acquisition) != manifest.canonical_checksum:
-            raise ValueError("canonical checksum")
-        if raw_manifest_checksum(item.metadata for item in manifest.artifacts) != manifest.raw_manifest_checksum:
-            raise ValueError("manifest checksum")
-        metadata = build_product_snapshot_metadata(
+        acquisition, records, staged_paths = _reconstruct_acquisition(
+            manifest,
+            artifact_root=artifact_root,
+            reader=reader,
+            spool_dir=spool_dir,
+        )
+        metadata = _verify_manifest_parity(
+            manifest=manifest,
             acquisition=acquisition,
-            run_group_key=f"mfds-product-rematerialization-{uuid4().hex[:16]}",
+            records=records,
             verified_by=verified_by,
         )
-        if metadata.source_version != manifest.source_version:
-            raise ValueError("source version")
         store = ExistingProductRawArtifactStore(
-            artifact_root=artifact_root, reader=reader, artifacts=manifest.artifacts
+            artifact_root=artifact_root,
+            reader=reader,
+            artifacts=manifest.artifacts,
+            staged_paths=staged_paths,
         )
-        return PreparedProductRematerialization(acquisition, metadata, store, manifest)
-    except ProductRematerializationBlockedError:
-        raise
-    except (OSError, TypeError, ValueError):
+        return PreparedProductRematerialization(acquisition, metadata, store, manifest, spool_dir=spool_dir)
+    except Exception as exc:
+        if spool_dir is not None:
+            shutil.rmtree(spool_dir, ignore_errors=True)
+        if isinstance(exc, ProductRematerializationBlockedError):
+            raise
         raise ProductRematerializationBlockedError(BLOCKED_BY_PRODUCT_ARTIFACT) from None
 
 
 def _reconstruct_acquisition(
-    manifest: ProductArtifactManifest, *, artifact_root: Path, reader: _ArtifactReader
-) -> tuple[MfdsProductAcquisition, tuple[Mapping[str, object], ...]]:
+    manifest: ProductArtifactManifest,
+    *,
+    artifact_root: Path,
+    reader: _ArtifactReader,
+    spool_dir: Path | None = None,
+) -> tuple[MfdsProductAcquisition, tuple[Mapping[str, object], ...], dict[int, Path] | None]:
     pages: list[ProviderPage] = []
     acquisition_artifacts = []
+    staged_paths: dict[int, Path] | None = {} if spool_dir is not None else None
     records: list[Mapping[str, object]] = []
     totals = set()
     for artifact in manifest.artifacts:
@@ -432,7 +599,17 @@ def _reconstruct_acquisition(
         )
         records.extend(decoded.records)
         totals.add(decoded.total_count)
-        acquisition_artifacts.append((artifact.page_number, artifact_root / artifact.object_key, artifact.metadata))
+        if spool_dir is not None and staged_paths is not None:
+            artifact_path = _stage_verified_bytes(
+                spool_dir,
+                page_number=artifact.page_number,
+                content=content,
+                metadata=artifact.metadata,
+            )
+            staged_paths[artifact.page_number] = artifact_path
+        else:
+            artifact_path = artifact_root / artifact.object_key
+        acquisition_artifacts.append((artifact.page_number, artifact_path, artifact.metadata))
     if totals != {len(records)} or len(records) != manifest.record_count:
         raise ValueError("record count")
     if classify_product_rejections((page.page_number, page.records) for page in pages):
@@ -449,11 +626,12 @@ def _reconstruct_acquisition(
         MfdsProductAcquisition(
             result,
             tuple(acquisition_artifacts),
-            artifact_root,
+            spool_dir if spool_dir is not None else artifact_root,
             manifest.started_at,
             manifest.finished_at,
         ),
         tuple(records),
+        staged_paths,
     )
 
 
@@ -628,12 +806,17 @@ async def run_rematerialization(
     receipt_path: Path,
     repository_root: Path,
 ) -> ProductRematerializationReceipt:
-    reader = LocalPrivateSourceArtifactReader(config.artifact_reader_root)
-    engine = create_async_engine(config.writer.url, hide_parameters=True)
+    reader: _ArtifactReader = (
+        OwnerBackedSourceArtifactReader(config.owner_client)
+        if config.owner_client is not None
+        else LocalPrivateSourceArtifactReader(config.artifact_reader_root)
+    )
+    engine = create_async_engine(config.publisher.url, hide_parameters=True)
+    prepared: PreparedProductRematerialization | None = None
     try:
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with sessions.begin() as session:
-            await validate_source_writer_session(session)
+            await validate_source_publisher_session(session)
             await lock_source_artifact_mutation(session)
             await ensure_product_source_hierarchy(session)
             prepared = prepare_product_rematerialization(
@@ -642,7 +825,8 @@ async def run_rematerialization(
                 repository_root=repository_root,
                 artifact_root=config.artifact_reader_root,
                 reader=reader,
-                verified_by=config.writer.actor,
+                verified_by=config.publisher.actor,
+                spool_root=config.spool_root,
             )
             persistence = await ingest_and_persist_mfds_product(
                 acquisition=prepared.acquisition,
@@ -655,12 +839,14 @@ async def run_rematerialization(
             if isinstance(persistence, FailedIngestionRunResult) or persistence.snapshot_id is None:
                 raise ProductRematerializationBlockedError(BLOCKED_BY_PRODUCT_ARTIFACT)
         async with sessions() as session:
-            await validate_source_writer_session(session)
+            await validate_source_publisher_session(session)
             await _verify_committed(session, persistence=persistence, manifest=prepared.manifest)
         return ProductRematerializationReceipt(
             persistence, len(prepared.manifest.artifacts), prepared.manifest.record_count
         )
     finally:
+        if prepared is not None:
+            prepared.cleanup()
         await engine.dispose()
 
 

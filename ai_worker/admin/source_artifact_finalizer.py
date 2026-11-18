@@ -12,6 +12,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ai_worker.adapters.local_private_source_artifact_store import LocalPrivateSourceArtifactStore
+from ai_worker.adapters.source_artifact_owner_protocol import (
+    OwnerServerConfig,
+    SourceArtifactOwnerServer,
+)
 from ai_worker.tasks.rag.source_ingestion.artifacts import RawArtifactMetadata
 
 _CHECKSUM = re.compile(r"[0-9a-f]{64}\Z")
@@ -27,6 +31,7 @@ class ArtifactFinalizerConfig:
     def from_environment(cls, env: Mapping[str, str]) -> "ArtifactFinalizerConfig":
         forbidden = (
             "SOURCE_WRITER_PASSWORD",
+            "SOURCE_PUBLISHER_PASSWORD",
             "SOURCE_CLEANUP_EXECUTOR_PASSWORD",
             "DB_PASSWORD",
             "DB_ADMIN_PASSWORD",
@@ -127,10 +132,27 @@ def preserve_from_stdin(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--checksum", required=True)
-    parser.add_argument("--byte-size", required=True, type=int)
-    parser.add_argument("--content-type", required=True)
+    parser.add_argument("--serve-socket", action="store_true")
+    parser.add_argument("--checksum", required=False)
+    parser.add_argument("--byte-size", required=False, type=int)
+    parser.add_argument("--content-type", required=False)
     args = parser.parse_args()
+    if args.serve_socket:
+        try:
+            server = SourceArtifactOwnerServer(OwnerServerConfig.from_environment(os.environ))
+            try:
+                while True:
+                    server.serve_once(timeout=1.0)
+            finally:
+                server.close()
+        except KeyboardInterrupt:
+            return 0
+        except Exception:
+            print("Source artifact owner socket server failed closed.", file=sys.stderr)
+            return 1
+    if not args.checksum or args.byte_size is None or not args.content_type:
+        print("Source artifact finalization rejected missing metadata.", file=sys.stderr)
+        return 2
     if _CHECKSUM.fullmatch(args.checksum) is None or args.byte_size < 0:
         print("Source artifact finalization rejected invalid metadata.", file=sys.stderr)
         return 2

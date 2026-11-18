@@ -28,7 +28,12 @@ from ai_worker.adapters.catalog_approval_advisory_lock import (
     acquire_catalog_approval_advisory_locks,
     acquire_catalog_approval_target_locks,
 )
-from ai_worker.adapters.local_private_source_artifact_finalizer import LocalPrivateSourceArtifactReader
+from ai_worker.adapters.local_private_source_artifact_finalizer import (
+    LocalPrivateSourceArtifactReader,
+    OwnerBackedSourceArtifactReader,
+    OwnerClientConfig,
+    SourceArtifactReader,
+)
 from ai_worker.adapters.sqlalchemy_catalog_approval_verifier import CATALOG_SOURCE_USE_PURPOSE
 from ai_worker.adapters.sqlalchemy_source_snapshot_repository import SqlAlchemySourceSnapshotRepository
 from ai_worker.tasks.rag.catalog.build import build_catalog_members
@@ -45,6 +50,7 @@ FORBIDDEN_CREDENTIAL_KEYS = (
     "DB_ADMIN_PASSWORD",
     "DB_MIGRATION_PASSWORD",
     "SOURCE_WRITER_PASSWORD",
+    "SOURCE_PUBLISHER_PASSWORD",
     "SOURCE_MANAGEMENT_PASSWORD",
     "CATALOG_WRITER_PASSWORD",
     "CANDIDATE_INDEX_BUILDER_PASSWORD",
@@ -339,7 +345,7 @@ class RecomputedCatalogApprovalTarget:
 async def recompute_product_catalog_target(
     session: AsyncSession,
     *,
-    artifact_reader: LocalPrivateSourceArtifactReader,
+    artifact_reader: SourceArtifactReader,
     target: ProductCatalogTarget,
 ) -> RecomputedCatalogApprovalTarget:
     """실제 Product Source authority를 다시 검증하고 Catalog export를 재계산합니다.
@@ -420,7 +426,7 @@ async def issue_product_catalog(
     session: AsyncSession,
     *,
     request: ApprovalRequest,
-    artifact_reader: LocalPrivateSourceArtifactReader,
+    artifact_reader: SourceArtifactReader,
     target: ProductCatalogTarget,
 ) -> dict[str, object]:
     """Source 승인과 Catalog 승인을 한 transaction에서 함께 발급합니다.
@@ -633,7 +639,12 @@ async def revoke_approval(
     return {"status": "APPLIED", "event_kind": event_kind, "audit_id": str(audit_id)}
 
 
-def _artifact_reader(environment: Mapping[str, str]) -> LocalPrivateSourceArtifactReader:
+def _artifact_reader(environment: Mapping[str, str]) -> SourceArtifactReader:
+    if environment.get("SOURCE_ARTIFACT_OWNER_SOCKET", "").strip():
+        try:
+            return OwnerBackedSourceArtifactReader(OwnerClientConfig.from_environment(environment))
+        except (OSError, ValueError):
+            raise CatalogApprovalCommandError("BLOCKED_BY_PRODUCT_ARTIFACT") from None
     root_value = environment.get("CATALOG_SOURCE_ARTIFACT_READER_ROOT", "").strip()
     if not root_value:
         raise CatalogApprovalCommandError("BLOCKED_BY_PRODUCT_ARTIFACT")

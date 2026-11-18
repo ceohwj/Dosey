@@ -11,7 +11,12 @@ from sqlalchemy import text
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncConnection, async_sessionmaker, create_async_engine
 
-from ai_worker.adapters.local_private_source_artifact_finalizer import LocalPrivateSourceArtifactReader
+from ai_worker.adapters.local_private_source_artifact_finalizer import (
+    LocalPrivateSourceArtifactReader,
+    OwnerBackedSourceArtifactReader,
+    OwnerClientConfig,
+    SourceArtifactReader,
+)
 from ai_worker.adapters.sqlalchemy_catalog_approval_verifier import SqlAlchemyCatalogApprovalVerifier
 from ai_worker.adapters.sqlalchemy_catalog_write_support import SqlAlchemyCatalogBuildRepository
 from ai_worker.adapters.sqlalchemy_source_snapshot_repository import SqlAlchemySourceSnapshotRepository
@@ -30,6 +35,7 @@ def writer_url(environment: Mapping[str, str]) -> URL:
             "DB_ADMIN_PASSWORD",
             "DB_MIGRATION_PASSWORD",
             "SOURCE_WRITER_PASSWORD",
+            "SOURCE_PUBLISHER_PASSWORD",
             "SOURCE_MANAGEMENT_PASSWORD",
             "KNOWLEDGE_INDEX_BUILDER_PASSWORD",
             "CANDIDATE_INDEX_BUILDER_PASSWORD",
@@ -131,13 +137,20 @@ async def _execute_catalog_build(
     item_seq: str,
     catalog_version: str,
 ) -> dict[str, object]:
-    root_value = environment.get("CATALOG_SOURCE_ARTIFACT_READER_ROOT", "").strip()
-    if not root_value:
-        raise ProductSourceBindingError("BLOCKED_BY_PRODUCT_ARTIFACT")
-    try:
-        reader = LocalPrivateSourceArtifactReader(Path(root_value))
-    except (OSError, ValueError):
-        raise ProductSourceBindingError("BLOCKED_BY_PRODUCT_ARTIFACT") from None
+    reader: SourceArtifactReader
+    if environment.get("SOURCE_ARTIFACT_OWNER_SOCKET", "").strip():
+        try:
+            reader = OwnerBackedSourceArtifactReader(OwnerClientConfig.from_environment(environment))
+        except (OSError, ValueError):
+            raise ProductSourceBindingError("BLOCKED_BY_PRODUCT_ARTIFACT") from None
+    else:
+        root_value = environment.get("CATALOG_SOURCE_ARTIFACT_READER_ROOT", "").strip()
+        if not root_value:
+            raise ProductSourceBindingError("BLOCKED_BY_PRODUCT_ARTIFACT")
+        try:
+            reader = LocalPrivateSourceArtifactReader(Path(root_value))
+        except (OSError, ValueError):
+            raise ProductSourceBindingError("BLOCKED_BY_PRODUCT_ARTIFACT") from None
 
     engine = create_async_engine(writer_url(environment), hide_parameters=True)
     try:
