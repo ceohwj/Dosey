@@ -438,12 +438,12 @@ describe('PrescriptionReviewPage confirmation gate', () => {
     ).toBeNull()
   })
 
-  it('상단 안내는 Figma 기준 연한 회청색 계열이다', () => {
+  it('상단 안내는 읽기 쉬운 연한 파란색 카드다', () => {
     const scopedRule = prescriptionReviewStyles.match(
       /\.prescription-review__content \.prescription-review__notice \{[^}]*\}/,
     )?.[0]
 
-    expect(scopedRule).toContain('background: #f4f7fa')
+    expect(scopedRule).toContain('background: #eaf2f9')
     expect(scopedRule).toContain('border-color: #d3dde6')
     // 노란색 계열이 남아 있으면 안 된다.
     expect(scopedRule).not.toContain('#fff9e8')
@@ -451,7 +451,7 @@ describe('PrescriptionReviewPage confirmation gate', () => {
 
     // 크기/줄바꿈 규격은 유지한다.
     expect(scopedRule).toContain('min-height: 84px')
-    expect(scopedRule).toContain('padding: 16px')
+    expect(scopedRule).toContain('padding: 20px')
     expect(scopedRule).toContain('word-break: keep-all')
 
     const strongRule = prescriptionReviewStyles.match(
@@ -462,7 +462,7 @@ describe('PrescriptionReviewPage confirmation gate', () => {
     )?.[0]
 
     expect(strongRule).toContain('color: #2b3a47')
-    expect(spanRule).toContain('color: #55687a')
+    expect(spanRule).toContain('color: #52616b')
 
     // error notice는 기존 경고 톤을 유지한다.
     expect(prescriptionReviewStyles).toContain('#fff7f0')
@@ -522,8 +522,8 @@ describe('PrescriptionReviewPage confirmation gate', () => {
     const medicationLabelRule = prescriptionReviewStyles.match(
       /\.prescription-review__medication-values dt\s*\{([^}]*)\}/,
     )?.[1]
-    expect(medicationLabelRule).toContain('font-size: 12px')
-    expect(medicationLabelRule).toContain('line-height: 16px')
+    expect(medicationLabelRule).toContain('font-size: 16px')
+    expect(medicationLabelRule).toContain('line-height: 1.5')
     expect(screen.getByText('약 1/1개 검토 완료')).toBeTruthy()
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('100')
   })
@@ -953,7 +953,7 @@ describe('PrescriptionReviewPage confirmation gate', () => {
       container.querySelector('.prescription-review__status-icon.is-success'),
     ).toBeNull()
     expect(
-      screen.getByText(/OCR이 인식하지 못해 직접 입력이 필요한 필드예요/),
+      screen.getByText(/처방전에서 읽지 못한 항목이에요/),
     ).toBeTruthy()
     const acknowledgement = screen.getByRole<HTMLInputElement>('checkbox')
     const confirmButton = await getConfirmationButton()
@@ -964,7 +964,7 @@ describe('PrescriptionReviewPage confirmation gate', () => {
     expect(prescribedDateInput.value).toBe('')
     expect(prescribedDateInput.placeholder).toBe('필수 입력')
     expect(
-      screen.getByText(/OCR이 인식하지 못해 직접 입력이 필요한 필드예요/),
+      screen.getByText(/처방전에서 읽지 못한 항목이에요/),
     ).toBeTruthy()
 
     fireEvent.change(prescribedDateInput, {
@@ -1013,7 +1013,7 @@ describe('PrescriptionReviewPage confirmation gate', () => {
         await screen.findByText('일부 필수 항목 인식 누락'),
       ).toBeTruthy()
       expect(
-        screen.getByText(/OCR이 인식하지 못해 직접 입력이 필요한 필드예요/),
+        screen.getByText(/처방전에서 읽지 못한 항목이에요/),
       ).toBeTruthy()
       const acknowledgement = screen.getByRole<HTMLInputElement>('checkbox')
       const confirmButton = await getConfirmationButton()
@@ -1061,7 +1061,7 @@ describe('PrescriptionReviewPage confirmation gate', () => {
     ).toBe('✓')
     expect(screen.queryByText('일부 필수 항목 인식 누락')).toBeNull()
     expect(
-      screen.queryByText(/OCR이 인식하지 못해 직접 입력이 필요한 필드예요/),
+      screen.queryByText(/처방전에서 읽지 못한 항목이에요/),
     ).toBeNull()
     expect(screen.queryByLabelText('약물이름')).toBeNull()
     expect(updateExtractedField).not.toHaveBeenCalled()

@@ -122,8 +122,9 @@ export async function installNotificationApi(
 
     if (method === 'GET' && path === '/api/v1/notifications') {
       if (notificationListDeferred) {
-        notificationListDeferred = false
+        // StrictMode can issue concurrent reads: hold all until explicit release.
         await notificationListGate.promise
+        notificationListDeferred = false
       }
       return json(route, { data: { items: notifications, next_offset: null } })
     }

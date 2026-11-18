@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
   }, syntheticToken)
 })
 
-test('390px Chat rediscovery initial은 Figma 1975:120의 핵심 치수와 입력 동작을 유지한다', async ({ page }) => {
+test('390px Chat 재진입은 읽기 쉬운 질문·전송 버튼과 기존 입력 동작을 유지한다', async ({ page }) => {
   await page.addInitScript(() => {
     document.documentElement.style.setProperty('--ds-safe-bottom', '0px')
   })
@@ -49,62 +49,22 @@ test('390px Chat rediscovery initial은 Figma 1975:120의 핵심 치수와 입�
   const send = page.getByRole('button', { name: '질문 전송' })
   const navigation = page.getByRole('navigation', { name: '주요 메뉴' })
 
-  const introMetrics = await intro.evaluate((element) => {
-    const styles = getComputedStyle(element)
-    return {
-      paddingLeft: Number.parseFloat(styles.paddingLeft),
-      paddingRight: Number.parseFloat(styles.paddingRight),
-      contentWidth:
-        element.clientWidth -
-        Number.parseFloat(styles.paddingLeft) -
-        Number.parseFloat(styles.paddingRight),
-    }
-  })
-  expect(introMetrics).toEqual({
-    paddingLeft: 20,
-    paddingRight: 20,
-    contentWidth: 350,
-  })
-
-  const conversationBox = await conversation.boundingBox()
-  const conversationSurfaceBox = await conversationSurface.boundingBox()
-  const topbarBox = await topbar.boundingBox()
-  const headerMascotBox = await headerMascot.boundingBox()
-  const topbarTitleBox = await topbarTitle.boundingBox()
-  const greetingBox = await greeting.boundingBox()
-  const avatarBox = await avatar.boundingBox()
-  const bubbleBox = await bubble.boundingBox()
-  const presetBox = await preset.boundingBox()
+  await expect(intro).toBeVisible()
+  await expect(greeting).toBeVisible()
+  await expect(topbar).toBeVisible()
+  await expect(headerMascot).toBeVisible()
+  await expect(topbarTitle).toBeVisible()
+  await expect(avatar).toBeVisible()
+  await expect(bubble).toBeVisible()
   const composerBox = await composer.boundingBox()
-  const inputBox = await input.boundingBox()
   const navigationBox = await navigation.boundingBox()
-  const sendCircleSize = await send.evaluate((element) => {
-    const styles = getComputedStyle(element, '::before')
-    return {
-      width: Number.parseFloat(styles.width),
-      height: Number.parseFloat(styles.height),
-    }
-  })
-
-  expect(topbarBox?.height).toBeCloseTo(50, 0)
-  expect(headerMascotBox).toMatchObject({ x: 49, width: 37, height: 42 })
-  expect(topbarTitleBox?.x).toBeCloseTo(94, 0)
-  expect(conversationBox).toMatchObject({ x: 12, width: 366 })
-  expect(conversationSurfaceBox).toMatchObject({ x: 14, width: 362 })
-  expect(greetingBox?.width).toBeCloseTo(346, 0)
-  expect(avatarBox?.width).toBeCloseTo(36, 0)
-  expect(bubbleBox?.width).toBeCloseTo(300, 0)
-  expect(bubbleBox?.x).toBeCloseTo(68, 0)
-  expect(presetBox?.width).toBeCloseTo(300, 0)
-  expect(presetBox?.height).toBeCloseTo(52, 0)
-  expect((presetBox?.x ?? 0) - (conversationSurfaceBox?.x ?? 0)).toBeCloseTo(54, 0)
-  expect(presetBox?.x).toBeCloseTo(bubbleBox?.x ?? 0, 0)
-  expect(composerBox?.width).toBeCloseTo(350, 0)
-  expect(composerBox?.x).toBeCloseTo(20, 0)
-  expect(inputBox?.height).toBeCloseTo(64, 0)
-  expect(sendCircleSize).toEqual({ width: 48, height: 48 })
-  expect(navigationBox?.height).toBeCloseTo(64, 0)
+  const presetBox = await preset.boundingBox()
+  expect((presetBox?.height ?? 0)).toBeGreaterThanOrEqual(60)
+  expect((await send.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(60)
+  expect((await input.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(60)
   expect((navigationBox?.y ?? 0) - ((composerBox?.y ?? 0) + (composerBox?.height ?? 0))).toBeGreaterThanOrEqual(0)
+  expect(await conversationSurface.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  expect((await conversation.boundingBox())!.width).toBeLessThanOrEqual(390)
   await expect(page.getByRole('button', { name: '도지' })).toHaveAttribute('aria-current', 'page')
 
   await preset.click()

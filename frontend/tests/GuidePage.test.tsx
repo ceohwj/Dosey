@@ -373,6 +373,7 @@ describe('GuidePage', () => {
     const medicationCard = medicationToggle.closest('article')
     expect(medicationCard).not.toBeNull()
     expect(medicationToggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.getByRole('button', { name: /합성 처방약 1 매우 긴 이름.*자세히 보기/ })).toBe(medicationToggle)
     expect(medicationToggle.getAttribute('aria-controls')).toBe(
       'guide-medication-panel-0',
     )
@@ -380,6 +381,7 @@ describe('GuidePage', () => {
     fireEvent.click(medicationToggle)
 
     expect(medicationToggle.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: /합성 처방약 1 매우 긴 이름.*접기/ })).toBe(medicationToggle)
     expect(within(medicationCard!).getByText('1회량').tagName).toBe('DT')
     expect(within(medicationCard!).getByText('1 정').tagName).toBe('DD')
     expect(within(medicationCard!).getByText('하루 횟수').tagName).toBe('DT')

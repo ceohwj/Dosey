@@ -186,10 +186,9 @@ function renderSummary(services: CheckinPageServices) {
 }
 
 async function selectBoth() {
-  const taken = await screen.findAllByRole('button', { name: '복용했어요' })
-  fireEvent.click(taken[0])
-  const notTaken = screen.getAllByRole('button', { name: '복용하지 않았어요' })
-  fireEvent.click(notTaken[1])
+  fireEvent.click(await screen.findByRole('button', { name: '복용했어요' }))
+  fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
+  fireEvent.click(screen.getByRole('button', { name: '복용하지 않았어요' }))
 }
 
 beforeEach(() => {
@@ -296,11 +295,13 @@ describe('CHECKIN-01 PB-02/03 선택과 CTA', () => {
     expect(
       await screen.findByRole('heading', { name: '13:00 약을 확인해 주세요' }),
     ).toBeTruthy()
-    expect(screen.getByText('복용 시간이 같은 약 2개')).toBeTruthy()
-    expect(document.querySelectorAll('.checkin-medication-card')).toHaveLength(2)
+    expect(screen.getByText('약 1 / 2개 확인')).toBeTruthy()
+    expect(document.querySelectorAll('.checkin-medication-card')).toHaveLength(1)
     expect(screen.getByText('메트포르민정 500mg')).toBeTruthy()
-    expect(screen.getByText('암로디핀정 5mg')).toBeTruthy()
     expect(screen.getByText('1정 · 하루 2회 · 13:00')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '복용했어요' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
+    expect(screen.getByText('암로디핀정 5mg')).toBeTruthy()
     expect(screen.getByText('1정 · 하루 1회 · 13:00')).toBeTruthy()
   })
 
@@ -334,16 +335,16 @@ describe('CHECKIN-01 PB-02/03 선택과 CTA', () => {
     expect(screen.queryByRole('button', { name: '기록하기' })).toBeNull()
   })
 
-  it('전체 미선택이면 기록하기가 disabled다', async () => {
+  it('미선택이면 다음 약 확인이 disabled다', async () => {
     renderDetail(makeServices())
-    const cta = await screen.findByRole('button', { name: '기록하기' })
+    const cta = await screen.findByRole('button', { name: '다음 약 확인하기' })
     expect((cta as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('일부만 선택하면 여전히 disabled다', async () => {
     renderDetail(makeServices())
-    const taken = await screen.findAllByRole('button', { name: '복용했어요' })
-    fireEvent.click(taken[0])
+    fireEvent.click(await screen.findByRole('button', { name: '복용했어요' }))
+    fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
 
     const cta = screen.getByRole('button', { name: '기록하기' })
     expect((cta as HTMLButtonElement).disabled).toBe(true)
@@ -355,6 +356,35 @@ describe('CHECKIN-01 PB-02/03 선택과 CTA', () => {
 
     const cta = screen.getByRole('button', { name: '기록하기' })
     expect((cta as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('이전 약으로 돌아가도 선택이 유지되고 마지막 단계에서 선택 요약을 보여준다', async () => {
+    const services = makeServices()
+    renderDetail(services)
+    await selectBoth()
+    expect(screen.getByRole('heading', { name: '선택한 내용 · 저장 전' })).toBeTruthy()
+    expect(screen.getByText('메트포르민정 500mg')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '이전 약으로' }))
+    expect(screen.getByText('약 1 / 2개 확인')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '복용했어요' }).getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
+    expect(screen.getByRole('button', { name: '복용하지 않았어요' }).getAttribute('aria-pressed')).toBe('true')
+    expect(services.putMedicationCheckin).not.toHaveBeenCalled()
+  })
+
+  it('같은 시간에 약이 세 개여도 각각 확인하고 마지막에 한 번 저장한다', async () => {
+    const third = '55555555-5555-4555-8555-555555555555'
+    const occurrences = [...defaultOccurrences(), makeOccurrence(third, '2026-09-16T04:00:00Z')]
+    const services = makeServices({ getMedicationDay: vi.fn(async () => makeDay(occurrences)) })
+    renderDetail(services)
+    for (let index = 1; index <= 3; index += 1) {
+      expect(await screen.findByText(`약 ${index} / 3개 확인`)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: '복용했어요' }))
+      if (index < 3) fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
+    }
+    expect(services.putMedicationCheckin).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '기록하기' }))
+    await waitFor(() => expect(services.putMedicationCheckin).toHaveBeenCalledTimes(3))
   })
 
   it('선택은 즉시 저장하지 않는다', async () => {
@@ -410,10 +440,11 @@ describe('CHECKIN-01 PB-02/03 선택과 CTA', () => {
     })
     renderDetail(services)
 
-    const notTaken = await screen.findAllByRole('button', { name: '복용하지 않았어요' })
-    expect(notTaken[0].getAttribute('aria-pressed')).toBe('true')
+    const notTaken = await screen.findByRole('button', { name: '복용하지 않았어요' })
+    expect(notTaken.getAttribute('aria-pressed')).toBe('true')
 
-    fireEvent.click(screen.getAllByRole('button', { name: '복용했어요' })[1])
+    fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
+    fireEvent.click(screen.getByRole('button', { name: '복용했어요' }))
     fireEvent.click(screen.getByRole('button', { name: '기록하기' }))
 
     await waitFor(() =>
@@ -443,6 +474,8 @@ describe('CHECKIN-01 PB-02/03 선택과 CTA', () => {
     )
     const saving = screen.getByRole('button', { name: '저장 중…' })
     expect((saving as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: '이전 약으로' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: '홈 (준비 중)' }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(saving)
     expect(services.putMedicationCheckin).toHaveBeenCalledTimes(1)
 
@@ -466,9 +499,8 @@ describe('CHECKIN-01 PB-04 저장 실패와 재시도', () => {
 
     expect(await screen.findByText('기록을 저장하지 못했어요')).toBeTruthy()
     // 선택 유지
-    expect(
-      screen.getAllByRole('button', { name: '복용했어요' })[0].getAttribute('aria-pressed'),
-    ).toBe('true')
+    expect(screen.getByText('메트포르민정 500mg')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '복용하지 않았어요' }).getAttribute('aria-pressed')).toBe('true')
 
     fireEvent.click(screen.getByRole('button', { name: '저장 다시 시도' }))
 
@@ -491,6 +523,28 @@ describe('CHECKIN-01 PB-04 저장 실패와 재시도', () => {
     expect(await screen.findByText('기록을 저장하지 못했어요')).toBeTruthy()
     expect(screen.queryByText(/기록 완료/)).toBeNull()
     expect(putMedicationCheckin).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('1개 저장됨 · 1개 남음')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '선택한 내용 · 저장 상태' })).toBeTruthy()
+    expect(screen.getByText('· 저장됨')).toBeTruthy()
+    expect(screen.getByText('· 저장 대기')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: '선택한 내용 · 저장 전' })).toBeNull()
+  })
+
+  it('부분 성공 후 재시도는 성공한 약을 다시 저장하지 않고 실패한 키를 유지한다', async () => {
+    const putMedicationCheckin = vi.fn()
+      .mockResolvedValueOnce(makeCheckinResponse(OCC_A, 'TAKEN'))
+      .mockRejectedValueOnce(new ApiError(500, 'boom', 'INTERNAL'))
+      .mockResolvedValueOnce(makeCheckinResponse(OCC_B, 'NOT_TAKEN'))
+    renderDetail(makeServices({ putMedicationCheckin }))
+    await selectBoth()
+    fireEvent.click(screen.getByRole('button', { name: '기록하기' }))
+    expect(await screen.findByText('1개 저장됨 · 1개 남음')).toBeTruthy()
+    const retryKey = putMedicationCheckin.mock.calls[1][2]
+    fireEvent.click(screen.getByRole('button', { name: '저장 다시 시도' }))
+    await waitFor(() => expect(putMedicationCheckin).toHaveBeenCalledTimes(3))
+    expect(putMedicationCheckin.mock.calls.filter(([id]) => id === OCC_A)).toHaveLength(1)
+    expect(putMedicationCheckin.mock.calls[2][2]).toBe(retryKey)
+    expect(await screen.findByText('2/2 기록 완료')).toBeTruthy()
   })
 
   it('revision conflict면 재조회하고 자동 재제출하지 않는다', async () => {
@@ -556,7 +610,9 @@ describe('CHECKIN-01 PB-04 저장 실패와 재시도', () => {
     await waitFor(() => expect(getMedicationDay).toHaveBeenCalledTimes(2))
     expect(putMedicationCheckin).toHaveBeenCalledTimes(2)
 
-    fireEvent.click(screen.getAllByRole('button', { name: '복용했어요' })[1])
+    await screen.findByText('기록이 다른 곳에서 변경됐어요. 최신 상태를 확인한 뒤 다시 선택해 주세요.')
+    fireEvent.click(screen.getByRole('button', { name: '다음 약 확인하기' }))
+    fireEvent.click(screen.getByRole('button', { name: '복용했어요' }))
     fireEvent.click(screen.getByRole('button', { name: '기록하기' }))
 
     await waitFor(() => expect(putMedicationCheckin).toHaveBeenCalledTimes(3))
@@ -594,8 +650,25 @@ describe('CHECKIN-01 PB-05 완료와 시각 게이트', () => {
     fireEvent.click(screen.getByRole('button', { name: '기록하기' }))
 
     expect(await screen.findByText('2/2 기록 완료')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '저장한 복용 기록' })).toBeTruthy()
+    expect(screen.getByText('복용했어요')).toBeTruthy()
+    expect(screen.getByText('복용하지 않았어요')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /전체 일정 보기/ }))
     expect(await screen.findByText('일정 화면')).toBeTruthy()
+  })
+
+  it('예상하지 않은 저장 상태를 미복용으로 단정하지 않는다', async () => {
+    const services = makeServices({
+      putMedicationCheckin: vi.fn(async (id: string) => ({
+        data: { ...makeCheckinResponse(id, 'TAKEN').data, status: 'UNCONFIRMED' },
+      })),
+    })
+    renderDetail(services)
+    await selectBoth()
+    fireEvent.click(screen.getByRole('button', { name: '기록하기' }))
+    await screen.findByText('2/2 기록 완료')
+    expect(screen.getAllByText('확인 필요')).toHaveLength(2)
+    expect(screen.queryByText('복용하지 않았어요')).toBeNull()
   })
 
   it('예정 시각 전 그룹은 선택과 저장을 막는다', async () => {
@@ -613,6 +686,27 @@ describe('CHECKIN-01 PB-05 완료와 시각 게이트', () => {
     expect(
       (screen.getByRole('button', { name: '기록하기' }) as HTMLButtonElement).disabled,
     ).toBe(true)
+  })
+
+  it('미래 약이 여러 개여도 모든 약을 읽을 수 있고 선택·저장은 막는다', async () => {
+    const services = makeServices({
+      getMedicationDay: vi.fn().mockResolvedValue(makeDay([
+        makeOccurrence(OCC_A, '2026-09-16T11:00:00Z'),
+        makeOccurrence(OCC_B, '2026-09-16T11:00:00Z'),
+      ])),
+    })
+    renderDetail(services)
+    await screen.findByText('메트포르민정 500mg')
+    expect((screen.getByRole('button', { name: '복용했어요' }) as HTMLButtonElement).disabled).toBe(true)
+    const next = screen.getByRole('button', { name: '다음 약 확인하기' }) as HTMLButtonElement
+    expect(next.disabled).toBe(false)
+    fireEvent.click(next)
+    expect(screen.getByText('암로디핀정 5mg')).toBeTruthy()
+    expect((screen.getByRole('button', { name: '복용하지 않았어요' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: '기록하기' }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: '이전 약으로' }))
+    expect(screen.getByText('메트포르민정 500mg')).toBeTruthy()
+    expect(services.putMedicationCheckin).not.toHaveBeenCalled()
   })
 
   it('서버 CHECKIN_BEFORE_SCHEDULED_AT도 안전 문구로 처리한다', async () => {
