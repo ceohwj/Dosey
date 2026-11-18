@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.13, Pydantic v2 strict models, SQLAlchemy 2 async, PostgreSQL, Alembic protected graph, Pytest, Ruff, Mypy
 
-**Spec:** `docs/designs/ceohwj/issue-513-c2b-dataset-lifecycle-and-freeze-design.md`
+**Spec:** `docs/designs/evaluation/issue-513-c2b-dataset-lifecycle-and-freeze-design.md`
 
 ## Global Constraints
 

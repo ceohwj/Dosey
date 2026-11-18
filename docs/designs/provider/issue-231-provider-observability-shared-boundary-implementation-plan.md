@@ -5,7 +5,7 @@
 Backend와 AI Worker가 Backend 설정이나 DB credential을 끌어오지 않고 하나의 import-neutral
 Provider 관측성 데이터 계약을 사용하게 한다.
 
-설계 정본은 `docs/designs/ceohwj/issue-231-provider-observability-shared-boundary-design.md`다.
+설계 정본은 `docs/designs/provider/issue-231-provider-observability-shared-boundary-design.md`다.
 
 ## 전역 제약
 

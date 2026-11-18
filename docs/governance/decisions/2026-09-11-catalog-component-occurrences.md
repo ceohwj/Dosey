@@ -67,6 +67,6 @@ RLS·Trigger·업무용 DB 함수·새 run·Crosswalk·projection hash·실제 �
 
 ## MFDS 실측 이후 의미 확인안
 
-[키 없이 대조한 처리 제안](../../designs/jye-rookie/issue-166-d04-mfds-resolution.md)에 빈 행,
+[키 없이 대조한 처리 제안](../../designs/rag/issue-166-d04-mfds-resolution.md)에 빈 행,
 원료코드 매핑, 두 순번의 의미를 구분했다. 제안과 질문은 승인·전송 전 상태다. 실제 Source
 자동 적재 조건이 정해졌다고 해석하지 않으며 기존 명시적 입력 검증을 유지한다.

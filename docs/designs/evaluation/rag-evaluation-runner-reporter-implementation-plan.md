@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.13, Pydantic v2, `argparse`, 표준 라이브러리 `ctypes/hashlib/json/os/pathlib/subprocess`, pytest, Ruff, mypy.
 
-**Spec:** `docs/designs/ceohwj/rag-evaluation-runner-reporter-design.md`
+**Spec:** `docs/designs/evaluation/rag-evaluation-runner-reporter-design.md`
 
 ## Global Constraints
 

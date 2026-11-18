@@ -1,7 +1,7 @@
 # Implementation Plan - MFDS RAG Phase 2A: Source to Knowledge Materialization (Revision 12)
 
 ## Overview
-Implement Phase 2A (Source Snapshot Member -> KnowledgeDocument & KnowledgeChunk materialization) based on `docs/designs/ceohwj/MFDS_RAG_Phase2A_Design.md` and `MFDS_RAG_Agent_Handoff_Final.md`.
+Implement Phase 2A (Source Snapshot Member -> KnowledgeDocument & KnowledgeChunk materialization) based on `docs/designs/rag/MFDS_RAG_Phase2A_Design.md` and `MFDS_RAG_Agent_Handoff_Final.md`.
 This phase bridges verified private Source Snapshot Members (EE/UD/NB XML artifacts, and optional standalone NN) into active `KnowledgeDocument` and `KnowledgeChunk` rows ready for evidence indexing, without altering existing database schemas, introducing triggers/RLS, or modifying existing XML parser semantics.
 
 - 구현 담당: 정현우 (`@ceohwj`)

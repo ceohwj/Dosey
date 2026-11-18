@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.13, Pydantic v2, canonical JSON/SHA-256 utilities, pytest, Ruff, Mypy
 
-**Spec:** `docs/designs/ceohwj/issue-273-natural-language-retrieval-evaluation-design.md`
+**Spec:** `docs/designs/evaluation/issue-273-natural-language-retrieval-evaluation-design.md`
 
 ## Global Constraints
 

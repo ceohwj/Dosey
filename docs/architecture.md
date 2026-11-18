@@ -2,7 +2,7 @@
 
 ## 목적과 범위
 
-현재 MVP의 실제 실행 구조와 Approved Contract Freeze v4의 Post-MVP 목표 구조를 구분해 기록합니다. 현재 OCR은 FastAPI 접수 → Outbox → Redis Stream → AI Worker의 비동기 경로로 처리하고, 가이드·챗봇은 FastAPI 요청 안에서 외부 AI 호출까지 완료합니다. PR #96의 feature flag 기반 비-RAG LLM 구조화는 Backend에 구현된 기본 비활성 기능이며 Worker OCR 경로에는 연결되지 않았습니다. OCR LLM의 v4 최소전송·provenance·Worker 확장과 전체 MFDS Identity·RAG·Citation·Safety 실행 흐름은 별도 목표입니다. Worker 구현 완료와 Production 배포 조립 상태는 [배포 문서](./deployment.md)에서 구분합니다.
+현재 MVP의 실제 실행 구조와 Approved Contract Freeze v4의 Post-MVP 목표 구조를 구분해 기록합니다. 현재 OCR은 FastAPI 접수 → Outbox → Redis Stream → AI Worker의 비동기 경로로 처리하고, 가이드·챗봇의 기본 생성은 FastAPI 요청 안에서 외부 AI 호출까지 완료합니다. 비-RAG OCR LLM의 Worker 조립·동의 gate는 구현됐지만 기본 flag는 꺼져 있고, 공용 구조화기는 승인된 최소전송 selector가 연결되기 전 LLM 호출을 건너뛰어 규칙 결과와 `SKIPPED_MINIMIZATION`을 반환합니다. v4 provenance·실제 전송 및 전체 MFDS Identity·RAG·Citation·Safety 통합 완료는 별도 판단입니다. Worker 구현과 Production 배포 조립 상태는 [배포 문서](./deployment.md), 기술·버전 목록은 [기술 스택](./technology-stack.md)에서 구분합니다.
 
 ## 현재 MVP 구성요소
 
@@ -15,7 +15,7 @@
 | `backend/app/services/guide_ai/` | 확정 처방만 입력받아 OpenAI 복약 가이드 생성 |
 | `backend/app/services/chat_ai/` | 현재 질문, history 배열(기본 빈 배열)과 확정 약물 목록을 입력받아 OpenAI 단일 응답 생성 |
 | PostgreSQL | 사용자, 의료문서, OCR 결과, 확정 처방, 가이드, 채팅 상태 저장 |
-| 로컬 파일시스템 | `STORAGE_DIR` 아래 처방전 원본 저장. 현재 Compose의 영속 volume과 기본 경로가 일치하지 않아 배포 전 확인 필요 |
+| 로컬 파일시스템 | `STORAGE_DIR` 아래 처방전 원본 저장. Backend 이미지 기본값 `/app/uploads/medical_documents`는 로컬 Compose의 `medical_uploads:/app/uploads` 아래에 위치하며 환경별 override와 실제 영속성은 배포 시 확인 |
 | Redis | OCR 작업을 Redis Stream으로 전달하고 Consumer Group으로 소비 |
 | AI Worker | Outbox Publisher·Consumer·복구 Scheduler 실행, CLOVA OCR·규칙 구조화, lease·fencing 검증 후 결과 commit·ACK |
 
@@ -39,8 +39,10 @@ Backend는 SQLAlchemy asyncio와 `asyncpg`를 사용합니다. OpenAI 클라이�
 - **Frontend API 연결**: 인증, 처방전 업로드, OCR 실행·조회, OCR 필드 검수·수정, 처방 확정, Guide 생성·조회, Chat 세션·이력·메시지
 - **PostgreSQL 실제 E2E 완료 범위**: 회원가입 → 로그인 → 업로드 → OCR → 검수·수정 → 처방 확정
 - **전체 AI E2E 확인 필요**: Guide 생성 → Guide 조회 → Chat 진입과 실제 OpenAI 응답까지의 전체 흐름은 최종 완료로 표시하지 않음
-- **Schema-only Post-MVP 골격**: `knowledge_document`, `knowledge_chunk`, `guide_citation`, `chat_citation` 모델과 migration은 존재하지만 repository·service·API 실행 경로에는 연결되지 않음
+- **RAG 구현 구성요소·제한 경로**: Source·검색·평가 구성요소와 조건부 CLOSED_DEMO Guide/Chat 조립 경로가 있다. 각 flag의 기본값은 비활성이고, 환경·대상·기간·승인 조건을 따른다. 일반 사용자용 전체 RAG·정식 Citation·Release Gate 완료를 뜻하지 않음
 - **Post-MVP 전체 실행 흐름의 잔여 범위**: OCR LLM의 최소전송·provenance·Worker 확장, MFDS Source/Catalog·Candidate Resolver·Identification·Preflight, Rule-first RAG·Citation·Safety와 AI 평가의 통합 및 Guide·Chat 비동기 확장. 개별 구성요소 구현 여부는 각 계약·구현 증빙에서 확인
+
+CLOSED_DEMO 경로는 기본 생성과 별도 조립이다. 현재 코드의 존재를 [Guide 경계 결정](governance/decisions/2026-09-21-guide-closed-demo-rag-provider-boundary.md)의 승인 대기 해소나 [공개 게이트](release-gates/post-mvp-1-external-approvals.md) 통과로 해석하지 않는다.
 
 ## Post-MVP-1 목표 구조 — Approved v4·RAG-00 target / Not implemented
 

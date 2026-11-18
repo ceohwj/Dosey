@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.13, Pydantic v2 strict models, Draft 2020-12 JSON Schema, pytest, ruff, mypy
 
-**Spec:** `docs/designs/ceohwj/issue-273-natural-language-retrieval-evaluation-design.md`
+**Spec:** `docs/designs/evaluation/issue-273-natural-language-retrieval-evaluation-design.md`
 
 ## Global Constraints
 
