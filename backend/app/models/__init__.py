@@ -64,6 +64,7 @@ from app.models.rag_candidate import (
     MedicationIdentificationSource,
     MedicationIdentificationStatus,
 )
+from app.models.rag_candidate_guard_audit import RagCandidateRequestGuardAudit
 from app.models.rag_candidate_index import (
     RagCandidateIndexBuildMode,
     RagCandidateIndexEntityType,
@@ -184,6 +185,7 @@ from app.models.rag_source import (
     RagSourceUsageStatus,
     RagVerificationResultStatus,
 )
+from app.models.rag_source_capture_observation import RagSourceCaptureObservation
 from app.models.rag_source_use_approval import RagSourceUseApproval
 from app.models.refresh_session import RefreshSession
 from app.models.track_c import (
@@ -331,6 +333,8 @@ __all__ = [
     "RagReleaseEvaluationApproval",
     "RagRequestGuardAuthority",
     "RagRequestGuardRuntimeBinding",
+    "RagCandidateRequestGuardAudit",
+    "RagSourceCaptureObservation",
     "RagRequestMemberDecision",
     "RagRequestSourceDecision",
     "RagRuntimeApprovalStatus",

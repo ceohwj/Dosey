@@ -308,7 +308,7 @@ async def test_database_failure_rolls_back_and_retry_reuses_private_objects(data
         with pytest.raises(RuntimeError, match="Synthetic DB failure"):
             async with session.begin():
                 repo = SqlAlchemySourceSnapshotRepository(session)
-                repo.create_artifacts = AsyncMock(side_effect=RuntimeError("Synthetic DB failure"))
+                repo.persist_complete_attempt = AsyncMock(side_effect=RuntimeError("Synthetic DB failure"))
                 await ingest_and_persist_product_run(
                     repository=repo,
                     artifact_store=store,
@@ -349,10 +349,10 @@ async def test_repository_blocks_rejects_on_legacy_run(database):
             "ITEM_SEQ_REQUIRED",
             "page[1].record[0]",
         )
-        with pytest.raises(ValueError, match="reject contract"):
-            await SqlAlchemySourceSnapshotRepository(session).create_artifacts(
-                ingestion_run_id=legacy.id, artifacts=(artifact,)
-            )
+        repository = SqlAlchemySourceSnapshotRepository(session)
+        assert not hasattr(repository, "create_artifacts")
+        with pytest.raises(TypeError):
+            await repository.persist_complete_attempt(ingestion_run_id=legacy.id, artifacts=(artifact,))
         assert legacy.reject_code_contract_version is None
 
 
@@ -446,10 +446,10 @@ async def test_duplicate_rejection_location_cannot_be_appended_again(database, t
             saved.reject_code,
             location,
         )
-        with pytest.raises(ValueError, match="failed parser run"):
-            await SqlAlchemySourceSnapshotRepository(session).create_artifacts(
-                ingestion_run_id=result.ingestion_run_id, artifacts=(artifact,)
-            )
+        repository = SqlAlchemySourceSnapshotRepository(session)
+        assert not hasattr(repository, "create_artifacts")
+        with pytest.raises(TypeError):
+            await repository.persist_complete_attempt(ingestion_run_id=result.ingestion_run_id, artifacts=(artifact,))
 
 
 async def test_invalid_run_does_not_replace_existing_current_snapshot(database, tmp_path):

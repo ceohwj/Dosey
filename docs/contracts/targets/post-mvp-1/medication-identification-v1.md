@@ -156,6 +156,14 @@ Commit 시 Deferred Constraint는 실제 표시 Result 수, `displayed_candidate
 
 ## 사용자 확인과 Identification
 
+### Dosey Runtime 결속 v2 — 내부 기반, 생산자·공개 미연결
+
+[PD-DOSEY-20261023-CANDIDATE-RUNTIME-1](../../../governance/decisions/2026-10-23-candidate-runtime-bundle-binding.md)은 내부 Search의 Bundle ID/hash와 환경 ID/revision 고정을 추가한다. 서버가 환경에서 실제 결속을 도출하며 재사용 비교에도 전체 결속을 포함한다. Bundle 또는 환경 revision이 달라지면 A→B→A를 포함해 새 Search를 요구한다. legacy NULL/ID-only 이력은 추정 backfill하지 않고 신규 adapter 선택만 `409 IDENTIFICATION_CONTEXT_STALE`로 차단한다. 유효 성공 키 replay는 역사적 SELF 소유권 확인 후 신규 현재성 검사보다 먼저 수행한다.
+
+환경 부재/비활성 또는 Bundle 포인터·상태·canonical manifest 정합 실패는 `503 CANDIDATE_RESOLVER_UNAVAILABLE`이다. 타인/누락/부모·자식 불일치는 404가 우선한다. 공개 DTO 필드는 유지한다. 실제 Search POST 생산자·Resolver 조합과 Candidate 전용 Source Guard·Index artifact 대응은 미연결이며 기존 공개 gate를 유지한다. hash 검증은 Source 승인이나 공개 적격성 증거가 아니다.
+
+이 내부 adapter 경로는 기존 Prescription·Search 잠금 뒤 Runtime Environment 잠금을 획득하고 commit까지 유지한다. 이후 Bundle/Result는 조회하고 Identification을 기록한다. 아래 역사적 Target의 PVM/Result 잠금 요구까지 구현된 것으로 간주하지 않는다. 실제 잠금 범위·migration·동시성 검증과 후속 Guard 조건은 위 Decision을 따른다.
+
 - 사용자가 화면의 단일 후보에 `맞아요`를 명시 선택해야 `USER_SELECTED/MATCHED` Identification을 저장한다.
 - Backend는 소유권, 활성 Prescription Version, Search 만료·Query Digest·Bundle·Candidate Index·제품 활성 상태와 미소비 여부를 잠금 검증한다.
 - `prescription_version_medication_id + candidate_search_result_id + Idempotency-Key`를 사용하며 Identification과 Search `CONSUMED`를 하나의 Transaction으로 저장한다.
@@ -287,3 +295,13 @@ Candidate Search·확인·거절·Identification 조회와 모든 오류 응답�
 ## 공개 게이트
 
 `EXT-SOURCE-001`, `EXT-PRIV-001`과 관련 Safety 회귀, Source Snapshot 검증·rollback 증빙 전에는 실제 사용자 Identity와 `PUBLIC_TRACK_F`를 활성화하지 않는다. 합성 fixture를 사용하는 접근 통제 로컬 데모와 Production 공개를 구분한다.
+
+
+## 2026-10-23 합성 Candidate 연결 범위
+
+[합성 내부 연결 v1 결정](../../../governance/decisions/2026-10-23-candidate-search-synthetic-connection.md)을 따른다. 기존 공개 DTO·멱등 replay·공개 차단은 유지하며, TEST 합성 context와 새 Index artifact 발급/검증만 연결한다. Production Source 정책·영속 Candidate REQUEST Guard·FAIL 감사 commit은 후속 결정이며 Current 승격 근거가 아니다.
+
+
+## 2026-11-04 초기 Exact·승인 Alias 실행 범위
+
+[초기 stage 결정](../../../governance/decisions/2026-11-04-candidate-exact-alias-validation.md)에 따라 초기 Candidate adapter에서 선택 가능한 stage는 제품명 Exact·공식 검토된 Alias로 제한한다. Trigram은 경쟁 후보·margin·진단에 유지하며 단독 READY 근거로 쓰지 않는다. 기존 일반 pure Resolver의 후속 실험 어휘·공개 DTO·사용자 confirm·기존 성공 replay는 유지한다. [영속 감사 내부 계약](candidate-request-guard-audit-v1.md)의 두 저장 구조·transaction·삭제/권한 검증은 Owner가 합성 내부 구현으로 승인했다. 운영 수치·실제 Source·운영 DB·공개는 제외하며 Current로 승격하지 않는다.

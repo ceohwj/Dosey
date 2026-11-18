@@ -18,6 +18,8 @@ from app.repositories.medication_candidate_repository import (
     MedicationCandidateRepository,
     MedicationCandidateResultCreate,
 )
+from app.repositories.rag_runtime_repository import RagRuntimeRepository
+from app.services.candidate_runtime_binding import CandidateRuntimeBinding, require_current_candidate_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +74,7 @@ class MedicationIdentificationService:
         runtime_release_bundle_id: UUID | None,
         candidate_index_version_id: UUID | None,
         expires_at: datetime | None,
+        runtime_environment_id: UUID | None = None,
     ) -> CandidateSearchRecordResult:
         medication = await self._repository.get_medication_for_candidate_search_owned(
             prescription_version_medication_id=prescription_version_medication_id,
@@ -84,6 +87,17 @@ class MedicationIdentificationService:
             prescription_version_medication_id=prescription_version_medication_id,
             user_id=user_id,
         )
+        binding = None
+        if runtime_environment_id is not None:
+            if candidate_index_version_id is None:
+                raise self._context_stale_error(field="candidate_index_version_id", reason="MISSING_INDEX")
+            binding = await require_current_candidate_runtime(
+                RagRuntimeRepository(self._repository.session),
+                runtime_environment_id=runtime_environment_id,
+                expected_bundle_id=runtime_release_bundle_id,
+            )
+            runtime_release_bundle_id = binding.runtime_release_bundle_id
+
         now = datetime.now(config.TIMEZONE)
         if active_search is not None and self._is_expired(active_search, now=now):
             await self._repository.expire_search(search=active_search, expired_at=now)
@@ -104,6 +118,7 @@ class MedicationIdentificationService:
             query_digest=query_digest,
             runtime_release_bundle_id=runtime_release_bundle_id,
             candidate_index_version_id=candidate_index_version_id,
+            binding=binding,
         ):
             return CandidateSearchRecordResult(search=active_search, is_reused=True)
 
@@ -116,10 +131,41 @@ class MedicationIdentificationService:
             strength_text_snapshot=medication.strength_text,
             query_digest=query_digest,
             runtime_release_bundle_id=runtime_release_bundle_id,
+            runtime_release_bundle_manifest_hash=(binding.runtime_release_bundle_manifest_hash if binding else None),
+            runtime_environment_id=(binding.runtime_environment_id if binding else None),
+            runtime_environment_revision=(binding.runtime_environment_revision if binding else None),
             candidate_index_version_id=candidate_index_version_id,
             expires_at=expires_at,
         )
         return CandidateSearchRecordResult(search=search, is_reused=False)
+
+    async def validate_candidate_runtime(
+        self,
+        *,
+        candidate_search_result_id: UUID,
+        user_id: UUID,
+    ) -> None:
+        selection = await self._repository.get_result_selection_for_update_owned(
+            candidate_search_result_id=candidate_search_result_id,
+            user_id=user_id,
+        )
+        if selection is None:
+            raise self._not_found_error(field="candidate_search_result_id")
+        search = selection.search
+        binding = CandidateRuntimeBinding(
+            search.runtime_release_bundle_id,
+            search.runtime_release_bundle_manifest_hash,
+            search.runtime_environment_id,
+            search.runtime_environment_revision,
+        )
+        if not binding.complete or search.candidate_index_version_id is None:
+            raise self._context_stale_error(field="candidate_search_result_id", reason="RUNTIME_BINDING_MISSING")
+        assert binding.runtime_environment_id is not None
+        await require_current_candidate_runtime(
+            RagRuntimeRepository(self._repository.session),
+            runtime_environment_id=binding.runtime_environment_id,
+            expected_binding=binding,
+        )
 
     async def finalize_candidate_search(
         self,
@@ -284,11 +330,16 @@ class MedicationIdentificationService:
         query_digest: str,
         runtime_release_bundle_id: UUID | None,
         candidate_index_version_id: UUID | None,
+        binding: CandidateRuntimeBinding | None = None,
     ) -> bool:
         return (
             search.query_digest == query_digest
             and search.runtime_release_bundle_id == runtime_release_bundle_id
             and search.candidate_index_version_id == candidate_index_version_id
+            and search.runtime_release_bundle_manifest_hash
+            == (binding.runtime_release_bundle_manifest_hash if binding else None)
+            and search.runtime_environment_id == (binding.runtime_environment_id if binding else None)
+            and search.runtime_environment_revision == (binding.runtime_environment_revision if binding else None)
         )
 
     @staticmethod

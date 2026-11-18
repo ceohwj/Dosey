@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,21 +14,27 @@ from starlette import status
 from app.core import config
 from app.core.db.databases import get_db_session
 from app.dependencies.security import get_request_user
+from app.dependencies.services import get_medication_candidate_service
 from app.main import app, fastapi_app
+from app.models.async_jobs import IdempotencyRecord
 from app.models.medical_documents import MedicalDocument
 from app.models.ocr import OcrJob
 from app.models.prescriptions import Prescription, PrescriptionVersion, PrescriptionVersionMedication
 from app.models.profiles import Profile, ProfileType
 from app.models.rag_candidate import (
     MedicationCandidateSearch,
+    MedicationCandidateSearchResult,
     MedicationCandidateSearchStatus,
     MedicationIdentification,
 )
 from app.models.users import Gender, User
+from app.repositories.idempotency_repository import IdempotencyRepository
 from app.repositories.medication_candidate_repository import (
     MedicationCandidateRepository,
     MedicationCandidateResultCreate,
 )
+from app.services.idempotency import SyncMutationIdempotencyService, get_default_snapshot_cipher
+from app.services.medication_candidates import MedicationCandidateService
 from app.services.medication_identification import MedicationIdentificationService
 from app.tests.conftest import test_engine
 from app.tests.fixtures.prescription_fingerprint import fingerprint_values
@@ -55,7 +62,7 @@ def public_track_f_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config, "PUBLIC_TRACK_F_ENABLED", True)
 
 
-async def test_candidate_search_is_fail_closed_before_ownership_chain(client: AsyncClient) -> None:
+async def test_candidate_search_is_fail_closed_by_public_gate_before_ownership_chain(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/medication-candidate-searches",
         json={"prescription_version_medication_id": str(uuid4())},
@@ -67,7 +74,7 @@ async def test_candidate_search_is_fail_closed_before_ownership_chain(client: As
     assert response.json()["details"] == [
         {
             "field": "medication_candidate",
-            "reason": "PRESCRIPTION_VERSION_MEDICATION_OWNERSHIP_NOT_CONNECTED",
+            "reason": "PUBLIC_TRACK_F_DISABLED",
             "rejected_value": None,
         }
     ]
@@ -362,7 +369,7 @@ async def _create_medication(
 
 
 async def _create_ready_search(
-    session: AsyncSession, *, medication: PrescriptionVersionMedication, user: User
+    session: AsyncSession, *, medication: PrescriptionVersionMedication, user: User, include_alternate: bool = False
 ) -> tuple[UUID, UUID]:
     """RAG-09 service를 그대로 사용해 READY 상태의 Search·표시 Result 1건을 만듭니다.
     반환값은 (search_id, candidate_search_result_id)."""
@@ -377,27 +384,44 @@ async def _create_ready_search(
             expires_at=datetime.now(config.TIMEZONE) + timedelta(minutes=10),
         )
     ).search
+    results = [
+        MedicationCandidateResultCreate(
+            product_id=uuid4(),
+            code_system="MFDS_ITEM_SEQ",
+            canonical_code="200012345",
+            product_name="테스트정",
+            strength_text="500mg",
+            dosage_form="정제",
+            manufacturer_name="테스트제약",
+            product_status="ACTIVE",
+            result_rank=1,
+            result_score=0.95,
+            result_method="PRODUCT_NAME",
+            is_displayed=True,
+            selection_eligible=True,
+        )
+    ]
+    if include_alternate:
+        results.append(
+            MedicationCandidateResultCreate(
+                product_id=None,
+                code_system=None,
+                canonical_code=None,
+                product_name=None,
+                strength_text=None,
+                dosage_form=None,
+                manufacturer_name=None,
+                product_status=None,
+                result_rank=2,
+                result_score=0.5,
+                result_method="PRODUCT_NAME",
+            )
+        )
     finalized = await service.finalize_candidate_search(
         search_id=search.id,
         user_id=user.id,
         status=MedicationCandidateSearchStatus.READY,
-        results=[
-            MedicationCandidateResultCreate(
-                product_id=uuid4(),
-                code_system="MFDS_ITEM_SEQ",
-                canonical_code="200012345",
-                product_name="테스트정",
-                strength_text="500mg",
-                dosage_form="정제",
-                manufacturer_name="테스트제약",
-                product_status="ACTIVE",
-                result_rank=1,
-                result_score=0.95,
-                result_method="PRODUCT_NAME",
-                is_displayed=True,
-                selection_eligible=True,
-            )
-        ],
+        results=results,
     )
     return search.id, finalized.results[0].id
 
@@ -411,7 +435,59 @@ async def _count_identifications(session: AsyncSession, *, medication_id: UUID) 
     return len(result.scalars().all())
 
 
+def _foundation_candidate_service(session: AsyncSession) -> MedicationCandidateService:
+    """Exercise legacy adapter mapping separately from the new synthetic public guard."""
+    repository = MedicationCandidateRepository(session)
+    return MedicationCandidateService(
+        repository,
+        MedicationIdentificationService(repository),
+        SyncMutationIdempotencyService(IdempotencyRepository(session), get_default_snapshot_cipher()),
+    )
+
+
+async def test_fresh_confirm_rejects_unbound_search_with_real_runtime_validator(
+    db_session: AsyncSession, public_track_f_enabled: None
+) -> None:
+    owner = await _create_owner(db_session)
+    medication = await _create_medication(db_session, user=owner)
+    _search_id, result_id = await _create_ready_search(db_session, medication=medication, user=owner)
+    fastapi_app.dependency_overrides[get_request_user] = lambda: owner
+    fastapi_app.dependency_overrides[get_medication_candidate_service] = lambda: _foundation_candidate_service(
+        db_session
+    )
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/medication-candidates/confirm",
+                headers={"Idempotency-Key": "candidate-unbound-real-runtime-0001"},
+                json={
+                    "prescription_version_medication_id": str(medication.id),
+                    "candidate_search_result_id": str(result_id),
+                },
+            )
+    finally:
+        fastapi_app.dependency_overrides.pop(get_request_user, None)
+        fastapi_app.dependency_overrides.pop(get_medication_candidate_service, None)
+
+    assert response.status_code == 409
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["code"] == "IDENTIFICATION_CONTEXT_STALE"
+    assert response.json()["details"][0]["reason"] == "RUNTIME_BINDING_MISSING"
+    assert await _count_identifications(db_session, medication_id=medication.id) == 0
+    assert (await db_session.execute(select(IdempotencyRecord))).scalars().first() is None
+
+
 class TestGetMedicationCandidateSearch:
+    @pytest_asyncio.fixture(autouse=True)
+    async def foundation_service(self, db_session: AsyncSession) -> AsyncIterator[None]:
+        fastapi_app.dependency_overrides[get_medication_candidate_service] = lambda: _foundation_candidate_service(
+            db_session
+        )
+        try:
+            yield
+        finally:
+            fastapi_app.dependency_overrides.pop(get_medication_candidate_service, None)
+
     async def test_returns_ready_snapshot_with_no_store(
         self, db_session: AsyncSession, public_track_f_enabled: None
     ) -> None:
@@ -497,6 +573,21 @@ class TestGetMedicationCandidateSearch:
 
 
 class TestConfirmAndRejectMedicationCandidate:
+    @pytest_asyncio.fixture(autouse=True)
+    async def foundation_service(self, db_session: AsyncSession) -> AsyncIterator[None]:
+        fastapi_app.dependency_overrides[get_medication_candidate_service] = lambda: _foundation_candidate_service(
+            db_session
+        )
+        try:
+            yield
+        finally:
+            fastapi_app.dependency_overrides.pop(get_medication_candidate_service, None)
+
+    @pytest.fixture(autouse=True)
+    def synthetic_runtime_validation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Legacy API adapter cases isolate runtime currentness; live binding tests run separately."""
+        monkeypatch.setattr(MedicationIdentificationService, "validate_candidate_runtime", AsyncMock(return_value=None))
+
     async def test_confirm_maps_identification_fields(
         self, db_session: AsyncSession, public_track_f_enabled: None
     ) -> None:
@@ -588,7 +679,16 @@ class TestConfirmAndRejectMedicationCandidate:
     ) -> None:
         owner = await _create_owner(db_session)
         medication = await _create_medication(db_session, user=owner)
-        _search_id, result_id = await _create_ready_search(db_session, medication=medication, user=owner)
+        search_id, result_id = await _create_ready_search(
+            db_session, medication=medication, user=owner, include_alternate=True
+        )
+        alternate_result = await db_session.scalar(
+            select(MedicationCandidateSearchResult).where(
+                MedicationCandidateSearchResult.search_id == search_id,
+                MedicationCandidateSearchResult.result_rank == 2,
+            )
+        )
+        assert alternate_result is not None
         fastapi_app.dependency_overrides[get_request_user] = lambda: owner
         try:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -605,7 +705,7 @@ class TestConfirmAndRejectMedicationCandidate:
                     headers={"Idempotency-Key": "candidate-confirm-conflict-001"},
                     json={
                         "prescription_version_medication_id": str(medication.id),
-                        "candidate_search_result_id": str(uuid4()),
+                        "candidate_search_result_id": str(alternate_result.id),
                     },
                 )
         finally:
@@ -685,7 +785,7 @@ class TestConfirmAndRejectMedicationCandidate:
         assert response.json()["details"][0]["reason"] == "STALE"
         assert await _count_identifications(db_session, medication_id=medication.id) == 0
 
-    async def test_confirm_rejects_medication_mismatch_without_side_effect(
+    async def test_confirm_hides_medication_mismatch_without_side_effect(
         self, db_session: AsyncSession, public_track_f_enabled: None
     ) -> None:
         owner = await _create_owner(db_session)
@@ -707,9 +807,9 @@ class TestConfirmAndRejectMedicationCandidate:
         finally:
             fastapi_app.dependency_overrides.pop(get_request_user, None)
 
-        assert response.status_code == 409
-        assert response.json()["code"] == "CANDIDATE_SEARCH_STALE"
-        assert response.json()["details"][0]["reason"] == "STALE"
+        assert response.status_code == 404
+        assert response.json()["code"] == "CANDIDATE_SEARCH_NOT_FOUND"
+        assert response.json()["details"][0]["reason"] == "NOT_FOUND"
         assert await _count_identifications(db_session, medication_id=search_medication.id) == 0
         assert await _count_identifications(db_session, medication_id=other_medication.id) == 0
 

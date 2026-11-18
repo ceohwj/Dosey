@@ -1,0 +1,90 @@
+{
+  "status": "SYNTHETIC_SERIALIZATION_VECTOR_ONLY_NOT_AUTHORITY_OR_POLICY",
+  "hash_input": {
+    "projection_version": "candidate-request-guard-proof-v1",
+    "runtime_binding_ref": {
+      "artifact_code": "request_guard_runtime_binding",
+      "version": "1.0",
+      "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "scope_manifest_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "resolver_policy_ref": {
+      "artifact_code": "candidate_resolver_policy",
+      "version": "1.0",
+      "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "retention_policy_ref": {
+      "artifact_code": "candidate_audit_retention_policy",
+      "version": "1.0",
+      "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "targets": [
+      {
+        "source": {
+          "source_code": "SYNTHETIC_PRODUCT",
+          "endpoint_code": "SYNTHETIC_ENDPOINT",
+          "operation_code": "LIST_SYNTHETIC_PRODUCTS",
+          "snapshot_id": "00000000-0000-4000-8000-000000000001",
+          "source_version": "synthetic-v1",
+          "canonical_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "bundle_source_purpose": "CATALOG",
+          "source_use_purpose": "PRODUCT_IDENTIFICATION",
+          "required": true,
+          "selected": true
+        },
+        "approval": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "version": "synthetic-approval-v1",
+          "environment": "TEST",
+          "purpose": "PRODUCT_IDENTIFICATION",
+          "valid_from": "2026-11-04T00:00:00.000000Z",
+          "expires_at": "2026-11-04T01:00:00.000000Z",
+          "revoked_at": null
+        },
+        "lifecycle": {
+          "source_status": "ACTIVE",
+          "endpoint_status": "VERIFIED",
+          "endpoint_runtime": "ENABLED",
+          "endpoint_acquisition": "APPROVED",
+          "operation_runtime": "ENABLED",
+          "operation_acquisition": "APPROVED",
+          "snapshot_status": "CURRENT",
+          "verification_seal_id": "00000000-0000-4000-8000-000000000003",
+          "current_selection_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "publication_approval_sha256": null
+        },
+        "freshness": {
+          "policy_ref": {
+            "artifact_code": "candidate_source_freshness_policy",
+            "version": "1.0",
+            "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "capture_observation_id": "00000000-0000-4000-8000-000000000004",
+          "capture_observation_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "anchor_kind": "LIVE_CAPTURE_COMPLETED_AT",
+          "anchor_at": "2026-11-04T00:00:00.000000Z",
+          "valid_until": "2026-11-04T00:30:00.000000Z"
+        },
+        "scope_policy_ref": {
+          "artifact_code": "candidate_source_scope_policy",
+          "version": "1.0",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "source_decision_ref": {
+          "artifact_code": "request_source_decision_authority",
+          "version": "1.0",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "member_decisions": [],
+        "outcome": "FAIL",
+        "reason_codes": [
+          "APPROVAL_EXPIRED"
+        ]
+      }
+    ],
+    "aggregate_outcome": "FAIL"
+  },
+  "canonical_utf8_sha256": "ac6eac236db46e09a978282ccd483ea4536e9f9245ff0ca19e5ec6f881bf2739",
+  "canonical_byte_length": 2666,
+  "notes": "Fake refs and illustrative times verify serialization only. Empty member list is not an eligibility exemption; actual required set must be derived and verified. No real capture/approval is represented."
+}
