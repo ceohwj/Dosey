@@ -20,8 +20,11 @@ from app.models.guides import Guide
 from app.models.rag_source import RagSourceSnapshot, RagSourceSnapshotMember
 from app.models.users import User
 from app.repositories.async_job_repository import AsyncJobRepository
+from app.services import guide_sync_runtime_execution as execution_module
 from app.services.guide_ai.generator import GuideGenerator
+from app.services.guide_intake import GuideRuntimeContextSnapshot
 from app.services.guide_runtime_request import GuideRuntimeRequestCarrier
+from app.services.guide_sync_runtime_finalizer import GuideSyncRuntimeFinalizationState
 from app.services.guide_sync_runtime_lifecycle import (
     GuideSyncRuntimeAuthority,
     GuideSyncRuntimeLifecycleProducer,
@@ -61,9 +64,9 @@ def build_test_guide_runtime_bootstrap() -> main_module.GuideRuntimeBootstrap:
 
 
 class _AuthorityProvider:
-    async def resolve(self, *, user: User, guide: Guide) -> GuideSyncRuntimeAuthority:
+    async def resolve(self, *, user: User, guide: Guide) -> GuideRuntimeContextSnapshot:
         _ = (user, guide)
-        return GuideSyncRuntimeAuthority(
+        return GuideRuntimeContextSnapshot(
             runtime_environment_id=uuid4(),
             runtime_environment_revision=1,
             runtime_release_bundle_id=uuid4(),
@@ -72,12 +75,23 @@ class _AuthorityProvider:
             runtime_execution_manifest_hash="b" * 64,
             guide_retrieval_binding_manifest_id=uuid4(),
             guide_retrieval_binding_manifest_hash="c" * 64,
+            runtime_guard_decision_ref=str(uuid4()),
             request_guard_runtime_binding_ref=RequestGuardRuntimeBindingRef(
                 artifact_code="guide-sync-closed-demo",
                 version="v1",
                 content_sha256="d" * 64,
             ),
         )
+
+    async def revalidate(self, *, user: User, guide: Guide, snapshot: GuideRuntimeContextSnapshot) -> bool:
+        _ = (user, guide, snapshot)
+        return True
+
+
+class _AuthorityFactory:
+    def for_session(self, session: AsyncSession) -> _AuthorityProvider:
+        _ = session
+        return _AuthorityProvider()
 
 
 class _Lifecycle:
@@ -90,8 +104,9 @@ class _Lifecycle:
         user: User,
         guide: Guide,
         authority: GuideSyncRuntimeAuthority,
+        snapshot: GuideRuntimeContextSnapshot,
     ) -> GuideSyncRuntimePreparation:
-        _ = authority
+        _ = (authority, snapshot)
         job = await AsyncJobRepository(self._session).create_job(
             user_id=user.id,
             job_type=AiJobType.GUIDE,
@@ -101,8 +116,23 @@ class _Lifecycle:
         await self._session.flush()
         return GuideSyncRuntimePreparation(
             job=job,
-            carrier=cast(GuideRuntimeRequestCarrier, object()),
+            carrier=cast(GuideRuntimeRequestCarrier, SimpleNamespace(job_id=job.id)),
         )
+
+
+class _Finalizer:
+    """Legacy wiring test double; exact finalization is covered by real-PG CR-A tests."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def lock_and_check(self, *, user_id, guide_id, request) -> GuideSyncRuntimeFinalizationState:
+        _ = (user_id, request)
+        guide = await self._session.get(Guide, guide_id)
+        assert guide is not None and guide.ai_job_id is not None
+        job = await AsyncJobRepository(self._session).get_job(job_id=guide.ai_job_id)
+        assert job is not None
+        return GuideSyncRuntimeFinalizationState(guide=guide, job=job, is_current=True)
 
 
 def _projection(
@@ -171,7 +201,7 @@ async def test_post_guide_runtime_result_is_persisted_and_rediscovered(
     snapshot, members = await _create_source_snapshot_members(db_session)
     lifecycle = cast(GuideSyncRuntimeLifecycleProducer, _Lifecycle(db_session))
     factory = _Factory(_projection(snapshot=snapshot, member=members[0]))
-    authority_provider = _AuthorityProvider()
+    authority_provider = _AuthorityFactory()
     provider_dependencies = object()
     consent_gate = AsyncMock(spec=ConsentGateService)
     generator = GuideGenerator(provider=_UnusedGuideProvider(), model="legacy-model", timeout_seconds=1.0)
@@ -180,6 +210,7 @@ async def test_post_guide_runtime_result_is_persisted_and_rediscovered(
     monkeypatch.setattr(main_module, "get_email_sender", lambda: object())
     monkeypatch.setattr(main_module, "AsyncOpenAI", lambda **_kwargs: openai_client)
     monkeypatch.setattr(main_module, "close_database", AsyncMock())
+    monkeypatch.setattr(execution_module, "GuideSyncRuntimeFinalizer", _Finalizer)
     monkeypatch.setattr(
         main_module,
         "build_production_guide_runtime_executor_factory",
@@ -214,7 +245,7 @@ async def test_post_guide_runtime_result_is_persisted_and_rediscovered(
     fastapi_app.dependency_overrides[get_guide_generator] = override_generator
     try:
         async with main_module.lifespan(fastapi_app):
-            async with AsyncClient(transport=ASGITransport(app=fastapi_app), base_url="http://test") as client:
+            async with AsyncClient(transport=ASGITransport(app=main_module.app), base_url="http://test") as client:
                 created = await client.post(
                     "/api/v1/guides",
                     json={"prescription_id": str(prescription.id)},

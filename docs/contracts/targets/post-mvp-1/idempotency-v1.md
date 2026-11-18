@@ -64,9 +64,15 @@ DB unique 제약은 최소 다음 범위를 보장한다. `key_hmac_version`을 
 - B 일정: `prescription_version_medication_id`
 - B Check-in·재알림: `occurrence_id`
 - C Safety: `medication_checkin_id`; Barrier: `checkin_id`; ActionPlan 생성: `barrier_response_id`; ActionPlan 변경·follow-up: `support_action_plan_id`
-- F Candidate 확인·거절: `prescription_version_medication_id`이며 request hash에 `candidate_search_result_id`, 확인·거절 action과 기대 [Runtime Release Bundle](./medication-identification-v1.md#identification-preflight)을 포함
+- F Candidate 확인·거절: `prescription_version_medication_id`이며 request hash에 `candidate_search_result_id`, 확인·거절 action과 기대 [Runtime Release Bundle](./rag-runtime-v1.md#runtime-release-bundle과-실행-snapshot)을 포함
 
 권한·입력·revision·현재 상태 검사를 통과한 2xx mutation만 최초 성공 HTTP status와 canonical JSON body snapshot을 도메인 변경과 같은 transaction에서 저장한다. 4xx·5xx는 저장하지 않는다. 같은 키·같은 지문은 revision·현재 상태 검사보다 먼저 최초 snapshot을 그대로 재현하고, 같은 키·다른 지문은 `409 IDEMPOTENCY_KEY_CONFLICT`다.
+
+### Dosey Candidate Runtime 결속 v2 — 내부 구현 범위
+
+[PD-DOSEY-20261023-CANDIDATE-RUNTIME-1](../../../governance/decisions/2026-10-23-candidate-runtime-bundle-binding.md)에 따라 신규 F 지문은 action·Search ID·Result ID와 Search에 고정된 Bundle ID/hash·환경 ID/revision을 포함한다. 현재 active Bundle 값으로 기존 지문을 다시 만들지 않는다. 기존 성공 기록은 정확한 기존 placeholder 지문 또는 새 지문과 비교하여 재현하며 신규 기록은 새 지문만 저장한다. 공통 멱등 테이블의 버전 컬럼·unique scope는 추가/변경하지 않는다. legacy 비교는 Candidate가 명시적으로 선택한 기존 행 읽기에 한정하고 B·C 및 비동기 의미를 바꾸지 않는다.
+
+역사적 SELF 소유권·부모/자식 확인은 replay에도 적용하며 실패는 404다. active/verified Prescription, Search 상태·기한, Runtime 현재성 검사는 신규 mutation에서 수행한다. Bundle/환경 revision 변경 뒤에도 유효 성공 키는 당시 응답을 재현하되, 새 선택에는 최신 Search와 새 키가 필요하다. 최초 조회와 두 경쟁 승자 재조회 모두 이 규칙과 실제 TTL을 지킨다. 공개 gate는 기존처럼 우선하며 DB 집계 불가를 legacy 0건 증거로 쓰지 않는다. 생산자·Candidate Guard·Source 승인·공개 gate는 이 내부 구현 승인에 포함되지 않는다.
 
 snapshot은 암호화한 PostgreSQL `BYTEA`로 저장하고 application cap은 1MiB다. 암호화 envelope·key version·rotation과 migration의 정확한 구현은 Privacy·Security 리뷰를 받되 물리 타입을 다른 DB 전용 타입으로 대체하지 않는다. 의료 자유 텍스트와 Provider 원문은 넣지 않고 일반 로그에도 기록하지 않는다. 직렬화 결과가 cap을 넘으면 snapshot을 자르지 않으며 mutation 전에 `503 IDEMPOTENCY_RESPONSE_TOO_LARGE`와 alert로 실패한다.
 
@@ -89,3 +95,8 @@ HMAC version의 물리 컬럼·인코딩과 키 교체 절차는 Privacy·보안
 ## PD-203 알림 쓰기 적용 — develop 반영 완료
 
 `notification.read`는 notification_id를 parent_resource_id로, `medication-reminder.create`는 기존 occurrence_id를 parent로 사용한다. 읽음 fingerprint는 `{}`, 재알림은 UTC scheduled_at이다. 두 경로는 기존 SYNC_MUTATION unique·암호화 snapshot·rollback·만료 처리 구현을 재사용한다. 읽음 scope와 operation ID는 [현재 Notification 계약](../../current/track-b-notifications-v1.md)에 반영됐으며 본 target의 나머지 범위 승인 상태를 확장하지 않는다.
+
+
+## 2026-10-23 합성 Candidate 연결 범위
+
+[합성 내부 연결 v1 결정](../../../governance/decisions/2026-10-23-candidate-search-synthetic-connection.md)을 따른다. 기존 공개 DTO·멱등 replay·공개 차단은 유지하며, TEST 합성 context와 새 Index artifact 발급/검증만 연결한다. Production Source 정책·영속 Candidate REQUEST Guard·FAIL 감사 commit은 후속 결정이며 Current 승격 근거가 아니다.
