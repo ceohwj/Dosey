@@ -11,8 +11,13 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
+from ai_worker.adapters.sqlalchemy_orphan_artifact_references import lock_source_artifact_mutation
 from ai_worker.tasks.rag.source_client.contracts import EmptyResultPolicy, SourceOperationIdentity
-from ai_worker.tasks.rag.source_ingestion.artifacts import IngestionArtifactKind, StoredRawArtifact
+from ai_worker.tasks.rag.source_ingestion.artifacts import (
+    IngestionArtifactKind,
+    StoredRawArtifact,
+    validate_artifact_binding,
+)
 from ai_worker.tasks.rag.source_ingestion.failure_runs import IngestionProcessingFailureCode
 from ai_worker.tasks.rag.source_ingestion.mfds_label import IngestionArtifactReceipt, SnapshotMemberBinding
 from ai_worker.tasks.rag.source_ingestion.reject_codes import (
@@ -207,12 +212,16 @@ class SqlAlchemySourceSnapshotRepository(SnapshotLifecycleRepository):
         )
 
     async def lock_operation(self, identity: SourceOperationIdentity) -> UUID:
+        await self.lock_artifact_publication()
         statement = _operation_lookup(identity).with_for_update(of=_OPERATION)
         result = await self._session.execute(statement)
         operation_id = result.scalar_one_or_none()
         if operation_id is None:
             raise ValueError("Source operation 저장 대상을 찾을 수 없습니다.")
         return UUID(str(operation_id))
+
+    async def lock_artifact_publication(self) -> None:
+        await lock_source_artifact_mutation(self._session)
 
     async def get_source_policy(self, *, operation_id: UUID) -> SourceSnapshotPolicy:
         row = (
@@ -582,33 +591,69 @@ class SqlAlchemySourceSnapshotRepository(SnapshotLifecycleRepository):
         ).one()
         return SourceOperationIdentity(*row)
 
-    async def create_run(self, record: SnapshotRunRecord) -> UUID:
-        if record.reject_code_contract_version is not None:
+    async def persist_complete_attempt(
+        self, record: SnapshotRunRecord, artifacts: tuple[StoredRawArtifact, ...]
+    ) -> UUID:
+        """한 새 terminal run과 전체 원본 참조를 caller transaction 안에서 원자 저장합니다."""
+        rejects = _validate_complete_artifact_set(record, artifacts)
+        if rejects and (
+            record.run_status != "FAILED" or record.failure_code not in set(IngestionProcessingFailureCode)
+        ):
+            raise ValueError("Reject artifact does not match failed parser run.")
+        if record.reject_code_contract_version is not None or rejects:
             identity = await self._run_operation_identity(record.operation_id)
             validate_reject_contract(identity=identity, version=record.reject_code_contract_version)
+            for artifact in rejects:
+                validate_reject_artifact(
+                    identity=identity,
+                    version=record.reject_code_contract_version,
+                    code=artifact.reject_code,
+                    location=artifact.parser_location,
+                )
+        await self.lock_artifact_publication()
         ingestion_run_id = uuid4()
-        await self._session.execute(
-            insert(_INGESTION_RUN).values(
-                id=str(ingestion_run_id),
-                operation_id=str(record.operation_id),
-                run_group_key=record.run_group_key,
-                snapshot_id=str(record.snapshot_id) if record.snapshot_id is not None else None,
-                run_status=record.run_status,
-                attempt_number=record.attempt_number,
-                failure_code=record.failure_code,
-                failure_message=None,
-                reject_code_contract_version=record.reject_code_contract_version,
-                attempted_source_version=record.attempted_source_version,
-                attempted_external_version=record.attempted_external_version,
-                attempted_canonical_contract=record.attempted_canonical_contract,
-                invalid_source_version_sha256=record.invalid_source_version_sha256,
-                invalid_source_version_byte_length=record.invalid_source_version_byte_length,
-                validation_reason_code=record.validation_reason_code,
-                duration_ms=record.duration_ms,
-                started_at=record.started_at,
-                finished_at=record.finished_at,
+        async with self._session.begin_nested():
+            await self._session.execute(
+                insert(_INGESTION_RUN).values(
+                    id=str(ingestion_run_id),
+                    operation_id=str(record.operation_id),
+                    run_group_key=record.run_group_key,
+                    snapshot_id=str(record.snapshot_id) if record.snapshot_id is not None else None,
+                    run_status=record.run_status,
+                    attempt_number=record.attempt_number,
+                    failure_code=record.failure_code,
+                    failure_message=None,
+                    reject_code_contract_version=record.reject_code_contract_version,
+                    attempted_source_version=record.attempted_source_version,
+                    attempted_external_version=record.attempted_external_version,
+                    attempted_canonical_contract=record.attempted_canonical_contract,
+                    invalid_source_version_sha256=record.invalid_source_version_sha256,
+                    invalid_source_version_byte_length=record.invalid_source_version_byte_length,
+                    validation_reason_code=record.validation_reason_code,
+                    duration_ms=record.duration_ms,
+                    started_at=record.started_at,
+                    finished_at=record.finished_at,
+                )
             )
-        )
+            if artifacts:
+                values = [
+                    {
+                        "id": str(uuid4()),
+                        "ingestion_run_id": str(ingestion_run_id),
+                        "page_number": artifact.page_number,
+                        "artifact_kind": artifact.artifact_kind,
+                        "artifact_key": artifact.metadata.artifact_key,
+                        "storage_backend": artifact.storage_backend,
+                        "object_key": artifact.object_key,
+                        "raw_checksum": artifact.metadata.raw_checksum,
+                        "byte_size": artifact.metadata.byte_size,
+                        "content_type": artifact.metadata.content_type,
+                        "reject_code": artifact.reject_code,
+                        "parser_location": artifact.parser_location,
+                    }
+                    for artifact in artifacts
+                ]
+                await self._session.execute(insert(_INGESTION_ARTIFACT), values)
         return ingestion_run_id
 
     async def record_observation_exclusions(self, receipt: SnapshotExclusionReceipt) -> None:
@@ -630,70 +675,6 @@ class SqlAlchemySourceSnapshotRepository(SnapshotLifecycleRepository):
                 set_=values,
             )
         )
-
-    async def create_artifacts(
-        self,
-        *,
-        ingestion_run_id: UUID,
-        artifacts: tuple[StoredRawArtifact, ...],
-    ) -> None:
-        rejects = [a for a in artifacts if a.artifact_kind is IngestionArtifactKind.REJECTS]
-        if rejects:
-            row = (
-                (
-                    await self._session.execute(
-                        select(_INGESTION_RUN).where(_INGESTION_RUN.c.id == str(ingestion_run_id)).with_for_update()
-                    )
-                )
-                .mappings()
-                .one()
-            )
-            identity = await self._run_operation_identity(UUID(row["operation_id"]))
-            locations = set(
-                (
-                    await self._session.scalars(
-                        select(_INGESTION_ARTIFACT.c.parser_location).where(
-                            _INGESTION_ARTIFACT.c.ingestion_run_id == str(ingestion_run_id),
-                            _INGESTION_ARTIFACT.c.artifact_kind == IngestionArtifactKind.REJECTS,
-                        )
-                    )
-                ).all()
-            )
-            location_keys = {parser_location_identity(location) for location in locations}
-            for artifact in rejects:
-                validate_reject_artifact(
-                    identity=identity,
-                    version=row["reject_code_contract_version"],
-                    code=artifact.reject_code,
-                    location=artifact.parser_location,
-                )
-                # REJECTS는 처리 실패 실행에만 붙습니다. 한도 초과와 parser 검증 실패를
-                # 모두 허용해야 두 실패 의미가 감사 행에서 구분됩니다.
-                if (
-                    parser_location_identity(artifact.parser_location) in location_keys
-                    or row["run_status"] != "FAILED"
-                    or row["failure_code"] not in set(IngestionProcessingFailureCode)
-                ):
-                    raise ValueError("Reject artifact does not match failed parser run.")
-                location_keys.add(parser_location_identity(artifact.parser_location))
-        values = [
-            {
-                "id": str(uuid4()),
-                "ingestion_run_id": str(ingestion_run_id),
-                "page_number": artifact.page_number,
-                "artifact_kind": artifact.artifact_kind,
-                "artifact_key": artifact.metadata.artifact_key,
-                "storage_backend": artifact.storage_backend,
-                "object_key": artifact.object_key,
-                "raw_checksum": artifact.metadata.raw_checksum,
-                "byte_size": artifact.metadata.byte_size,
-                "content_type": artifact.metadata.content_type,
-                "reject_code": artifact.reject_code,
-                "parser_location": artifact.parser_location,
-            }
-            for artifact in artifacts
-        ]
-        await self._session.execute(insert(_INGESTION_ARTIFACT), values)
 
     async def lock_snapshot_operation(self, *, snapshot_id: UUID) -> UUID:
         statement = (
@@ -846,6 +827,44 @@ class SqlAlchemySourceSnapshotRepository(SnapshotLifecycleRepository):
             .with_for_update(of=_SNAPSHOT)
         )
         return target.mappings().one_or_none()
+
+
+def _validate_complete_artifact_set(
+    record: SnapshotRunRecord, artifacts: tuple[StoredRawArtifact, ...]
+) -> tuple[StoredRawArtifact, ...]:
+    if record.run_status not in {"SUCCEEDED", "SUCCEEDED_WITH_REJECTIONS", "NO_CHANGE", "FAILED"}:
+        raise ValueError("Source ingestion attempt must be terminal.")
+    if not isinstance(artifacts, tuple):
+        raise ValueError("Complete artifact set must be a tuple.")
+    keys: set[str] = set()
+    pages: set[int] = set()
+    locations: set[tuple[int, int]] = set()
+    rejects: list[StoredRawArtifact] = []
+    for artifact in artifacts:
+        if not isinstance(artifact, StoredRawArtifact):
+            raise ValueError("Complete artifact set contains an invalid artifact.")
+        validate_artifact_binding(
+            page_number=artifact.page_number,
+            artifact_kind=artifact.artifact_kind,
+            reject_code=artifact.reject_code,
+            parser_location=artifact.parser_location,
+        )
+        key = artifact.metadata.artifact_key
+        if key in keys:
+            raise ValueError("Duplicate artifact key in complete attempt.")
+        keys.add(key)
+        if artifact.artifact_kind is IngestionArtifactKind.RAW_RESPONSE:
+            assert artifact.page_number is not None
+            if artifact.page_number in pages:
+                raise ValueError("Duplicate RAW_RESPONSE page in complete attempt.")
+            pages.add(artifact.page_number)
+        else:
+            location = parser_location_identity(artifact.parser_location)
+            if location in locations:
+                raise ValueError("Duplicate REJECTS parser location in complete attempt.")
+            locations.add(location)
+            rejects.append(artifact)
+    return tuple(rejects)
 
 
 def _validate_snapshot_transition(

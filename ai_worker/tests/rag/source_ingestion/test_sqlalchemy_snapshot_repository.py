@@ -1,4 +1,6 @@
+from dataclasses import replace
 from datetime import UTC, datetime
+from inspect import signature
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
@@ -11,9 +13,11 @@ from ai_worker.adapters.sqlalchemy_source_snapshot_repository import (
 )
 from ai_worker.tasks.rag.source_client.contracts import SourceOperationIdentity
 from ai_worker.tasks.rag.source_ingestion.artifacts import (
+    IngestionArtifactKind,
     RawArtifactMetadata,
     StoredRawArtifact,
 )
+from ai_worker.tasks.rag.source_ingestion.reject_codes import REJECT_CODE_CONTRACT_VERSION, RejectContractError
 from ai_worker.tasks.rag.source_ingestion.result import ProductIngestionResult
 from ai_worker.tasks.rag.source_ingestion.service import SourceAcquisitionInProgressError
 from ai_worker.tasks.rag.source_ingestion.snapshot_lifecycle import (
@@ -175,6 +179,8 @@ async def test_operation_lookup_locks_exact_source_endpoint_and_operation() -> N
     assert "rag_source_endpoint.endpoint_code" in sql
     assert "rag_source_operation.operation_code" in sql
     assert "FOR UPDATE" in sql
+    assert "pg_advisory_xact_lock" in str(session.execute.await_args_list[0].args[0])
+    assert "FOR UPDATE" in str(session.execute.await_args_list[1].args[0])
 
 
 async def test_acquisition_lock_rejects_busy_source_without_waiting() -> None:
@@ -268,7 +274,7 @@ async def test_conflict_run_records_only_safe_failure_code() -> None:
     session = AsyncMock(spec=AsyncSession)
     repository = SqlAlchemySourceSnapshotRepository(session)
 
-    ingestion_run_id = await repository.create_run(
+    ingestion_run_id = await repository.persist_complete_attempt(
         SnapshotRunRecord(
             operation_id=_OPERATION_ID,
             snapshot_id=None,
@@ -279,10 +285,15 @@ async def test_conflict_run_records_only_safe_failure_code() -> None:
             started_at=_NOW,
             finished_at=_NOW,
             duration_ms=10,
-        )
+        ),
+        (),
     )
 
-    statement = session.execute.await_args.args[0]
+    statement = next(
+        call.args[0]
+        for call in session.execute.await_args_list
+        if "INSERT INTO rag_source_ingestion_run" in str(call.args[0])
+    )
     parameters = statement.compile().params
     assert parameters["failure_code"] == "SOURCE_VERSION_CONFLICT"
     assert parameters["failure_message"] is None
@@ -305,15 +316,27 @@ async def test_artifact_references_are_inserted_without_raw_content_or_commit() 
         object_key="source-ingestion/synthetic/page-0001.json",
     )
 
-    await repository.create_artifacts(
-        ingestion_run_id=_OPERATION_ID,
-        artifacts=(artifact,),
+    run_id = await repository.persist_complete_attempt(
+        SnapshotRunRecord(
+            operation_id=_OPERATION_ID,
+            snapshot_id=_SNAPSHOT_ID,
+            run_group_key="synthetic-run",
+            attempt_number=1,
+            run_status="SUCCEEDED",
+            started_at=_NOW,
+            finished_at=_NOW,
+            duration_ms=10,
+        ),
+        (artifact,),
     )
 
-    statement = session.execute.await_args.args[0]
-    values = session.execute.await_args.args[1]
+    statement, values = next(
+        (call.args[0], call.args[1])
+        for call in session.execute.await_args_list
+        if "INSERT INTO rag_source_ingestion_artifact" in str(call.args[0])
+    )
     assert "INSERT INTO rag_source_ingestion_artifact" in str(statement)
-    assert values[0]["ingestion_run_id"] == str(_OPERATION_ID)
+    assert values[0]["ingestion_run_id"] == str(run_id)
     assert values[0]["object_key"] == artifact.object_key
     assert values[0]["raw_checksum"] == artifact.metadata.raw_checksum
     assert values[0]["artifact_kind"] == artifact.artifact_kind
@@ -321,6 +344,85 @@ async def test_artifact_references_are_inserted_without_raw_content_or_commit() 
     assert values[0]["parser_location"] is None
     assert "content" not in values[0]
     session.commit.assert_not_awaited()
+
+
+async def test_complete_attempt_rejects_duplicate_key_and_page_before_writing() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    repository = SqlAlchemySourceSnapshotRepository(session)
+    record = SnapshotRunRecord(
+        operation_id=_OPERATION_ID,
+        snapshot_id=None,
+        run_group_key="synthetic-run",
+        attempt_number=1,
+        run_status="FAILED",
+        failure_code="SOURCE_VERSION_CONFLICT",
+        started_at=_NOW,
+        finished_at=_NOW,
+        duration_ms=0,
+    )
+    first = StoredRawArtifact(
+        page_number=1,
+        metadata=RawArtifactMetadata("first.json", "a" * 64, 8, "application/json"),
+        storage_backend="LOCAL_PRIVATE",
+        object_key="synthetic/first.json",
+    )
+    same_key = replace(first, page_number=2)
+    same_page = replace(first, metadata=RawArtifactMetadata("second.json", "a" * 64, 8, "application/json"))
+    with pytest.raises(ValueError, match="Duplicate artifact key"):
+        await repository.persist_complete_attempt(record, (first, same_key))
+    with pytest.raises(ValueError, match="Duplicate RAW_RESPONSE page"):
+        await repository.persist_complete_attempt(record, (first, same_page))
+    session.execute.assert_not_awaited()
+
+
+async def test_complete_attempt_has_no_existing_run_append_capability() -> None:
+    repository = SqlAlchemySourceSnapshotRepository(AsyncMock(spec=AsyncSession))
+    assert not hasattr(repository, "create_run")
+    assert not hasattr(repository, "create_artifacts")
+    assert "ingestion_run_id" not in signature(repository.persist_complete_attempt).parameters
+
+
+async def test_reject_artifact_requires_failed_parser_code_and_registered_contract() -> None:
+    session = AsyncMock(spec=AsyncSession)
+    identity_row = MagicMock()
+    identity_row.one.return_value = (
+        _identity().source_code,
+        _identity().endpoint_code,
+        _identity().operation_code,
+    )
+    session.execute.return_value = identity_row
+    repository = SqlAlchemySourceSnapshotRepository(session)
+    record = SnapshotRunRecord(
+        operation_id=_OPERATION_ID,
+        snapshot_id=None,
+        run_group_key="synthetic-reject",
+        attempt_number=1,
+        run_status="FAILED",
+        failure_code="SOURCE_VERSION_CONFLICT",
+        started_at=_NOW,
+        finished_at=_NOW,
+        duration_ms=0,
+        reject_code_contract_version=REJECT_CODE_CONTRACT_VERSION,
+    )
+    reject = StoredRawArtifact(
+        page_number=None,
+        metadata=RawArtifactMetadata("reject.json", "a" * 64, 8, "application/json"),
+        storage_backend="LOCAL_PRIVATE",
+        object_key="synthetic/reject.json",
+        artifact_kind=IngestionArtifactKind.REJECTS,
+        reject_code="ITEM_SEQ_REQUIRED",
+        parser_location="page[1].record[0]",
+    )
+    with pytest.raises(ValueError, match="failed parser run"):
+        await repository.persist_complete_attempt(record, (reject,))
+    session.execute.assert_not_awaited()
+
+    with pytest.raises(RejectContractError):
+        await repository.persist_complete_attempt(
+            replace(record, failure_code="PARSER_VALIDATION_FAILED"),
+            (replace(reject, reject_code="UNREGISTERED"),),
+        )
+    assert session.execute.await_count == 1  # Identity read only; no run or artifact write.
 
 
 async def test_ingestion_artifact_receipt_requery_returns_only_safe_reference() -> None:

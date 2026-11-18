@@ -71,9 +71,14 @@ class FakeSnapshotRepository:
         self.runs: list[SnapshotRunRecord] = []
         self.run_artifacts: dict[UUID, tuple[StoredRawArtifact, ...]] = {}
         self.locked_identities: list[SourceOperationIdentity] = []
+        self.publication_locked = False
         self.observation_exclusions: list[SnapshotExclusionReceipt] = []
 
+    async def lock_artifact_publication(self) -> None:
+        self.publication_locked = True
+
     async def lock_operation(self, identity: SourceOperationIdentity) -> UUID:
+        assert self.publication_locked
         self.locked_identities.append(identity)
         return _OPERATION_ID
 
@@ -157,21 +162,17 @@ class FakeSnapshotRepository:
         self.verifications.append((snapshot_id, check_name, result))
         _ = details_summary
 
-    async def create_run(self, record: SnapshotRunRecord) -> UUID:
+    async def persist_complete_attempt(
+        self, record: SnapshotRunRecord, artifacts: tuple[StoredRawArtifact, ...]
+    ) -> UUID:
+        assert self.publication_locked
         ingestion_run_id = uuid4()
         self.runs.append(record)
+        self.run_artifacts[ingestion_run_id] = artifacts
         return ingestion_run_id
 
     async def record_observation_exclusions(self, receipt: SnapshotExclusionReceipt) -> None:
         self.observation_exclusions.append(receipt)
-
-    async def create_artifacts(
-        self,
-        *,
-        ingestion_run_id: UUID,
-        artifacts: tuple[StoredRawArtifact, ...],
-    ) -> None:
-        self.run_artifacts[ingestion_run_id] = artifacts
 
     async def lock_snapshot_operation(self, *, snapshot_id: UUID) -> UUID:
         if snapshot_id not in self.statuses:

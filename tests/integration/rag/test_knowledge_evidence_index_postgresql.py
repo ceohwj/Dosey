@@ -78,7 +78,7 @@ def _alembic_config() -> Config:
     return alembic_config
 
 
-async def _seed_source_chain(engine) -> UUID:
+async def _seed_source_chain(engine, *, artifact_origin: bool = False) -> UUID:
     async with engine.begin() as connection:
         await connection.execute(
             text(
@@ -140,14 +140,38 @@ async def _seed_source_chain(engine) -> UUID:
         rejected_record_count=0,
         publication_verification_id=None,
     )
+    artifact_id = uuid4() if artifact_origin else None
+    if artifact_id is not None:
+        async with engine.begin() as connection:
+            run_id = uuid4()
+            await connection.execute(
+                text(
+                    "INSERT INTO rag_source_ingestion_run "
+                    "(id, operation_id, run_group_key, snapshot_id, run_status, attempt_number, started_at, finished_at) "
+                    "VALUES (:id, :operation_id, 'synthetic-artifact-origin', :snapshot_id, 'SUCCEEDED', 1, :now, :now)"
+                ),
+                {"id": str(run_id), "operation_id": str(_OPERATION_ID), "snapshot_id": str(_SNAPSHOT_ID), "now": _NOW},
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO rag_source_ingestion_artifact "
+                    "(id, ingestion_run_id, page_number, artifact_kind, artifact_key, "
+                    "storage_backend, object_key, raw_checksum, byte_size, content_type) "
+                    "VALUES (:id, :run_id, 1, 'RAW_RESPONSE', 'synthetic-origin.json', "
+                    "'PRIVATE_OBJECT_STORAGE', 'synthetic/origin.json', :checksum, 1, 'application/json')"
+                ),
+                {"id": str(artifact_id), "run_id": str(run_id), "checksum": _CONTENT_HASH},
+            )
     async with factory() as session, session.begin():
         member = await SqlAlchemySourceSnapshotRepository(session).append_snapshot_member(
             SourceSnapshotMemberCreate(
                 provenance=provenance,
-                member_kind=SourceSnapshotMemberKind.ENDPOINT_OPERATION,
-                endpoint_id=_ENDPOINT_ID,
-                operation_id=_OPERATION_ID,
-                ingestion_artifact_id=None,
+                member_kind=SourceSnapshotMemberKind.ARTIFACT
+                if artifact_origin
+                else SourceSnapshotMemberKind.ENDPOINT_OPERATION,
+                endpoint_id=None if artifact_origin else _ENDPOINT_ID,
+                operation_id=None if artifact_origin else _OPERATION_ID,
+                ingestion_artifact_id=artifact_id,
                 locator="$.records[0]",
                 content_sha256=_CONTENT_HASH,
             )
@@ -305,8 +329,9 @@ async def test_real_postgresql_index_is_atomic_reproducible_and_non_leaking(data
     assert dimension_error.value.reason is KnowledgeEvidenceIndexFailureReason.EMBEDDING_INVALID
 
 
-async def test_dedicated_builder_and_runtime_roles_enforce_the_index_boundary(database) -> None:
-    member_id = await _seed_source_chain(database)
+@pytest.mark.parametrize("artifact_origin", [False, True])
+async def test_dedicated_builder_and_runtime_roles_enforce_the_index_boundary(database, artifact_origin) -> None:
+    member_id = await _seed_source_chain(database, artifact_origin=artifact_origin)
     suffix = uuid4().hex[:12]
     builder = f"index_builder_{suffix}"
     runtime = f"index_reader_{suffix}"

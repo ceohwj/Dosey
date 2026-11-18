@@ -31,7 +31,14 @@ class WriterConfig:
     def from_environment(cls, env: Mapping[str, str]) -> "WriterConfig":
         # Runtime 또는 migration secret이 함께 주입된 프로세스는 실행하지 않습니다.
         if any(
-            env.get(key) for key in ("DB_PASSWORD", "DB_APP_PASSWORD", "DB_MIGRATION_PASSWORD", "DB_ADMIN_PASSWORD")
+            env.get(key)
+            for key in (
+                "DB_PASSWORD",
+                "DB_APP_PASSWORD",
+                "DB_MIGRATION_PASSWORD",
+                "DB_ADMIN_PASSWORD",
+                "SOURCE_PUBLISHER_PASSWORD",
+            )
         ):
             raise ValueError("Source Writer requires an isolated credential environment")
         required = ("HOST", "PORT", "NAME", "USER", "PASSWORD", "ACTOR")

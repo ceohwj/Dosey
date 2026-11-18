@@ -32,6 +32,8 @@ done
 # 파일의 선언 누락을 가리지 않도록 source 전에 비운다.
 unset ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE
 unset ACCOUNT_WITHDRAWAL_CLEANUP_DB_PASSWORD
+unset SOURCE_PUBLISHER_USER
+unset SOURCE_PUBLISHER_PASSWORD
 unset CATALOG_APPROVAL_USER
 unset CATALOG_APPROVAL_PASSWORD
 unset CATALOG_SOURCE_ARTIFACT_HOST_ROOT
@@ -165,6 +167,28 @@ if [ "$SOURCE_WRITER_USER" = "$DB_ADMIN_USER" ] ||
   echo "SOURCE_WRITER_USER는 Admin, Migration, Runtime과 다른 이름이어야 합니다."
   exit 1
 fi
+
+# B1 Publisher is mandatory for full provisioning, while ingestion stays OFF.
+for variable_name in SOURCE_PUBLISHER_USER SOURCE_PUBLISHER_PASSWORD; do
+  if [ -z "${!variable_name:-}" ]; then
+    echo "필수 운영 DB 환경변수가 비어 있습니다: $variable_name"
+    exit 1
+  fi
+  case "${!variable_name}" in
+    replace-with* | replace_with*)
+      echo "Publisher 환경변수의 placeholder를 교체해야 합니다: $variable_name"
+      exit 1
+      ;;
+  esac
+done
+for role_variable in DB_ADMIN_USER DB_MIGRATION_USER DB_APP_USER SOURCE_WRITER_USER SOURCE_MANAGEMENT_USER \
+  CATALOG_WRITER_USER CATALOG_APPROVAL_USER KNOWLEDGE_INDEX_BUILDER_USER ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE \
+  CANDIDATE_INDEX_BUILDER_USER; do
+  if [ -n "${!role_variable:-}" ] && [ "$SOURCE_PUBLISHER_USER" = "${!role_variable}" ]; then
+    echo "SOURCE_PUBLISHER_USER는 기존 DB 책임 role과 다른 이름이어야 합니다."
+    exit 1
+  fi
+done
 
 # ---------- Catalog Approval optional one-shot 검증 ----------
 # 실행 셸의 상속값이 .prod.env 누락을 가리지 않게 위에서 비운 뒤 pair semantics를 검증한다.
@@ -738,11 +762,12 @@ echo "Stopping application services before schema migration"
 docker compose --profile notifications stop -t 15 notification-scheduler
 docker compose stop -t 15 checkin-deadline-scheduler
 
-docker compose --profile source-admin --profile catalog-admin --profile candidate-index-admin --profile catalog-approval-admin stop \
+docker compose --profile source-admin --profile catalog-admin --profile candidate-index-admin --profile catalog-approval-admin --profile source-publisher-admin stop \
   -t 90 \
   fastapi \
   ai-worker \
   source-writer \
+  source-publisher \
   catalog-writer \
   catalog-approval \
   candidate-index-builder
@@ -753,7 +778,7 @@ if ! running_application_services="$(docker compose ps --services --status runni
   exit 1
 fi
 
-if printf '%s\n' "$running_application_services" | grep -Eq '^(fastapi|ai-worker|source-writer|catalog-writer|catalog-approval|candidate-index-builder|notification-scheduler|checkin-deadline-scheduler)$'; then
+if printf '%s\n' "$running_application_services" | grep -Eq '^(fastapi|ai-worker|source-writer|source-publisher|catalog-writer|catalog-approval|candidate-index-builder|notification-scheduler|checkin-deadline-scheduler)$'; then
   echo "Application services are still running after stop request."
   docker compose ps fastapi ai-worker
   exit 1
@@ -801,7 +826,12 @@ echo "Alembic migration completed successfully."
 echo "Verifying final database head and catalog state"
 docker compose --profile database-maintenance run --rm --no-deps --pull always verify-db-head
 
-echo "Applying explicit Runtime and Source Writer permissions"
+# T1 commits independently. Any later failure leaves Writer INSERT denied;
+# set -e keeps services stopped. Never restore old Writer ACL as rollback.
+echo "Committing Source Writer INSERT denial barrier (T1)"
+docker compose --profile database-admin run --rm --no-deps --pull always provision-db-roles --source-writer-deny-only
+
+echo "Applying explicit Runtime, Source Writer and Publisher permissions (T2)"
 docker compose --profile database-admin run --rm --no-deps --pull always provision-db-roles
 
 write_deployment_db_snapshot "$evidence_dir/post-migration-snapshot.tsv"

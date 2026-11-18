@@ -1,7 +1,8 @@
 """Integration tests for RET-H AWS synthetic smoke bootstrap authority split (#684).
 
 Validates:
-- Stage 1 authority and idempotency under SOURCE_WRITER_USER (and 42501 on knowledge/user/job)
+- Legacy Stage 1 fails under SOURCE_WRITER_USER with 42501 and atomic rollback
+- Stage 2 source preparation uses an explicit test-only admin fixture
 - Stage 2 authority and idempotency under KNOWLEDGE_INDEX_BUILDER_USER (and 42501 on source/user/job)
 - Fail-closed preflight preventing embedding calls
 - Sentinel binding verification over bootstrapped tables
@@ -63,6 +64,7 @@ async def provisioned_db(monkeypatch):
     migration_user = f"owner684_{suffix}"
     app_user = f"app684_{suffix}"
     source_writer_user = f"writer684_{suffix}"
+    source_publisher_user = f"publisher684_{suffix}"
     builder_user = f"builder684_{suffix}"
     password = f"pass684_{suffix}"
 
@@ -92,13 +94,15 @@ async def provisioned_db(monkeypatch):
         "DB_APP_PASSWORD": password,
         "SOURCE_WRITER_USER": source_writer_user,
         "SOURCE_WRITER_PASSWORD": password,
+        "SOURCE_PUBLISHER_USER": source_publisher_user,
+        "SOURCE_PUBLISHER_PASSWORD": password,
         "KNOWLEDGE_INDEX_BUILDER_USER": builder_user,
         "KNOWLEDGE_INDEX_BUILDER_PASSWORD": password,
     }
 
     # Run SQL to create users
     async with admin_db_engine.begin() as conn:
-        for u in (migration_user, app_user, source_writer_user, builder_user):
+        for u in (migration_user, app_user, source_writer_user, source_publisher_user, builder_user):
             await conn.execute(
                 text(
                     f"DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{u}') THEN "
@@ -121,6 +125,7 @@ async def provisioned_db(monkeypatch):
         "app_engine": app_engine,
         "writer_engine": writer_engine,
         "builder_engine": builder_engine,
+        "admin_source_fixture_session_factory": async_sessionmaker(admin_db_engine, expire_on_commit=False),
         "app_session_factory": async_sessionmaker(app_engine, expire_on_commit=False),
         "writer_session_factory": async_sessionmaker(writer_engine, expire_on_commit=False),
         "builder_session_factory": async_sessionmaker(builder_engine, expire_on_commit=False),
@@ -134,7 +139,7 @@ async def provisioned_db(monkeypatch):
 
     async with cluster_engine.connect() as conn:
         await conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)'))
-        for u in (migration_user, app_user, source_writer_user, builder_user):
+        for u in (migration_user, app_user, source_writer_user, source_publisher_user, builder_user):
             await conn.execute(text(f'DROP ROLE IF EXISTS "{u}"'))
     await cluster_engine.dispose()
 
@@ -143,24 +148,20 @@ async def test_stage1_source_writer_authority_and_boundaries(provisioned_db) -> 
     fixture = load_ret_h_smoke_synthetic_fixture(DEFAULT_SMOKE_FIXTURE_PATH)
     writer_session_factory = provisioned_db["writer_session_factory"]
 
-    # 1. Stage 1 succeeds under SOURCE_WRITER
-    receipt1 = await bootstrap_ret_h_smoke_stage1_source(
-        session_factory=writer_session_factory,
-        fixture=fixture,
-    )
-    assert not receipt1.reused
-    assert receipt1.canonical_checksum == fixture.file_sha256
-    assert receipt1.verification_seal_id is not None
-    assert len(receipt1.member_ids) == 1
-
-    # 2. Idempotent re-run under SOURCE_WRITER
-    receipt2 = await bootstrap_ret_h_smoke_stage1_source(
-        session_factory=writer_session_factory,
-        fixture=fixture,
-    )
-    assert receipt2.reused
-    assert receipt2.snapshot_id == receipt1.snapshot_id
-    assert receipt2.verification_seal_id == receipt1.verification_seal_id
+    # B1 removes Snapshot/Member INSERT from Writer. Earlier hierarchy writes
+    # in this legacy helper must roll back with the rejected Snapshot INSERT.
+    with pytest.raises(DBAPIError) as denied:
+        await bootstrap_ret_h_smoke_stage1_source(session_factory=writer_session_factory, fixture=fixture)
+    assert getattr(denied.value.orig, "sqlstate", None) == "42501"
+    async with provisioned_db["admin_source_fixture_session_factory"]() as session:
+        for table, column, value in (
+            ("rag_source", "source_code", fixture.source_code),
+            ("rag_source_endpoint", "endpoint_code", fixture.endpoint_code),
+            ("rag_source_operation", "operation_code", fixture.operation_code),
+        ):
+            assert (
+                await session.scalar(text(f"SELECT count(*) FROM {table} WHERE {column}=:code"), {"code": value}) == 0
+            )
 
     # 3. SOURCE_WRITER cannot write to knowledge_document (SQLSTATE 42501)
     async with writer_session_factory() as session:
@@ -171,7 +172,7 @@ async def test_stage1_source_writer_authority_and_boundaries(provisioned_db) -> 
                     "source_snapshot_member_id, external_document_id, document_content_hash, canonicalization_spec_version) "
                     "VALUES (:id, '1.0', 'VALID', :member_id, 'ext', :h, '1.0')"
                 ),
-                {"id": str(uuid4()), "member_id": str(receipt1.member_ids[0]), "h": "0" * 64},
+                {"id": str(uuid4()), "member_id": str(uuid4()), "h": "0" * 64},
             )
             await session.commit()
         assert getattr(exc_info.value.orig, "sqlstate", None) == "42501"
@@ -189,13 +190,13 @@ async def test_stage1_source_writer_authority_and_boundaries(provisioned_db) -> 
 
 async def test_stage2_builder_authority_and_boundaries(provisioned_db) -> None:
     fixture = load_ret_h_smoke_synthetic_fixture(DEFAULT_SMOKE_FIXTURE_PATH)
-    writer_session_factory = provisioned_db["writer_session_factory"]
+    admin_source_fixture = provisioned_db["admin_source_fixture_session_factory"]
     builder_session_factory = provisioned_db["builder_session_factory"]
     embedding_adapter = DeterministicFakeEmbeddingAdapter(dimension=1536)
 
-    # Stage 1 first
+    # Test-only admin fixture; the legacy Stage 1 CLI remains disabled.
     s1_receipt = await bootstrap_ret_h_smoke_stage1_source(
-        session_factory=writer_session_factory,
+        session_factory=admin_source_fixture,
         fixture=fixture,
     )
 
@@ -243,12 +244,12 @@ async def test_stage2_builder_authority_and_boundaries(provisioned_db) -> None:
 
 async def test_sentinel_bindings_after_bootstrap(provisioned_db) -> None:
     fixture = load_ret_h_smoke_synthetic_fixture(DEFAULT_SMOKE_FIXTURE_PATH)
-    writer_session_factory = provisioned_db["writer_session_factory"]
+    admin_source_fixture = provisioned_db["admin_source_fixture_session_factory"]
     builder_session_factory = provisioned_db["builder_session_factory"]
     app_session_factory = provisioned_db["app_session_factory"]
     embedding_adapter = DeterministicFakeEmbeddingAdapter(dimension=1536)
 
-    s1 = await bootstrap_ret_h_smoke_stage1_source(session_factory=writer_session_factory, fixture=fixture)
+    s1 = await bootstrap_ret_h_smoke_stage1_source(session_factory=admin_source_fixture, fixture=fixture)
     s2 = await bootstrap_ret_h_smoke_stage2_knowledge_index(
         session_factory=builder_session_factory,
         embedding_port=embedding_adapter,

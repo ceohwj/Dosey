@@ -1069,32 +1069,61 @@ async def test_verification_insert_waits_for_operation_transition_lock(writer_pa
         )
 
 
-async def test_writer_login_can_acquire_and_persist_without_source_payload_update_privilege() -> None:
+async def test_publisher_login_can_acquire_and_persist_without_source_payload_update_privilege() -> None:
     from uuid import uuid4
 
+    from ai_worker.tasks.rag.source_ingestion.snapshot_lifecycle import (
+        SourceSnapshotMemberCreate,
+        SourceSnapshotMemberKind,
+    )
     from infra.python.source_role_policy import apply_source_role_policy
 
     suffix = uuid4().hex[:10]
-    runtime, writer = f"acquire_reader_{suffix}", f"acquire_writer_{suffix}"
+    runtime, writer, publisher = (f"acquire_{kind}_{suffix}" for kind in ("reader", "writer", "publisher"))
     password = "synthetic-acquisition-only"
     identity = await _seed_operation(f"WRITER_{suffix}")
+    # ARTIFACT provenance requires the synthetic Source chain to be admitted.
+    async with session_factory.begin() as session:
+        await session.execute(
+            text("UPDATE rag_source SET lifecycle_status='ACTIVE' WHERE source_code=:code"),
+            {"code": identity.source_code},
+        )
+        await session.execute(
+            text(
+                "UPDATE rag_source_endpoint SET lifecycle_status='VERIFIED', "
+                "runtime_status='ENABLED', acquisition_status='APPROVED' WHERE endpoint_code=:code"
+            ),
+            {"code": identity.endpoint_code},
+        )
+        await session.execute(
+            text(
+                "UPDATE rag_source_operation SET runtime_status='ENABLED', "
+                "acquisition_status='APPROVED' WHERE operation_code=:code"
+            ),
+            {"code": identity.operation_code},
+        )
     admin = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     producer = create_async_engine(
-        TEST_DATABASE_URL.set(username=writer, password=password),
+        TEST_DATABASE_URL.set(username=publisher, password=password),
         poolclass=NullPool,
         connect_args={"server_settings": {"search_path": f"{TEST_SCHEMA},{EXTENSION_SCHEMA}"}},
         hide_parameters=True,
     )
     try:
         async with admin.begin() as connection:
-            for role in (runtime, writer):
+            for role in (runtime, writer, publisher):
                 await connection.execute(text(f"CREATE ROLE \"{role}\" LOGIN PASSWORD '{password}'"))
             await apply_source_role_policy(
-                connection, schema=TEST_SCHEMA, owner=config.DB_USER, runtime=runtime, writer=writer
+                connection,
+                schema=TEST_SCHEMA,
+                owner=config.DB_USER,
+                runtime=runtime,
+                writer=writer,
+                publisher=publisher,
             )
             assert not await connection.scalar(
                 text("SELECT has_column_privilege(:role, :table, 'lifecycle_status', 'UPDATE')"),
-                {"role": writer, "table": f"{TEST_SCHEMA}.rag_source"},
+                {"role": publisher, "table": f"{TEST_SCHEMA}.rag_source"},
             )
         factory = async_sessionmaker(producer)
         async with factory.begin() as first:
@@ -1109,6 +1138,45 @@ async def test_writer_login_can_acquire_and_persist_without_source_payload_updat
                 metadata=_metadata("external:review-429"),
                 artifacts=_stored_artifacts(),
             )
+            assert result.snapshot_id is not None
+            receipt = await repository.get_snapshot_receipt(snapshot_id=result.snapshot_id)
+            assert receipt is not None
+            artifact = (
+                await first.scalars(
+                    select(RagSourceIngestionArtifact)
+                    .join(RagSourceIngestionRun)
+                    .where(RagSourceIngestionRun.snapshot_id == result.snapshot_id)
+                )
+            ).one()
+            member = await repository.append_snapshot_member(
+                SourceSnapshotMemberCreate(
+                    provenance=receipt,
+                    member_kind=SourceSnapshotMemberKind.ARTIFACT,
+                    endpoint_id=None,
+                    operation_id=None,
+                    ingestion_artifact_id=artifact.id,
+                    locator="synthetic/writer-artifact",
+                    content_sha256=artifact.raw_checksum,
+                )
+            )
+            assert member.ingestion_artifact_id == artifact.id
+            run_id = artifact.ingestion_run_id
+        # Characterize the residual trusted-Publisher SQL boundary: INSERT can still
+        # append an artifact to an already committed run; payload UPDATE is separate.
+        async with factory() as second, second.begin():
+            appended_id = await second.scalar(
+                text(
+                    "INSERT INTO rag_source_ingestion_artifact "
+                    "(id, ingestion_run_id, page_number, artifact_kind, artifact_key, "
+                    "storage_backend, object_key, raw_checksum, byte_size, content_type) "
+                    "VALUES (:id, :run_id, 2, 'RAW_RESPONSE', 'direct-append.json', "
+                    "'PRIVATE_OBJECT_STORAGE', 'synthetic/direct-append.json', :checksum, 1, 'application/json') "
+                    "RETURNING id"
+                ),
+                {"id": str(uuid4()), "run_id": str(run_id), "checksum": "e" * 64},
+            )
+            assert appended_id is not None
+            await second.rollback()
         async with factory.begin() as second:
             await SqlAlchemySourceSnapshotRepository(second).try_lock_acquisition(identity)
             assert (
@@ -1123,7 +1191,7 @@ async def test_writer_login_can_acquire_and_persist_without_source_payload_updat
     finally:
         await producer.dispose()
         async with admin.begin() as connection:
-            for role in (runtime, writer):
+            for role in (runtime, writer, publisher):
                 await connection.execute(text(f'DROP OWNED BY "{role}"'))
                 await connection.execute(text(f'DROP ROLE "{role}"'))
         await admin.dispose()
@@ -1309,7 +1377,7 @@ async def test_attempt_receipt_rejects_unmapped_database_failure_code() -> None:
     async with session_factory.begin() as session:
         repository = SqlAlchemySourceSnapshotRepository(session)
         operation_id = await repository.lock_operation(identity)
-        run_id = await repository.create_run(
+        run_id = await repository.persist_complete_attempt(
             SnapshotRunRecord(
                 operation_id=operation_id,
                 snapshot_id=None,
@@ -1320,7 +1388,8 @@ async def test_attempt_receipt_rejects_unmapped_database_failure_code() -> None:
                 finished_at=_NOW,
                 duration_ms=0,
                 failure_code="FUTURE_FAILURE",
-            )
+            ),
+            (),
         )
     async with session_factory() as session:
         with pytest.raises(ValueError, match="decision is unavailable"):
@@ -1435,7 +1504,7 @@ async def test_legacy_empty_result_remains_available_as_audit_without_guessed_de
     async with session_factory.begin() as session:
         repository = SqlAlchemySourceSnapshotRepository(session)
         operation_id = await repository.lock_operation(identity)
-        run_id = await repository.create_run(
+        run_id = await repository.persist_complete_attempt(
             SnapshotRunRecord(
                 operation_id=operation_id,
                 snapshot_id=None,
@@ -1446,7 +1515,8 @@ async def test_legacy_empty_result_remains_available_as_audit_without_guessed_de
                 finished_at=_NOW,
                 duration_ms=0,
                 failure_code="EMPTY_RESULT",
-            )
+            ),
+            (),
         )
     async with session_factory() as session:
         with pytest.raises(ValueError, match="decision is unavailable"):
@@ -1621,7 +1691,7 @@ async def test_mfds_member_failure_rolls_back_then_cleanup_and_retry(tmp_path, m
     from ai_worker.adapters.local_private_source_artifact_store import LocalPrivateSourceArtifactStore
     from ai_worker.adapters.local_private_source_cleanup import LocalPrivateCleanupExecutorJournal
     from ai_worker.admin import mfds_label_writer, source_artifact_cleanup
-    from ai_worker.admin.source_writer import WriterConfig
+    from ai_worker.admin.source_publisher import SourcePublisherConfig
     from ai_worker.tests.rag.source_ingestion.test_mfds_label import (
         _COLLECTED_AT,
         _RECEIPT_HASH,
@@ -1630,7 +1700,9 @@ async def test_mfds_member_failure_rolls_back_then_cleanup_and_retry(tmp_path, m
     from infra.python.source_role_policy import apply_source_role_policy
 
     suffix = uuid4().hex[:10]
-    runtime, writer, executor = (f"mfds591_{kind}_{suffix}" for kind in ("runtime", "writer", "executor"))
+    runtime, writer, publisher, executor = (
+        f"mfds591_{kind}_{suffix}" for kind in ("runtime", "writer", "publisher", "executor")
+    )
     password = "synthetic-member-cleanup-only"
     identity = await _seed_operation(suffix.upper())
     root = tmp_path / "artifacts"
@@ -1640,7 +1712,7 @@ async def test_mfds_member_failure_rolls_back_then_cleanup_and_retry(tmp_path, m
     for name in ("requests", "receipts"):
         (journal_root / name).mkdir(mode=0o700)
     directory = _input_directory(tmp_path)
-    roles = (runtime, writer, executor)
+    roles = (runtime, writer, publisher, executor)
     try:
         async with test_engine.begin() as connection:
             for role in roles:
@@ -1662,7 +1734,12 @@ async def test_mfds_member_failure_rolls_back_then_cleanup_and_retry(tmp_path, m
                 {"code": identity.operation_code},
             )
             await apply_source_role_policy(
-                connection, schema=TEST_SCHEMA, owner=config.DB_USER, runtime=runtime, writer=writer
+                connection,
+                schema=TEST_SCHEMA,
+                owner=config.DB_USER,
+                runtime=runtime,
+                writer=writer,
+                publisher=publisher,
             )
             await connection.execute(text(f"GRANT USAGE ON SCHEMA {TEST_SCHEMA} TO {executor}"))
             await connection.execute(
@@ -1692,7 +1769,7 @@ async def test_mfds_member_failure_rolls_back_then_cleanup_and_retry(tmp_path, m
 
         monkeypatch.setattr(mfds_label_writer, "FinalizingLocalPrivateSourceArtifactStore", SyntheticFinalizer)
         writer_config = mfds_label_writer.MfdsLabelWriterConfig(
-            WriterConfig(TEST_DATABASE_URL.set(username=writer, password=password), "synthetic-writer"),
+            SourcePublisherConfig(TEST_DATABASE_URL.set(username=publisher, password=password), "synthetic-writer"),
             root,
             tmp_path / "synthetic-finalizer",
             journal_root,

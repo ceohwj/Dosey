@@ -34,6 +34,7 @@ def test_executor_config_hides_private_values(tmp_path: Path) -> None:
         {"SOURCE_ARTIFACT_LOCAL_ROOT": "relative"},
         {"SOURCE_CLEANUP_JOURNAL_ROOT": "relative"},
         {"SOURCE_WRITER_PASSWORD": "mixed-secret"},
+        {"SOURCE_PUBLISHER_PASSWORD": "mixed-secret"},
     ],
 )
 def test_executor_config_fails_closed_on_incomplete_or_mixed_environment(
