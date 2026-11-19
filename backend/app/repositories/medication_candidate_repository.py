@@ -301,6 +301,42 @@ class MedicationCandidateRepository:
             return None
         return MedicationCandidateSelection(search=search, result=candidate_result)
 
+    async def get_result_selection_owned(
+        self,
+        *,
+        candidate_search_result_id: UUID,
+        user_id: UUID,
+    ) -> MedicationCandidateSelection | None:
+        """Historical SELF ownership for replay; no current eligibility or row locks."""
+        search = await self.session.scalar(
+            select(MedicationCandidateSearch)
+            .join(
+                MedicationCandidateSearchResult,
+                MedicationCandidateSearchResult.search_id == MedicationCandidateSearch.id,
+            )
+            .join(
+                PrescriptionVersionMedication,
+                PrescriptionVersionMedication.id == MedicationCandidateSearch.prescription_version_medication_id,
+            )
+            .join(PrescriptionVersion, PrescriptionVersion.id == PrescriptionVersionMedication.prescription_version_id)
+            .join(Prescription, Prescription.id == PrescriptionVersion.prescription_id)
+            .where(
+                MedicationCandidateSearchResult.id == candidate_search_result_id,
+                owned_by_self(Prescription.profile_id, user_id),
+            )
+        )
+        if search is None:
+            return None
+        result = await self.session.scalar(
+            select(MedicationCandidateSearchResult).where(
+                MedicationCandidateSearchResult.id == candidate_search_result_id,
+                MedicationCandidateSearchResult.search_id == search.id,
+            )
+        )
+        if result is None:
+            return None
+        return MedicationCandidateSelection(search=search, result=result)
+
     async def get_latest_matched_identification(
         self,
         *,
@@ -395,6 +431,9 @@ class MedicationCandidateRepository:
         strength_text_snapshot: str | None,
         query_digest: str,
         runtime_release_bundle_id: UUID | None,
+        runtime_release_bundle_manifest_hash: str | None = None,
+        runtime_environment_id: UUID | None = None,
+        runtime_environment_revision: int | None = None,
         candidate_index_version_id: UUID | None,
         expires_at: datetime | None,
     ) -> MedicationCandidateSearch:
@@ -404,6 +443,9 @@ class MedicationCandidateRepository:
             strength_text_snapshot=strength_text_snapshot,
             query_digest=query_digest,
             runtime_release_bundle_id=runtime_release_bundle_id,
+            runtime_release_bundle_manifest_hash=runtime_release_bundle_manifest_hash,
+            runtime_environment_id=runtime_environment_id,
+            runtime_environment_revision=runtime_environment_revision,
             candidate_index_version_id=candidate_index_version_id,
             status=MedicationCandidateSearchStatus.RUNNING,
             candidate_count=0,

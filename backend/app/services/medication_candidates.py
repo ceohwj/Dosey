@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, NoReturn
 from uuid import UUID
 
 from app.core import config
@@ -17,7 +17,7 @@ from app.dtos.medication_candidates import (
 )
 from app.models.rag_candidate import MedicationCandidateSearchStatus as ModelCandidateSearchStatus
 from app.models.users import User
-from app.repositories.medication_candidate_repository import MedicationCandidateRepository
+from app.repositories.medication_candidate_repository import MedicationCandidateRepository, MedicationCandidateSelection
 from app.services.idempotency import RUNTIME_RELEASE_BUNDLE_PLACEHOLDER, SyncMutationIdempotencyService
 from app.services.medication_identification import MedicationIdentificationService
 
@@ -121,9 +121,18 @@ class MedicationCandidateService:
         request: ConfirmMedicationCandidateRequest,
         idempotency_key: str,
     ) -> ConfirmMedicationCandidateData:
-        # 계약: F Candidate 확인·거절의 parent_resource_id는 prescription_version_medication_id로
-        # 고정된다. confirm은 request body에 이미 그 값이 있어 별도 조회가 필요 없다.
+        selection = await self._get_owned_selection(
+            user=user,
+            candidate_search_result_id=request.candidate_search_result_id,
+        )
+        if selection.search.prescription_version_medication_id != request.prescription_version_medication_id:
+            self._raise_search_not_found()
+
         async def mutate() -> dict[str, Any]:
+            await self._identification_service.validate_candidate_runtime(
+                candidate_search_result_id=request.candidate_search_result_id,
+                user_id=user.id,
+            )
             identification = await self._identification_service.confirm_identification(
                 prescription_version_medication_id=request.prescription_version_medication_id,
                 candidate_search_result_id=request.candidate_search_result_id,
@@ -148,7 +157,11 @@ class MedicationCandidateService:
             operation_id=MEDICATION_CANDIDATE_CONFIRM_OPERATION_ID,
             parent_resource_id=request.prescription_version_medication_id,
             idempotency_key=idempotency_key,
-            fingerprint={
+            fingerprint=self._candidate_fingerprint(
+                action="confirm",
+                selection=selection,
+            ),
+            legacy_fingerprint={
                 "action": "confirm",
                 "candidate_search_result_id": str(request.candidate_search_result_id),
                 "runtime_release_bundle": RUNTIME_RELEASE_BUNDLE_PLACEHOLDER,
@@ -165,11 +178,19 @@ class MedicationCandidateService:
         request: RejectMedicationCandidateRequest,
         idempotency_key: str,
     ) -> RejectMedicationCandidateData:
-        # 거절 요청 body에는 prescription_version_medication_id가 직접 없어, 멱등성 scope를
-        # 계산하기 전에 미리 조회해서 도출해야 한다(놓치기 쉬운 지점, #311).
-        parent_resource_id = await self._resolve_reject_parent_resource_id(user=user, request=request)
+        selection = await self._get_owned_selection(
+            user=user,
+            candidate_search_result_id=request.candidate_search_result_id,
+        )
+        if selection.search.id != request.search_id:
+            self._raise_search_not_found()
+        parent_resource_id = selection.search.prescription_version_medication_id
 
         async def mutate() -> dict[str, Any]:
+            await self._identification_service.validate_candidate_runtime(
+                candidate_search_result_id=request.candidate_search_result_id,
+                user_id=user.id,
+            )
             identification = await self._identification_service.reject_identification(
                 search_id=request.search_id,
                 candidate_search_result_id=request.candidate_search_result_id,
@@ -192,7 +213,11 @@ class MedicationCandidateService:
             operation_id=MEDICATION_CANDIDATE_REJECT_OPERATION_ID,
             parent_resource_id=parent_resource_id,
             idempotency_key=idempotency_key,
-            fingerprint={
+            fingerprint=self._candidate_fingerprint(
+                action="reject",
+                selection=selection,
+            ),
+            legacy_fingerprint={
                 "action": "reject",
                 "search_id": str(request.search_id),
                 "candidate_search_result_id": str(request.candidate_search_result_id),
@@ -203,26 +228,46 @@ class MedicationCandidateService:
         )
         return RejectMedicationCandidateData.model_validate(result.response_body)
 
-    async def _resolve_reject_parent_resource_id(
+    @staticmethod
+    def _candidate_fingerprint(*, action: str, selection: MedicationCandidateSelection) -> dict[str, Any]:
+        search = selection.search
+        fingerprint: dict[str, Any] = {
+            "schema_version": 2,
+            "action": action,
+            "search_id": str(search.id),
+            "candidate_search_result_id": str(selection.result.id),
+            "runtime_binding": {
+                "runtime_release_bundle_id": str(search.runtime_release_bundle_id)
+                if search.runtime_release_bundle_id is not None
+                else None,
+                "runtime_release_bundle_manifest_hash": search.runtime_release_bundle_manifest_hash,
+                "runtime_environment_id": str(search.runtime_environment_id)
+                if search.runtime_environment_id is not None
+                else None,
+                "runtime_environment_revision": search.runtime_environment_revision,
+            },
+        }
+        return fingerprint
+
+    async def _get_owned_selection(
         self,
         *,
         user: User,
-        request: RejectMedicationCandidateRequest,
-    ) -> UUID:
-        """계약: F Candidate 확인·거절 둘 다 parent_resource_id는
-        prescription_version_medication_id로 고정된다. `reject_identification`이 내부적으로
-        쓰는 것과 같은 조회(`get_result_selection_for_update_owned`)를 재사용해, 같은 검증
-        (선택한 결과가 요청한 search_id에 속하는지)을 먼저 적용한다 — 같은 트랜잭션이라 같은
-        행에 대한 재조회·재잠금은 안전하다."""
-        selection = await self._repository.get_result_selection_for_update_owned(
-            candidate_search_result_id=request.candidate_search_result_id,
+        candidate_search_result_id: UUID,
+    ) -> MedicationCandidateSelection:
+        selection = await self._repository.get_result_selection_owned(
+            candidate_search_result_id=candidate_search_result_id,
             user_id=user.id,
         )
-        if selection is None or selection.search.id != request.search_id:
-            raise ApiError(
-                status_code=404,
-                code="CANDIDATE_SEARCH_NOT_FOUND",
-                message="약품 후보 검색 결과를 찾을 수 없습니다.",
-                details=[ErrorDetail(field="candidate_search_result_id", reason="NOT_FOUND")],
-            )
-        return selection.search.prescription_version_medication_id
+        if selection is None:
+            self._raise_search_not_found()
+        return selection
+
+    @staticmethod
+    def _raise_search_not_found() -> NoReturn:
+        raise ApiError(
+            status_code=404,
+            code="CANDIDATE_SEARCH_NOT_FOUND",
+            message="약품 후보 검색 결과를 찾을 수 없습니다.",
+            details=[ErrorDetail(field="candidate_search_result_id", reason="NOT_FOUND")],
+        )

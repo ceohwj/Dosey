@@ -1,4 +1,4 @@
-from typing import Annotated, NoReturn
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, status
@@ -22,6 +22,7 @@ from app.dtos.medication_candidates import (
     RejectMedicationCandidateResponse,
 )
 from app.models.users import User
+from app.services.candidate_search import CandidateSearchService
 from app.services.medication_candidates import (
     MEDICATION_CANDIDATE_CONFIRM_OPERATION_ID,
     MEDICATION_CANDIDATE_REJECT_OPERATION_ID,
@@ -46,20 +47,6 @@ _CONFLICT_RESPONSE = {
     "model": ErrorResponse,
     "description": "Candidate가 현재 상태와 맞지 않거나 같은 Idempotency-Key로 다른 요청 지문이 접수되었습니다.",
 }
-
-
-def _raise_candidate_feature_unavailable() -> NoReturn:
-    raise ApiError(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        code="SERVICE_UNAVAILABLE",
-        message="약품 후보 확인 기능은 아직 사용할 수 없습니다.",
-        details=[
-            ErrorDetail(
-                field="medication_candidate",
-                reason="PRESCRIPTION_VERSION_MEDICATION_OWNERSHIP_NOT_CONNECTED",
-            )
-        ],
-    )
 
 
 def _ensure_public_track_f_enabled() -> None:
@@ -95,7 +82,10 @@ def _validate_idempotency_header(idempotency_key: str | None) -> None:
     "/medication-candidate-searches",
     response_model=MedicationCandidateSearchResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    operation_id="medication-candidate.search.create",
     responses={
+        status.HTTP_404_NOT_FOUND: _NOT_FOUND_RESPONSE,
+        status.HTTP_409_CONFLICT: _CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR_RESPONSE,
         status.HTTP_503_SERVICE_UNAVAILABLE: _SERVICE_UNAVAILABLE_RESPONSE,
     },
@@ -103,9 +93,17 @@ def _validate_idempotency_header(idempotency_key: str | None) -> None:
 async def create_medication_candidate_search(
     request: CreateMedicationCandidateSearchRequest,
     user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[CandidateSearchService, Depends(get_medication_candidate_service)],
 ) -> Response:
-    del request, user
-    _raise_candidate_feature_unavailable()
+    _ensure_public_track_f_enabled()
+    result = await service.create_candidate_search(
+        user=user,
+        prescription_version_medication_id=request.prescription_version_medication_id,
+    )
+    return Response(
+        content=MedicationCandidateSearchResponse(data=result).model_dump(mode="json"),
+        status_code=status.HTTP_202_ACCEPTED,
+    )
 
 
 @medication_candidate_router.get(
@@ -115,6 +113,7 @@ async def create_medication_candidate_search(
     operation_id="medication-candidate.search.get",
     responses={
         status.HTTP_404_NOT_FOUND: _NOT_FOUND_RESPONSE,
+        status.HTTP_409_CONFLICT: _CONFLICT_RESPONSE,
         status.HTTP_422_UNPROCESSABLE_CONTENT: _VALIDATION_ERROR_RESPONSE,
         status.HTTP_503_SERVICE_UNAVAILABLE: _SERVICE_UNAVAILABLE_RESPONSE,
     },
