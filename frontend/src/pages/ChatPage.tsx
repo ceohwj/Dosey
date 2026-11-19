@@ -835,8 +835,7 @@ function ChatPage({
 
             <form className="chat-composer" onSubmit={handleSend}>
               <label className="chat-page__composer-label" htmlFor="dosey-chat-input">
-                <span className="chat-page__composer-label-legacy">복약 질문</span>
-                <span aria-hidden="true">복약 챗봇 도지에게 질문</span>
+                복약 질문
               </label>
               <textarea
                 id="dosey-chat-input"
@@ -852,7 +851,7 @@ function ChatPage({
                 onKeyDown={handleComposerKeyDown}
                 aria-label="복약 질문"
                 placeholder="궁금한 내용을 입력하세요"
-                rows={1}
+                rows={2}
                 enterKeyHint="send"
                 disabled={
                   currentIsLoading || currentIsSending || !currentSessionId
@@ -869,7 +868,7 @@ function ChatPage({
                   !currentDraft.trim()
                 }
               >
-                <span className="chat-send__icon" aria-hidden="true" />
+                <span>전송</span>
               </button>
             </form>
           </div>

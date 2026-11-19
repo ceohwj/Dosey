@@ -184,6 +184,7 @@ export function MedicationRecordPage({
         <main className="app-scroll medication-record">
           <header className="medication-record__intro">
             <h1>복약 기록</h1>
+            <p className="medication-record__hint">날짜를 선택해 복용 여부를 확인해요.</p>
             <div className="medication-record-week">
               <p className="medication-record-week__selected" aria-live="polite">
                 {formatLocalDate(selectedDate)}
@@ -216,6 +217,7 @@ export function MedicationRecordPage({
                   </button>
                 ))}
               </div>
+              <p className="medication-record-week__hint">오늘 이후 날짜는 선택할 수 없어요.</p>
             </div>
           </header>
 

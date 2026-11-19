@@ -706,7 +706,7 @@ function ScheduleEditor({
                       const periodLabel = timeOfDayLabel(time)
                       return (
                       <label className="schedule-editor__time-field" key={index}>
-                        <span className="sr-only">{medication.medication_name} {index + 1}번째 복용 시간</span>
+                        <span className="schedule-editor__time-label">{index + 1}번째 복용 시간</span>
                         {periodLabel && (
                           <span className="schedule-editor__time-period" aria-hidden="true">{periodLabel}</span>
                         )}
@@ -1072,6 +1072,7 @@ export function SchedulePage({
               {formatLocalDate(selectedDate)}
             </p>
             <h1>복약 일정</h1>
+            <p className="schedule-page__help">설정한 시간과 약을 확인하고, 복용 여부를 기록해요.</p>
           </header>
 
           {isLoading && (
@@ -1149,7 +1150,7 @@ export function SchedulePage({
           {!isLoading && day && (day.schedule_status === 'READY' || occurrences.length > 0) && (
             <section className="schedule-page__occurrences" aria-labelledby="occurrence-list-title">
               <div className="schedule-page__section-heading">
-                <h2 id="occurrence-list-title">오늘의 복약</h2>
+                <h2 id="occurrence-list-title">{selectedDate === kstToday() ? '오늘의 복약' : '선택한 날짜의 복약'}</h2>
               </div>
               {currentOccurrences.length === 0 ? (
                 <Card className="schedule-page__empty">
@@ -1216,6 +1217,12 @@ export function SchedulePage({
                 </details>
               )}
             </section>
+          )}
+
+          {!isLoading && day && day.schedule_status !== 'NO_ACTIVE_PRESCRIPTION' && selectedDate <= kstToday() && (
+            <button className="schedule-page__settings-action" type="button" onClick={() => navigate(`/records?date=${encodeURIComponent(selectedDate)}`)}>
+              <span>복약 기록 보기</span><span aria-hidden="true">›</span>
+            </button>
           )}
 
           {!isLoading && day && day.schedule_items.length > 0 && day.schedule_status === 'READY' && (
@@ -1491,6 +1498,7 @@ export function ScheduleOccurrencePage({
                   <p>{isBeforeScheduledTime
                     ? `${formatKstTime(occurrence.scheduled_at)}부터 복약 기록을 남길 수 있어요.`
                     : '현재 상태를 확인하고 직접 선택해 주세요.'}</p>
+                  {!isBeforeScheduledTime && <p className="schedule-record__immediate-note">아래 버튼을 누르면 바로 저장돼요.</p>}
                   <Button fullWidth disabled={isSaving || isBeforeScheduledTime} onClick={() => void submitCheckin('TAKEN')}>
                     {isSaving ? '저장 중…' : '복용했어요'}
                   </Button>

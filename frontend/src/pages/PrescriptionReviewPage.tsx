@@ -111,7 +111,7 @@ const manuallyEnterableOcrPlaceholderFieldTypes = new Set<string>([
 ])
 
 const manualEntryNotice =
-  'OCR이 인식하지 못해 직접 입력이 필요한 필드예요.'
+  '처방전에서 읽지 못한 항목이에요. 원본을 보고 직접 입력해 주세요.'
 
 type ReviewSectionKey = 'prescription-date' | `medication-${number}`
 

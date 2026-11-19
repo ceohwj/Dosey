@@ -718,362 +718,313 @@
   pointer-events: none;
 }
 
-/* ------------------------------------------------------------------
- * CHECKIN-PB-02 / PB-03 · Figma 2096:93 / 2096:229
- * ------------------------------------------------------------------ */
-
+/* 약별 확인 · 한 번에 한 약씩 선택하고 마지막에 저장한다. */
 .checkin--detail {
   gap: 0;
   padding-top: 24px;
-}
-
-/* title y=96 / subtitle y=140 */
-.checkin--detail .checkin__intro {
-  gap: 4px;
+  background: #f7f8f6;
+  color: #22343a;
 }
 
 .checkin--detail .checkin__intro h1 {
-  margin: 0;
-  color: #1f2937;
   font-size: 26px;
-  font-weight: 700;
-  line-height: 40px;
-  letter-spacing: 0;
+  line-height: 1.45;
+  color: #22343a;
 }
 
-.checkin--detail .checkin__intro p {
-  margin: 0;
-  color: #6b7c93;
-  font-size: 15px;
-  line-height: 24px;
+.checkin--detail .checkin__intro p,
+.checkin--detail .checkin__readonly-note {
+  color: #52616b;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-/* 안내 카드 y=182 · 350×76 */
 .checkin--detail .checkin__guide {
   min-height: 76px;
-  height: 76px;
-  gap: 2px;
-  margin-top: 18px;
-  padding: 14px 18px;
+  gap: 4px;
+  margin-top: 20px;
+  padding: 18px 20px;
   border: 0;
-  border-radius: 16px;
-  background: #fff9e8;
+  border-radius: 20px;
+  background: #eaf2f9;
 }
 
 .checkin--detail .checkin__guide strong {
-  color: #1f2937;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
+  font-size: 18px;
+  line-height: 1.5;
 }
 
 .checkin--detail .checkin__guide span {
-  color: #6b7c93;
-  font-size: 14px;
-  line-height: 24px;
+  color: #52616b;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-/* section heading y=286 */
+.checkin--detail .checkin__readonly-note {
+  margin: 18px 0 0;
+}
+
 .checkin--detail .checkin__medications {
   gap: 14px;
   margin-top: 24px;
 }
 
 .checkin--detail .checkin__medications h2 {
-  margin: 0 0 8px;
-  color: #1f2937;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 24px;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.5;
 }
 
-/* 약 카드 350×164 */
 .checkin--detail .checkin-medication-card {
-  min-height: 164px;
-  height: 164px;
-  gap: 0;
-  padding: 18px;
-  border: 1px solid #d7e0ea;
-  border-radius: 16px;
+  min-height: 0;
+  height: auto;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #d7dee2;
+  border-radius: 24px;
   background: #fff;
 }
 
 .checkin--detail .checkin-medication-card__summary {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  column-gap: 14px;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
-  min-height: 58px;
 }
 
-.checkin--detail .checkin-medication-card__icon {
-  width: 36px;
-  height: 36px;
-}
-
+.checkin--detail .checkin-medication-card__icon,
 .checkin--detail .checkin-medication-card__icon img {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
 }
 
-.checkin--detail .checkin-medication-card__copy {
-  min-width: 0;
-}
-
+.checkin--detail .checkin-medication-card__copy { min-width: 0; }
 .checkin--detail .checkin-medication-card h3 {
   margin: 0;
-  color: #1f2937;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 24px;
+  font-size: 20px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .checkin--detail .checkin-medication-card p {
   margin: 4px 0 0;
-  color: #6b7c93;
-  font-size: 14px;
-  line-height: 24px;
+  color: #52616b;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-/* choices */
 .checkin--detail .checkin-medication-card__choices {
-  gap: 6px;
-  margin-top: 6px;
+  gap: 12px;
+  margin: 0;
 }
 
 .checkin--detail .checkin-choice {
   position: relative;
-  width: 100%;
-  padding: 0 38px 0 16px;
-  border: 1px solid #d7e0ea;
-  border-radius: 10px;
+  min-height: 76px;
+  height: auto;
+  padding: 16px 48px 16px 18px;
+  border: 1px solid #b8c8d4;
+  border-radius: 16px;
   background: #fff;
-  color: #1e2932;
-  text-align: center;
-}
-
-.checkin--detail .checkin-choice:first-child {
-  min-height: 36px;
-  height: 36px;
-  font-size: 15px;
+  color: #22343a;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 24px;
-}
-
-.checkin--detail .checkin-choice:last-child {
-  min-height: 28px;
-  height: 28px;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 24px;
+  line-height: 1.5;
+  text-align: left;
 }
 
 .checkin--detail .checkin-choice[aria-pressed='true'] {
-  border-color: #607d8b;
-  background: #eceff1;
+  border: 2px solid #285d91;
+  padding: 15px 47px 15px 17px;
+  background: #eaf2f9;
+  color: #194c7a;
 }
 
 .checkin--detail .checkin-choice[aria-pressed='true']::after {
-  content: '✓';
+  content: '✓ 선택';
   position: absolute;
   top: 50%;
   right: 12px;
   transform: translateY(-50%);
-  color: #607d8b;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-/* 저장 안내 card y=682 · 350×72 */
-
-
-
-/* Figma bottom helper y≈968 */
-.checkin--detail .checkin__bottom-helper {
-  margin: auto 0 16px;
-  color: #67798a;
   font-size: 14px;
-  font-weight: 500;
-  line-height: 20.3px;
-  text-align: center;
 }
 
-/* CTA y≈1008 · 350×56 */
-.checkin--detail .checkin__submit {
-  width: 100%;
-  min-height: 56px;
-  height: 56px;
-  margin-bottom: 28px;
-  border-radius: 14px;
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.checkin--detail .checkin__submit:disabled {
-  background: #d8dee8;
-  color: #fff;
+.checkin--detail .checkin-choice:disabled {
+  cursor: not-allowed;
   opacity: 1;
 }
 
-/* CHECKIN-PB-02/03 · 복용 여부 선택 버튼 동일 크기 */
-.checkin--detail .checkin-choice:first-child,
-.checkin--detail .checkin-choice:last-child {
-  min-height: 36px;
-  height: 36px;
-  font-size: 15px;
-  line-height: 24px;
+.checkin--detail .checkin-choice:disabled:not([aria-pressed='true']) {
+  background: #f4f6f7;
+  color: #667783;
 }
 
-/* CHECKIN 제목은 화면 전환 후 접근성 안내를 위해 programmatic focus를 유지하되,
-   비대화형 heading 자체에는 focus ring을 표시하지 않는다. */
-.checkin-page .checkin__intro h1:focus,
-.checkin-page .checkin__intro h1:focus-visible {
-  outline: none;
-}
-
-/* CHECKIN PB-02/03 · 동일 높이 선택 버튼에 맞춰 약 카드 여유 확보 */
-.checkin--detail .checkin-medication-card {
-  min-height: 180px;
-  height: 180px;
-}
-
-.checkin--detail .checkin-medication-card__choices {
-  gap: 8px;
-  margin-top: 8px;
-}
-
-/* CHECKIN-PB-04 · save error */
+.checkin--detail .checkin__selection-summary,
 .checkin--detail .checkin__error {
-  border: 1px solid #da5c49;
-  border-radius: 14px;
-  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #d7dee2;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.checkin--detail .checkin__selection-summary h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.checkin--detail .checkin__selection-summary ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkin--detail .checkin__selection-summary li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.checkin--detail .checkin__selection-summary strong {
+  color: #285d91;
+}
+
+.checkin--detail .checkin__error {
+  border-color: #d4a988;
+  background: #fff8f3;
 }
 
 .checkin--detail .checkin__error strong,
 .checkin--detail .checkin__error p {
-  color: #ac3223;
-}
-
-.checkin--detail .checkin__error p {
+  margin: 0;
+  color: #713a1b;
+  font-size: 16px;
+  line-height: 1.6;
   white-space: pre-line;
 }
 
-/* ------------------------------------------------------------------
- * CHECKIN-PB-05 · 저장 완료 feedback
- * Figma 2096:166
- * ------------------------------------------------------------------ */
+.checkin--detail .checkin__bottom-helper {
+  margin: 20px 0 12px;
+  color: #52616b;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.checkin--detail .checkin__step-actions {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.checkin--detail .checkin__submit,
+.checkin--detail .checkin__previous {
+  min-height: 60px;
+  height: auto;
+  border-radius: 16px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.checkin--detail .checkin__submit:not(:disabled) {
+  background: #285d91;
+  color: #fff;
+}
+
+.checkin--detail .checkin__submit:disabled {
+  border: 1px solid #aabac5;
+  background: #e6ebee;
+  color: #52616b;
+  opacity: 1;
+}
 
 .checkin-page .checkin-success-overlay {
   position: absolute;
   z-index: 20;
-  top: 72px;
-  right: 0;
-  bottom: calc(88px + var(--ds-safe-bottom, 0px));
-  left: 0;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   background: rgb(25 35 51 / 46%);
 }
 
 .checkin-page .checkin-success-dialog {
-  position: absolute;
-  top: 238px;
-  left: 50%;
-  width: min(310px, calc(100% - 80px));
-  height: 360px;
-  transform: translateX(-50%);
+  width: min(350px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  padding: 28px 22px;
   border-radius: 24px;
-  background: #f0fcf6;
+  background: #f7fbff;
+  text-align: center;
 }
 
 .checkin-success-dialog__check {
-  position: absolute;
-  top: 38px;
-  left: 50%;
   width: 76px;
   height: 76px;
   display: grid;
   place-items: center;
-  transform: translateX(-50%);
   border-radius: 50%;
-  background: #fff;
-  color: #19a66a;
+  background: #eaf2f9;
+  color: #285d91;
   font-size: 46px;
   font-weight: 700;
-  line-height: 1;
 }
 
 .checkin-success-dialog h2 {
-  position: absolute;
-  top: 188px;
-  left: 30px;
-  width: 250px;
   margin: 0;
-  color: #414a59;
+  color: #22343a;
   font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
+  line-height: 1.4;
 }
 
 .checkin-success-dialog__confirm {
-  position: absolute;
-  top: 290px;
-  left: 30px;
-  width: 250px;
-  min-height: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: #607d8b;
+  width: 100%;
+  min-height: 60px;
+  border-radius: 16px;
+  background: #285d91;
   color: #fff;
-  font-size: 17px;
-  font-weight: 600;
-}
-
-/* PB-05 underlying completion layout */
-.checkin--detail .checkin__complete {
-  gap: 0;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .checkin--detail .checkin__complete-card {
-  min-height: 160px;
-  height: 160px;
+  height: auto;
+  min-height: 0;
   margin-top: 24px;
-  padding: 18px;
-  border: 1px solid #d7e0ea;
-  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #d7dee2;
+  border-radius: 24px;
   background: #fff;
 }
 
-.checkin--detail .checkin__complete-time {
-  color: #6b7c93;
-  font-size: 18px;
-  line-height: 24px;
+.checkin--detail .checkin__complete-time,
+.checkin--detail .checkin__complete-card > span:last-child {
+  color: #52616b;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .checkin--detail .checkin__complete-card strong {
-  margin-top: 8px;
-  color: #19a66a;
+  color: #285d91;
   font-size: 24px;
-  font-weight: 700;
-  line-height: 34px;
+  line-height: 1.4;
 }
 
-.checkin--detail .checkin__complete-card > span:last-child {
-  margin-top: 4px;
-  color: #6b7c93;
-  font-size: 15px;
-  line-height: 28px;
-}
-
-.checkin--detail
-  .checkin__complete
-  > .checkin__link-row {
-  min-height: 72px;
-  height: 72px;
+.checkin--detail .checkin__complete > .checkin__link-row {
+  min-height: 60px;
   margin-top: 20px;
-  padding: 0 18px;
-  border-color: #d7e0ea;
-  border-radius: 14px;
-  font-size: 17px;
-  font-weight: 600;
+  border-radius: 16px;
+  font-size: 18px;
 }

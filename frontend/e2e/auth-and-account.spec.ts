@@ -87,7 +87,7 @@ test('[REQ-USR-010][REQ-USR-019][REQ-USR-020] 보호 화면·프로필 저장·�
   await page.getByLabel('이메일', { exact: true }).fill('synthetic@example.com')
   await page.getByLabel('비밀번호').fill('Synthetic1!')
   await page.getByRole('button', { name: '로그인' }).click()
-  await expect(page.getByText('오늘도 건강한 하루 되세요')).toBeVisible()
+  await expect(page.getByText('오늘 약, 함께 확인해요')).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBe(syntheticToken)
 
   await page.goto('/profile')

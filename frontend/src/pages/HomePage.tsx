@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
@@ -13,8 +13,10 @@ import { Button, MobileShell } from '../design-system/components'
 import { DoseyMascot } from '../design-system/DoseyMascot'
 import '../design-system/prototype.css'
 import './MvpPages.css'
+import HomeTodaySection, { type HomeTodayServices } from './HomeTodaySection'
+import { getMedicationDay, getOccurrenceMedication } from '../api/medicationSchedules'
 
-type HomeServices = {
+type HomeServices = HomeTodayServices & {
   getLatestPrescription: typeof getLatestPrescription
   getMedicationReport: typeof getMedicationReport
 }
@@ -22,6 +24,8 @@ type HomeServices = {
 const defaultHomeServices: HomeServices = {
   getLatestPrescription,
   getMedicationReport,
+  getMedicationDay,
+  getOccurrenceMedication,
 }
 
 type HomePrescriptionState = 'loading' | 'empty' | 'active' | 'error'
@@ -95,7 +99,7 @@ function HomeAdherenceCard({
         ? '이번 주 계산할 복약 기록이 아직 없어요.'
         : safePercentage === 100
           ? '일주일 동안 꾸준히 약을 챙기셨어요! 대단해요!'
-          : '이번 주도 꾸준히 약을 챙기고 있어요!'
+          : '확인한 복약 기록을 리포트에서 자세히 볼 수 있어요.'
 
   return (
     <section
@@ -152,6 +156,16 @@ function HomePage({
   const [reportState, setReportState] = useState<HomeReportState>('idle')
   const [report, setReport] = useState<MedicationReportData | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const refreshClock = () => setNow(Date.now())
+    const timer = window.setInterval(refreshClock, 30_000)
+    document.addEventListener('visibilitychange', refreshClock)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refreshClock)
+    }
+  }, [])
   const [showDojiHint, setShowDojiHint] = useState(false)
   const dojiHintTimerRef = useRef<number | null>(null)
 
@@ -324,15 +338,9 @@ function HomePage({
   }, [reloadKey, services])
 
   const userName = currentUser.name.trim()
-  const today = useMemo(
-    () =>
-      new Intl.DateTimeFormat('ko-KR', {
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long',
-      }).format(new Date()),
-    [],
-  )
+  const today = new Intl.DateTimeFormat('ko-KR', {
+    month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Seoul',
+  }).format(now)
 
   return (
     <div
@@ -368,11 +376,10 @@ function HomePage({
                 안녕하세요,{' '}
                 <strong>{userName ? `${userName}님!` : '도지 사용자님!'}</strong>
               </p>
-              <time dateTime={new Date().toISOString()}>{today}</time>
+              <time dateTime={new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now)}>{today}</time>
             </div>
-            <h1 className="mvp-page__title mvp-home__title">오늘도 건강한 하루 되세요</h1>
-            <p className="mvp-home__intro">도지가 복약 생활을 함께 도와드릴게요.</p>
-            <DoseyMascot variant="hero" />
+            <h1 className="mvp-page__title mvp-home__title">오늘 약, 함께 확인해요</h1>
+            <p className="mvp-home__intro">약을 하나씩 확인하고 기록할 수 있어요.</p>
           </div>
           {!userName && (
             <p className="mvp-home__greeting-status" role="status">
@@ -435,6 +442,7 @@ function HomePage({
               className="mvp-home__active-stack"
               aria-label="Home 처방 등록 완료"
             >
+              <HomeTodaySection now={now} services={services} />
               <HomeAdherenceCard
                 report={report}
                 state={reportState}

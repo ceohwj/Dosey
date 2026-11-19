@@ -909,7 +909,7 @@ function PrescriptionUploadPage() {
         presentation = {
           ...presentation,
           title: '처방전 내용을 확인하고 있어요',
-          description: '파일 업로드 → 글자 인식 → 복약정보 구조화',
+          description: '처방전의 글자를 읽고 있어요. 완료되면 약 이름과 복용 내용을 직접 확인해 주세요.',
         }
       }
     }
@@ -948,10 +948,13 @@ function PrescriptionUploadPage() {
           <h1 className="mvp-page__title">처방전을 등록해 주세요</h1>
           <p className="mvp-page__description">등록 방법을 선택해 주세요.</p>
 
+          <ol className="mvp-upload__steps" aria-label="처방전 등록 순서">
+            <li aria-current="step">1 등록</li><li>2 내용 확인</li><li>3 가이드</li>
+          </ol>
           <Card className="mvp-upload__summary">
             <span>
               <strong>처방전</strong>
-              <small>처방전을 인식해 복약 가이드를 생성할게요</small>
+              <small>처방전을 읽은 뒤, 내용을 직접 확인하고 가이드를 만들어요</small>
             </span>
           </Card>
 
@@ -1059,6 +1062,9 @@ function PrescriptionUploadPage() {
             지원 파일: JPG · JPEG · PNG · PDF / 최대 30MB
           </p>
 
+          <p className="mvp-upload__selection-status" role="status" aria-live="polite">
+            {file && <>파일을 선택했어요. 아래 ‘처방전 읽기’를 눌러 주세요.<span className="mvp-upload__selected-name"> 선택한 파일: {file.name}</span></>}
+          </p>
           {file && (
             <div className="mvp-upload__selection">
               <strong
