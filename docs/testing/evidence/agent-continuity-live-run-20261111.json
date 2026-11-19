@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "record_kind": "sanitized_completed_run_summary",
+  "date": "2026-11-11",
+  "task_id": "continuity-live-adoption-audit",
+  "provenance": {
+    "source_records": [
+      "original authoring report",
+      "completion.json",
+      "read-audit.json",
+      "owned-artifact-cleanup.json",
+      "report-checks.json",
+      "final-review.md",
+      "merge.json"
+    ],
+    "source_record_names_are_provenance_only": true,
+    "requires_local_artifacts": false,
+    "original_report_sha256": "06d9f986e7d5102913dd3cd4f28e9c62a503792f3a40539c804513bcbafcfdd4",
+    "portable_report_rewritten": true,
+    "original_review_does_not_cover_portable_rewrite": true
+  },
+  "scope": {
+    "actual_project_task": true,
+    "planted_fixture": false,
+    "original_allowed_files": [
+      "docs/testing/agent-continuity-live-run-20261111.md"
+    ],
+    "product_changes": false
+  },
+  "discovery": {
+    "task_id_supplied": false,
+    "writes_by_auditor": 0,
+    "knowledge_read": true,
+    "verified_failure_records_read": 2,
+    "revision": 2,
+    "phase": "running",
+    "operation_in_flight": true,
+    "verification": "UNKNOWN",
+    "reconciliation_required": true,
+    "cycles_used": 1,
+    "active_seconds": 0
+  },
+  "reconciliation": {
+    "exact_existing_claim": true,
+    "known_cumulative_counters": true,
+    "charged_wall_seconds": 163.671,
+    "in_flight_cleared": true,
+    "verification": "MATCHED_SNAPSHOT",
+    "null_budget_recovery_tested": false
+  },
+  "completion": {
+    "phase": "complete",
+    "revision": 7,
+    "verification": "MATCHED_SNAPSHOT",
+    "reconciliation_required": false,
+    "budget": {
+      "active_seconds": 811.241,
+      "cycles_used": 3,
+      "max_active_seconds": 1200,
+      "max_cycles": 4
+    },
+    "no_active_claim": true
+  },
+  "claim_release": {
+    "released": true,
+    "exact_claim": true
+  },
+  "observations": {
+    "user_context_explanations": 0,
+    "user_result_transfers": 0,
+    "scope": "this read-only audit only"
+  },
+  "original_report_checks": [
+    {
+      "name": "default hygiene",
+      "exit": 0,
+      "findings": 0
+    },
+    {
+      "name": "report hygiene and links",
+      "exit": 0,
+      "findings": 0
+    },
+    {
+      "name": "git diff --check",
+      "exit": 0
+    },
+    {
+      "name": "full content, whitespace and scope",
+      "result": "checked by Integrator"
+    }
+  ],
+  "original_report_review": {
+    "kind": "native independent read-only",
+    "result": "APPROVE",
+    "findings": 0,
+    "safe_relative_references_checked": 7,
+    "tests_rerun": false
+  },
+  "inventory_recurrence": {
+    "cause": "publication input-local Python test backups collected as unclassified tests",
+    "command": "python3 scripts/ci/check_python_test_inventory.py",
+    "before_exit": 1,
+    "owned_backups_renamed": 4,
+    "format_after": ".py.snapshot",
+    "bytes_preserved": true,
+    "implementation_or_classifier_changed": false,
+    "checker_exemption_added": false,
+    "after_exit": 0,
+    "after_result": "Python test inventory is fully classified.",
+    "failure_reference": "docs/failures/20261111-test-snapshot-inventory.md"
+  },
+  "publication": {
+    "local_task_base": "bcac7835420118e13ee235410c6b9fdd21224b14",
+    "publication_base": "da4de67144f92ac1d1bdca23ddb375daec94df1f",
+    "source_commit": "8c320e82f3345d1ebf6870b882e2d7890c58406f",
+    "source_files_with_matching_hashes": 4,
+    "published_files": 16,
+    "policy_documents_projected_separately": true,
+    "pr": "https://github.com/ceohwj/Dosey/pull/2",
+    "merged": true,
+    "merge_commit": "cf509d76b6eaf05126eb8a6f56915be1ff4357cc",
+    "method": "squash"
+  },
+  "publication_ci": {
+    "head": "8c320e82f3345d1ebf6870b882e2d7890c58406f",
+    "run_url": "https://github.com/ceohwj/Dosey/actions/runs/42989539396",
+    "checks": [
+      {
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-backend",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-migration",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-contract",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "frontend",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-rag",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-worker",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "lint",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "classify-test-scope",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-inventory",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "agent-hygiene",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "all_success": true
+  },
+  "prior_publication_checks": {
+    "tests_passed": 138,
+    "inventory": "PASS",
+    "related_contract_checks": "PASS",
+    "ruff_check": "PASS",
+    "ruff_format": "PASS",
+    "rerun_by_portable_report_writer": false
+  },
+  "references": [
+    "docs/ai/workflow.md",
+    "docs/ai/task-template.md",
+    "docs/ai/knowledge-index.md",
+    "docs/failures/README.md",
+    "docs/failures/20261111-hygiene-file-uri.md",
+    "docs/failures/20261111-test-snapshot-inventory.md",
+    "docs/testing/agent-workflow-20261111.md"
+  ],
+  "limits": [
+    "No OS isolation claim",
+    "No App startup hook or daemon claim",
+    "No permanent conversation memory claim",
+    "No automatic recovery of unknown budget claim",
+    "No product release or external safety approval claim"
+  ]
+}

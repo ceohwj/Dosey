@@ -28,6 +28,7 @@ CHECKS: 명령 / exit / 결과 / 근거 위치
 NOT_RUN: 사유
 KNOWN_GAPS:
 REVIEW: 실제 검토 방식, 검토 대상 SHA/hash, 지적과 처리
+CHANGE_COMMITS: 확인된 실제 SHA, 무엇을 왜 바꿨는지, 검사 결과와 근거. 없으면 미커밋
 NEXT_DEPENDENCIES:
 ```
 
@@ -82,3 +83,31 @@ NEXT_DEPENDENCIES:
 예시의 모든 필드는 필수다. 목록은 문자열 배열, goal/base revision/next action은 문자열, in-flight는 bool이다. counter는 bool/음수를 허용하지 않고 사용량이 불명확하면 `cycles_used` 또는 `active_seconds`를 `null`로 남긴다. UNKNOWN을 0으로 치환하지 않는다. 상한을 명시하고 사용량을 조용히 감소시키지 않는다. 추가 evidence 필드는 bounded·비민감 값만 허용한다. OWNER_AGENT·EXISTING_CHANGES·CONTRACT_REQUEST·REVIEW_SCOPE·CHECKS·NOT_RUN·REVIEW 등 기존 상세 정보는 task evidence로 연결하며 별도 전역 진행 ledger를 만들지 않는다.
 
 `phase`는 진행 단계이며 결과 STATUS와 별개다. READY_FOR_REVIEW는 `review`, 차단은 `blocked`와 known gaps로 표현한다. READY_TO_MERGE 추천을 merge 승인 상태로 추가하지 않는다. 검증 명령·exit·시점·revision/hash·지적과 수리 증거를 결과에 남기며 unrun을 PASS로 표시하지 않는다.
+
+## 선택적인 커밋 근거
+
+`CHANGE_COMMITS`는 메인 에이전트의 커밋 확인 후 인계에 사용한다. Issue와 PR 설명은 [글쓰기 지침](github-writing.md)을 따른다. 실제 commit SHA와 포함 파일을 확인하기 전에는 예정 커밋을 완료한 기록으로 남기지 않는다.
+
+다음 JSON은 선택 evidence 필드 `change_commits`의 형식 설명용 예시다. 독립 실행 task 예시가 아니며 `CONFIRMED_COMMIT_SHA`는 실제 SHA가 아닌 자리표시자다. 기록할 때에는 커밋 확인 후 실제 값으로 바꾼다. 검사 항목도 해당 커밋의 실제 실행 결과나 미실행 이유로 바꾼다.
+
+```json
+{
+  "change_commits": [
+    {
+      "sha": "CONFIRMED_COMMIT_SHA",
+      "summary": "무엇을 바꿨는지 쓰는 자리",
+      "reason": "왜 필요한지 쓰는 자리",
+      "files": ["docs/ai/github-writing.md"],
+      "checks": [
+        {
+          "name": "검사 이름을 쓰는 자리",
+          "result": "NOT_RUN",
+          "reason": "형식 예시이므로 실행하지 않음"
+        }
+      ]
+    }
+  ]
+}
+```
+
+커밋이 없으면 이 필드를 생략하거나 빈 배열로 둔다. `schema_version: 1`의 기존 19개 필수 필드와 검증 규칙은 바꾸지 않는다. 이 선택 기록은 bounded 비민감 evidence이며 별도 진행 정본이 아니다. helper의 자동 Git 추적이나 새 필수 schema 기능을 의미하지 않는다.
