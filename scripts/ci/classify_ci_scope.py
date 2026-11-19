@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 SCOPE_NAMES = ("lint", "frontend", "migration", "backend", "contract", "worker")
 
 COLLABORATION_TEMPLATE_PREFIX = ".github/ISSUE_TEMPLATE/"
-COLLABORATION_TEMPLATE_FILES = {".github/PULL_REQUEST_TEMPLATE.md"}
+COLLABORATION_TEMPLATE_FILES = {".github/PULL_REQUEST_TEMPLATE.md", ".github/commit_template.txt"}
 MIGRATION_CONFIG_FILES = {"backend/alembic.ini"}
 
 BACKEND_INTEGRATION_FILES = {
