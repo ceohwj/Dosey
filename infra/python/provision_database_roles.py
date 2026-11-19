@@ -1,5 +1,6 @@
 """One-shot admin provisioning after migrations, before application startup."""
 
+import argparse
 import asyncio
 import os
 import sys
@@ -8,6 +9,7 @@ from collections.abc import Mapping
 from sqlalchemy import text
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from infra.python.candidate_index_role_policy import apply_candidate_index_role_policy
 from infra.python.catalog_approval_role_policy import apply_catalog_approval_role_policy
@@ -26,6 +28,8 @@ from infra.python.source_role_policy import (
     SOURCE_USE_APPROVAL_TABLES,
     apply_source_role_policy,
     quoted_identifier,
+    revoke_source_writer_publication,
+    verify_source_role_policy,
 )
 
 # Explicit compatibility permissions for domains whose Writer cutover is still pending.
@@ -52,7 +56,7 @@ RUNTIME_APPEND_ONLY_TABLES = frozenset(
     # Reader의 조회만 필요하므로 기존 append-only 권한(SELECT, INSERT)을 그대로 쓴다.
     "rag_request_guard_authority rag_request_source_decision rag_request_member_decision "
     # #806: evaluator-issued per-request REQUEST runtime binding authority.
-    "rag_request_guard_runtime_binding "
+    "rag_request_guard_runtime_binding rag_candidate_request_guard_audit "
     # #712: selected hit 단위 Assessment·Eligibility authority. Issuer의 발급과 후속 Reader의
     # 조회만 필요하고 발급 뒤에는 고쳐 쓰지 않으므로 append-only 권한(SELECT, INSERT)을 그대로 쓴다.
     "rag_evidence_authority".split()
@@ -90,6 +94,9 @@ RUNTIME_RETRIEVAL_RUN_TABLES = frozenset({"retrieval_run"})
 # Runtime requires SELECT on version and member, plus UPDATE on candidate_index_lock_marker for SELECT ... FOR SHARE.
 # INSERT/DELETE/TRUNCATE and business column UPDATE are strictly prohibited.
 CANDIDATE_INDEX_RUNTIME_READ_TABLES = frozenset({"rag_candidate_index_version", "rag_candidate_index_member"})
+
+# Capture publication uses a separate credential, never the runtime or Source writer.
+SOURCE_CAPTURE_RUNTIME_READ_TABLES = frozenset({"rag_source_capture_observation"})
 
 # #748/#206: demo withdrawal deletes user-owned runtime data from otherwise
 # restricted lifecycle/history tables. Grant only SELECT for scoped predicates
@@ -130,6 +137,11 @@ ACCOUNT_WITHDRAWAL_CLEANUP_DELETE_TABLES = frozenset(
         "push_subscription",
         "refresh_session",
         "retrieval_run",
+        "rag_candidate_request_guard_audit",
+        "rag_request_guard_runtime_binding",
+        "rag_request_guard_authority",
+        "rag_request_source_decision",
+        "rag_request_member_decision",
         "safety_assessment",
         "support_action_plan",
         "user_consent",
@@ -146,6 +158,11 @@ ACCOUNT_WITHDRAWAL_RUNTIME_PROTECTED_DELETE_TABLES = frozenset(
         "password_reset_token",
         "refresh_session",
         "retrieval_run",
+        "rag_candidate_request_guard_audit",
+        "rag_request_guard_runtime_binding",
+        "rag_request_guard_authority",
+        "rag_request_source_decision",
+        "rag_request_member_decision",
         "safety_assessment",
         "support_action_plan",
         "user_consent",
@@ -159,6 +176,9 @@ ACCOUNT_WITHDRAWAL_CLEANUP_READ_TABLES = ACCOUNT_WITHDRAWAL_CLEANUP_DELETE_TABLE
         "prescription_version_medication",
         "profile",
         "user",
+        "ai_job_execution_context",
+        "rag_citation_authorization_source_decision",
+        "rag_citation_authorization_receipt",
     }
 )
 
@@ -241,6 +261,7 @@ async def provision_roles(
     account_withdrawal_cleanup: str | None = None,
     candidate_index_builder: str | None = None,
     catalog_approval: str | None = None,
+    publisher: str | None = None,
 ) -> None:
     """Caller must use a single admin transaction; failure must roll it back."""
     validate_distinct_role_names(
@@ -253,11 +274,14 @@ async def provision_roles(
         account_withdrawal_cleanup,
         candidate_index_builder,
         catalog_approval,
+        publisher,
     )
     owner_sql, runtime_sql, writer_sql = (quoted_identifier(value) for value in (owner, runtime, writer))
     cleanup_sql = quoted_identifier(account_withdrawal_cleanup) if account_withdrawal_cleanup else None
     # Validates real role boundaries and rejects the legacy transition function before granting anything.
-    await apply_source_role_policy(connection, schema="public", owner=owner, runtime=runtime, writer=writer)
+    await apply_source_role_policy(
+        connection, schema="public", owner=owner, runtime=runtime, writer=writer, publisher=publisher
+    )
     recipients = _revoke_recipients(runtime_sql, writer_sql, cleanup_sql)
     await connection.execute(text(f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {recipients}"))
     await connection.execute(text(f"REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM {recipients}"))
@@ -290,6 +314,7 @@ async def provision_roles(
         | CATALOG_APPROVAL_READ_TABLES
         | KNOWLEDGE_INDEX_RUNTIME_READ_TABLES
         | CANDIDATE_INDEX_RUNTIME_READ_TABLES
+        | SOURCE_CAPTURE_RUNTIME_READ_TABLES
         | set(SOURCE_TABLES)
         | set(SOURCE_USE_APPROVAL_TABLES)
         | set(RUNTIME_AUTH_UPDATE_COLUMNS)
@@ -312,7 +337,8 @@ async def provision_roles(
             CATALOG_WRITE_TABLES
             | CATALOG_APPROVAL_READ_TABLES
             | KNOWLEDGE_INDEX_RUNTIME_READ_TABLES
-            | CANDIDATE_INDEX_RUNTIME_READ_TABLES,
+            | CANDIDATE_INDEX_RUNTIME_READ_TABLES
+            | SOURCE_CAPTURE_RUNTIME_READ_TABLES,
             "SELECT",
         ),
     ):
@@ -367,7 +393,9 @@ async def provision_roles(
     )
     for sequence in sequences:
         await connection.execute(text(f"GRANT USAGE, SELECT ON SEQUENCE {sequence} TO {runtime_sql}"))
-    await apply_source_role_policy(connection, schema="public", owner=owner, runtime=runtime, writer=writer)
+    await apply_source_role_policy(
+        connection, schema="public", owner=owner, runtime=runtime, writer=writer, publisher=publisher
+    )
     if management:
         await apply_management_role_policy(
             connection, owner=owner, runtime=runtime, writer=writer, management=management
@@ -470,8 +498,8 @@ async def _grant_account_withdrawal_cleanup_permissions(
         )
 
 
-async def run_provisioning(environment: Mapping[str, str]) -> None:
-    names = (
+async def run_provisioning(environment: Mapping[str, str], *, deny_only: bool = False) -> None:
+    names: tuple[str, ...] = (
         "DB_HOST",
         "DB_PORT",
         "DB_NAME",
@@ -481,6 +509,8 @@ async def run_provisioning(environment: Mapping[str, str]) -> None:
         "DB_APP_USER",
         "SOURCE_WRITER_USER",
     )
+    if not deny_only:
+        names += ("SOURCE_PUBLISHER_USER",)
     if any(not environment.get(name, "").strip() for name in names):
         raise ValueError("Missing database provisioning configuration")
     validate_distinct_role_names(
@@ -494,6 +524,7 @@ async def run_provisioning(environment: Mapping[str, str]) -> None:
         environment.get("ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE") or None,
         environment.get("CANDIDATE_INDEX_BUILDER_USER") or None,
         environment.get("CATALOG_APPROVAL_USER") or None,
+        environment.get("SOURCE_PUBLISHER_USER") or None,
     )
     engine = create_async_engine(
         URL.create(
@@ -505,31 +536,61 @@ async def run_provisioning(environment: Mapping[str, str]) -> None:
             database=environment["DB_NAME"],
         ),
         hide_parameters=True,
+        poolclass=NullPool,
     )
     try:
         async with engine.begin() as connection:
-            await provision_roles(
+            if deny_only:
+                await revoke_source_writer_publication(
+                    connection,
+                    schema="public",
+                    owner=environment["DB_MIGRATION_USER"],
+                    runtime=environment["DB_APP_USER"],
+                    writer=environment["SOURCE_WRITER_USER"],
+                )
+            else:
+                await provision_roles(
+                    connection,
+                    owner=environment["DB_MIGRATION_USER"],
+                    runtime=environment["DB_APP_USER"],
+                    writer=environment["SOURCE_WRITER_USER"],
+                    management=environment.get("SOURCE_MANAGEMENT_USER") or None,
+                    catalog_writer=environment.get("CATALOG_WRITER_USER") or None,
+                    knowledge_index_builder=environment.get("KNOWLEDGE_INDEX_BUILDER_USER") or None,
+                    account_withdrawal_cleanup=environment.get("ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE") or None,
+                    candidate_index_builder=environment.get("CANDIDATE_INDEX_BUILDER_USER") or None,
+                    catalog_approval=environment.get("CATALOG_APPROVAL_USER") or None,
+                    publisher=environment["SOURCE_PUBLISHER_USER"],
+                )
+        # NullPool makes this a new physical admin session after the commit.
+        # Verification is read-only and cannot restore earlier Writer grants.
+        async with engine.connect() as connection:
+            await connection.execute(text("SET TRANSACTION READ ONLY"))
+            await verify_source_role_policy(
                 connection,
+                schema="public",
                 owner=environment["DB_MIGRATION_USER"],
                 runtime=environment["DB_APP_USER"],
                 writer=environment["SOURCE_WRITER_USER"],
-                management=environment.get("SOURCE_MANAGEMENT_USER") or None,
-                catalog_writer=environment.get("CATALOG_WRITER_USER") or None,
-                knowledge_index_builder=environment.get("KNOWLEDGE_INDEX_BUILDER_USER") or None,
-                account_withdrawal_cleanup=environment.get("ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE") or None,
-                candidate_index_builder=environment.get("CANDIDATE_INDEX_BUILDER_USER") or None,
-                catalog_approval=environment.get("CATALOG_APPROVAL_USER") or None,
+                publisher=None if deny_only else environment["SOURCE_PUBLISHER_USER"],
+                deny_only=deny_only,
             )
     finally:
         await engine.dispose()
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source-writer-deny-only", action="store_true", help="Commit only the T1 Source Writer INSERT denial barrier"
+    )
+    args = parser.parse_args()
     try:
-        asyncio.run(run_provisioning(os.environ))
+        asyncio.run(run_provisioning(os.environ, deny_only=args.source_writer_deny_only))
     except Exception:
         print(
-            "Database role provisioning failed; transaction rolled back. Keep application services stopped.",
+            "Database role provisioning or post-commit verification failed. Keep application services stopped; "
+            "committed Writer denials must remain in place.",
             file=sys.stderr,
         )
         return 1

@@ -62,6 +62,7 @@ def test_credentials_and_admin_process_are_separated() -> None:
         assert not any(
             "DB_ADMIN_PASSWORD" in str(value)
             or "SOURCE_WRITER_PASSWORD" in str(value)
+            or "SOURCE_PUBLISHER_PASSWORD" in str(value)
             or "CATALOG_WRITER_PASSWORD" in str(value)
             or "CANDIDATE_INDEX_BUILDER_PASSWORD" in str(value)
             for value in environment.values()
@@ -203,6 +204,7 @@ def test_catalog_approval_production_surface_is_isolated_and_read_only() -> None
         "DB_ADMIN_PASSWORD",
         "DB_MIGRATION_PASSWORD",
         "SOURCE_WRITER_PASSWORD",
+        "SOURCE_PUBLISHER_PASSWORD",
         "SOURCE_MANAGEMENT_PASSWORD",
         "CATALOG_WRITER_PASSWORD",
         "CANDIDATE_INDEX_BUILDER_PASSWORD",
@@ -226,7 +228,7 @@ def test_catalog_approval_production_surface_is_isolated_and_read_only() -> None
     assert "Catalog Approval 환경변수의 placeholder를 교체해야 합니다" in deployment
     assert "CATALOG_APPROVAL_USER는 기존 DB 책임 role과 다른 이름이어야 합니다" in deployment
     assert "Catalog Approval/Writer one-shot에는 CATALOG_SOURCE_ARTIFACT_HOST_ROOT가 필요합니다" in deployment
-    assert "--profile catalog-approval-admin stop" in deployment
+    assert "--profile catalog-approval-admin --profile source-publisher-admin stop" in deployment
     assert "catalog-approval" in deployment[deployment.index("Stopping application services") :]
     startup = (
         deployment.index('echo "Starting application services"')
@@ -267,6 +269,11 @@ def test_account_deletion_request_runtime_role_updates_only_lifecycle_columns() 
         "password_reset_token",
         "refresh_session",
         "retrieval_run",
+        "rag_candidate_request_guard_audit",
+        "rag_request_guard_runtime_binding",
+        "rag_request_guard_authority",
+        "rag_request_source_decision",
+        "rag_request_member_decision",
         "safety_assessment",
         "support_action_plan",
         "user_consent",
@@ -574,7 +581,7 @@ def test_deployment_stops_writers_and_provisions_before_starting_api() -> None:
     script = (ROOT / "scripts/deployment.sh").read_text()
     stop = script.index(
         "docker compose --profile source-admin --profile catalog-admin --profile candidate-index-admin "
-        "--profile catalog-approval-admin stop"
+        "--profile catalog-approval-admin --profile source-publisher-admin stop"
     )
     bootstrap = script.index("-f /docker-entrypoint-initdb.d/configure-app-role.sql")
     migration = script.index('migration_exit_code="$(docker wait migrate)"')
@@ -582,14 +589,15 @@ def test_deployment_stops_writers_and_provisions_before_starting_api() -> None:
         "docker compose --profile database-maintenance run --rm --no-deps --pull always verify-db-head"
     )
     provisioning = script.index(
-        "docker compose --profile database-admin run --rm --no-deps --pull always provision-db-roles"
+        "docker compose --profile database-admin run --rm --no-deps --pull always provision-db-roles\n"
     )
     startup = (
         script.index('echo "Starting application services"')
         if 'echo "Starting application services"' in script
         else script.index("docker compose up", provisioning)
     )
-    assert stop < bootstrap < migration < verification < provisioning < startup
+    deny = script.index("provision-db-roles --source-writer-deny-only")
+    assert stop < bootstrap < migration < verification < deny < provisioning < startup
     assert "set -euo pipefail" in script[script.index("ssh", script.index("configure-app-role.sql")) : verification]
     bootstrap_sql = (ROOT / "infra/docker/postgres/configure-app-role.sql").read_text()
     services = yaml.safe_load((ROOT / "infra/docker/docker-compose.prod.yml").read_text())["services"]
@@ -621,3 +629,89 @@ def test_ci_runs_legacy_downgrades_before_irreversible_cutover():
     rag = next(step for step in rag_steps if step.get("name") == "Run RAG Integration Tests with Coverage")
     assert base < legacy < cutover
     assert rag["env"]["ISSUE398_TEST_POSTGRES_CONTAINER"] == "${{ job.services.postgres.id }}"
+
+
+def test_source_publisher_one_shot_is_off_and_has_exclusive_credentials() -> None:
+    services = yaml.safe_load((ROOT / "infra/docker/docker-compose.prod.yml").read_text())["services"]
+    publisher = services["source-publisher"]
+    assert publisher["profiles"] == ["source-publisher-admin"]
+    assert publisher["restart"] == "no"
+    assert publisher["entrypoint"][-1] == "ai_worker.admin.mfds_product_ingestion"
+    assert publisher["command"] == [
+        "--receipt-path",
+        "/publisher-input/receipt.json",
+        "--repository-root",
+        "/publisher-input",
+    ]
+    assert set(key for key in publisher["environment"] if key.startswith("SOURCE_PUBLISHER_")) == {
+        f"SOURCE_PUBLISHER_{key}" for key in ("HOST", "PORT", "NAME", "USER", "PASSWORD", "ACTOR")
+    }
+    assert not any("SOURCE_WRITER" in key or "DB_" in key for key in publisher["environment"])
+    for name, service in services.items():
+        assert "env_file" not in service
+        if name not in {"postgres", "source-publisher"}:
+            assert "SOURCE_PUBLISHER_PASSWORD" not in str(service)
+        assert "source-publisher" not in service.get("depends_on", {})
+    for name in ("source-publisher", "source-writer"):
+        for volume in services[name].get("volumes", []):
+            assert isinstance(volume, dict)
+            assert "docker.sock" not in str(volume)
+            if volume["target"] in {"/publisher-input", "/artifacts", "/publisher-bin/source-artifact-finalizer"}:
+                assert volume["read_only"] is True
+            else:
+                assert name == "source-publisher"
+                assert volume["target"] in {"/publisher-journal", "/publisher-spool"}
+    assert services["provision-db-roles"]["environment"]["SOURCE_PUBLISHER_USER"] == "${SOURCE_PUBLISHER_USER}"
+    bootstrap = (ROOT / "infra/docker/postgres/configure-app-role.sql").read_text()
+    assert "\\getenv publisher_user SOURCE_PUBLISHER_USER" in bootstrap
+    assert "\\getenv publisher_password SOURCE_PUBLISHER_PASSWORD" in bootstrap
+    assert "AND length(:'publisher_user')>0 AND length(:'publisher_password')>0" in bootstrap
+    assert bootstrap.count("(:'publisher_user', :'publisher_password')") == 2
+    assert "GRANT INSERT" not in bootstrap
+
+
+def test_candidate_builder_rejects_publisher_secret_before_url_creation() -> None:
+    from scripts.candidate_index_builder import builder_url
+
+    with pytest.raises(ValueError, match="isolated credential") as error:
+        builder_url({"SOURCE_PUBLISHER_PASSWORD": "synthetic-publisher-secret"})
+    assert "synthetic-publisher-secret" not in str(error.value)
+
+
+def test_source_publisher_uses_nonroot_identity_and_fixed_readonly_trusted_client() -> None:
+    services = yaml.safe_load((ROOT / "infra/docker/docker-compose.prod.yml").read_text())["services"]
+    publisher = services["source-publisher"]
+    assert publisher["user"] == "10001:10001"
+    assert publisher["environment"]["UV_CACHE_DIR"] == "/publisher-spool/uv-cache"
+    assert publisher["entrypoint"] == [
+        "uv",
+        "run",
+        "--no-sync",
+        "python",
+        "-m",
+        "ai_worker.admin.mfds_product_ingestion",
+    ]
+    finalizer_path = "/publisher-bin/source-artifact-finalizer"
+    assert publisher["environment"]["SOURCE_ARTIFACT_FINALIZER_COMMAND"] == finalizer_path
+    mount = next(volume for volume in publisher["volumes"] if volume["target"] == finalizer_path)
+    assert mount == {
+        "type": "bind",
+        "source": "${SOURCE_PUBLISHER_FINALIZER_HOST_PATH:-/dev/null}",
+        "target": finalizer_path,
+        "read_only": True,
+        "bind": {"create_host_path": False},
+    }
+    assert "SOURCE_ARTIFACT_LOCAL_ROOT" not in publisher["environment"]
+    assert not publisher.get("privileged", False)
+    assert not publisher.get("cap_add")
+    assert publisher["profiles"] == ["source-publisher-admin"]
+    for name, service in services.items():
+        if name != "source-publisher":
+            assert "SOURCE_PUBLISHER_FINALIZER_HOST_PATH" not in str(service)
+        if name not in {"postgres", "source-publisher"}:
+            assert "SOURCE_PUBLISHER_PASSWORD" not in str(service)
+    for path in ("envs/example.prod.env", "envs/example.local.env"):
+        example = (ROOT / path).read_text()
+        assert "SOURCE_PUBLISHER_FINALIZER_HOST_PATH=" in example
+        assert "10001:10001" in example
+        assert "NOT_RUN/unprepared" in example

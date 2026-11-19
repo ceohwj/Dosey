@@ -20,7 +20,7 @@ from ai_worker.admin.mfds_product_rematerialization import (
     ProductRematerializationBlockedError,
     run_rematerialization,
 )
-from ai_worker.admin.source_writer import WriterConfig
+from ai_worker.admin.source_publisher import SourcePublisherConfig
 from ai_worker.tasks.rag.source_ingestion.snapshot_lifecycle import SnapshotIngestionDecision
 from ai_worker.tests.rag.source_ingestion.test_mfds_product import product
 from ai_worker.tests.rag.source_ingestion.test_mfds_product_rematerialization import _manifest
@@ -53,6 +53,7 @@ async def database(tmp_path: Path) -> AsyncIterator[_Database]:
     schema = f"product800_schema_{suffix}"
     runtime = f"product800_runtime_{suffix}"
     writer = f"product800_writer_{suffix}"
+    publisher = f"product800_publisher_{suffix}"
     password = "synthetic-product800-test-only"
     admin_url = URL.create(
         "postgresql+asyncpg",
@@ -69,7 +70,7 @@ async def database(tmp_path: Path) -> AsyncIterator[_Database]:
         connect_args={"server_settings": {"search_path": f"{schema},test_extensions"}},
         execution_options={"schema_translate_map": {None: schema}},
     )
-    writer_url = admin_url.set(username=writer, password=password)
+    publisher_url = admin_url.set(username=publisher, password=password)
     try:
         async with admin.begin() as connection:
             await connection.execute(text("CREATE SCHEMA IF NOT EXISTS test_extensions"))
@@ -77,7 +78,7 @@ async def database(tmp_path: Path) -> AsyncIterator[_Database]:
             await connection.execute(text("ALTER EXTENSION pg_trgm SET SCHEMA test_extensions"))
             await ensure_vector_extension(connection, "test_extensions")
             await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
-            for role in (runtime, writer):
+            for role in (runtime, writer, publisher):
                 await connection.execute(text(f"CREATE ROLE \"{role}\" LOGIN PASSWORD '{password}'"))
         async with schema_engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
@@ -88,17 +89,18 @@ async def database(tmp_path: Path) -> AsyncIterator[_Database]:
                 owner=config.DB_USER,
                 runtime=runtime,
                 writer=writer,
+                publisher=publisher,
             )
             await connection.execute(
                 text(
-                    f'ALTER ROLE "{writer}" IN DATABASE "{config.DB_NAME}" '
+                    f'ALTER ROLE "{publisher}" IN DATABASE "{config.DB_NAME}" '
                     f'SET search_path = "{schema}", test_extensions'
                 )
             )
         yield _Database(
             async_sessionmaker(schema_engine, expire_on_commit=False),
             MfdsProductRematerializationConfig(
-                WriterConfig(writer_url, "issue-800-integration"),
+                SourcePublisherConfig(publisher_url, "issue-800-integration"),
                 tmp_path / "artifacts",
             ),
         )
@@ -113,7 +115,7 @@ async def database(tmp_path: Path) -> AsyncIterator[_Database]:
         cleanup = create_async_engine(admin_url, poolclass=NullPool)
         async with cleanup.begin() as connection:
             await connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
-            for role in (runtime, writer):
+            for role in (runtime, writer, publisher):
                 if await connection.scalar(text("SELECT 1 FROM pg_roles WHERE rolname=:role"), {"role": role}):
                     await connection.execute(text(f'DROP OWNED BY "{role}"'))
                     await connection.execute(text(f'DROP ROLE "{role}"'))
@@ -139,7 +141,7 @@ def _make_artifacts_read_only(root: Path) -> None:
     root.chmod(0o500)
 
 
-async def test_restricted_writer_command_commits_430_and_reruns_no_change(database, tmp_path):
+async def test_restricted_publisher_command_commits_430_and_reruns_no_change(database, tmp_path):
     manifest, receipt, _ = _actual_sized_evidence(tmp_path)
     _make_artifacts_read_only(database.rematerialization.artifact_reader_root)
 
@@ -207,3 +209,116 @@ async def test_artifact_failure_rolls_back_new_hierarchy(database, tmp_path):
         assert await session.scalar(select(func.count()).select_from(RagSourceEndpoint)) == 0
         assert await session.scalar(select(func.count()).select_from(RagSourceOperation)) == 0
         assert await session.scalar(select(func.count()).select_from(RagSourceSnapshot)) == 0
+
+
+@pytest.mark.parametrize("valid_product", [True, False])
+async def test_product_ingestion_cli_uses_real_publisher_transaction_and_post_commit_receipt(
+    database, tmp_path, monkeypatch, valid_product
+):
+    """Only HTTP/DNS and the privileged physical finalizer are synthetic."""
+    import httpx
+
+    from ai_worker.adapters.local_private_source_artifact_store import LocalPrivateSourceArtifactStore
+    from ai_worker.admin import mfds_product_ingestion as cli
+    from ai_worker.admin.mfds_product_rematerialization import ensure_product_source_hierarchy
+    from ai_worker.tests.rag.source_ingestion.test_mfds_product import envelope, receipt_file, resolver
+
+    # Admission/governance is established by an explicit admin fixture; the CLI
+    # must acquire and lock that real graph using its separate publisher login.
+    async with database.admin_sessions.begin() as session:
+        await ensure_product_source_hierarchy(session)
+    root = database.rematerialization.artifact_reader_root
+    root.mkdir(mode=0o500)
+    spool = tmp_path / "cli-spool"
+    spool.mkdir(mode=0o700)
+    journal = tmp_path / "cli-cleanup"
+    journal.mkdir(mode=0o700)
+    for name in ("requests", "receipts"):
+        (journal / name).mkdir(mode=0o700)
+
+    class SyntheticPhysicalFinalizer:
+        def __init__(self, *, finalizer_command, reader):
+            self.reader = reader
+            self.finalized = []
+
+        def put_verified(self, **kwargs):
+            root.chmod(0o700)
+            for directory in (path for path in root.rglob("*") if path.is_dir()):
+                directory.chmod(0o700)
+            try:
+                stored = LocalPrivateSourceArtifactStore(root).put_verified(**kwargs)
+            finally:
+                _make_artifacts_read_only(root)
+            self.reader.read_verified(object_key=stored.object_key, metadata=stored.metadata)
+            self.finalized.append(stored)
+            return stored
+
+    acquire = cli.acquire_mfds_product
+
+    async def acquire_with_synthetic_dns(**kwargs):
+        # Keep the real Source gate, acquisition try-lock, spool and HTTP parser.
+        return await acquire(**kwargs, resolver=resolver)
+
+    monkeypatch.setattr(cli, "FinalizingLocalPrivateSourceArtifactStore", SyntheticPhysicalFinalizer)
+    monkeypatch.setattr(cli, "acquire_mfds_product", acquire_with_synthetic_dns)
+    configuration = cli.MfdsProductIngestionConfig(
+        publisher=database.rematerialization.publisher,
+        artifact_reader_root=root,
+        artifact_finalizer_command=tmp_path / "synthetic-finalizer",
+        cleanup_journal_root=journal,
+        spool_root=spool,
+        secret_value="synthetic-product-cli-provider",
+    )
+    receipt_path = receipt_file(tmp_path)
+    record = product("CLI-001") if valid_product else {"ITEM_NAME": "synthetic-invalid-product"}
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json=envelope([record]))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        results = [
+            await cli.run_ingestion(configuration, receipt_path=receipt_path, repository_root=tmp_path, client=client)
+            for _ in range(2 if valid_product else 1)
+        ]
+    first = results[0]
+    assert len(requests) == len(results)
+    assert all(request.url.params["pageNo"] == "1" for request in requests)
+    assert all(result.report_path.is_file() for result in results)
+    async with database.admin_sessions() as session:
+        runs = (await session.scalars(select(RagSourceIngestionRun))).all()
+        assert {run.id for run in runs} == {result.persistence.ingestion_run_id for result in results}
+        assert len({run.run_group_key for run in runs}) == len(results)
+        assert await session.scalar(select(func.count()).select_from(RagSource)) == 1
+        assert await session.scalar(select(func.count()).select_from(RagSourceEndpoint)) == 1
+        assert await session.scalar(select(func.count()).select_from(RagSourceOperation)) == 1
+        for result in results:
+            run = await session.get(RagSourceIngestionRun, result.persistence.ingestion_run_id)
+            artifacts = (
+                await session.scalars(
+                    select(RagSourceIngestionArtifact).where(RagSourceIngestionArtifact.ingestion_run_id == run.id)
+                )
+            ).all()
+            assert any(artifact.artifact_kind == "RAW_RESPONSE" for artifact in artifacts)
+            if valid_product:
+                assert result.provenance is not None  # produced by the real post-commit _requery
+                result.provenance.validate_provenance()
+                assert result.provenance.source_snapshot_id == first.snapshot_id
+                assert run.failure_code is None
+                assert run.snapshot_id == first.snapshot_id
+            else:
+                assert result.snapshot_id is None
+                assert result.provenance is None
+                assert run.run_status == "FAILED"
+                assert result.failure_code == run.failure_code is not None
+                assert any(artifact.artifact_kind == "REJECTS" for artifact in artifacts)
+        if valid_product:
+            assert first.persistence.decision is SnapshotIngestionDecision.CREATED
+            assert results[1].persistence.decision is SnapshotIngestionDecision.NO_CHANGE
+            assert {run.run_status for run in runs} == {"SUCCEEDED", "NO_CHANGE"}
+            snapshot = await session.get(RagSourceSnapshot, first.snapshot_id)
+            assert snapshot.verification_status == "PENDING"
+            assert snapshot.record_count == 1
+        else:
+            assert await session.scalar(select(func.count()).select_from(RagSourceSnapshot)) == 0

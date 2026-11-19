@@ -131,14 +131,14 @@ def _manifest(tmp_path: Path, *, rows=None):
     return path, receipt, objects, payload
 
 
-def test_config_uses_only_writer_and_read_only_artifact_root(tmp_path):
+def test_config_uses_only_publisher_and_read_only_artifact_root(tmp_path):
     env = {
-        "SOURCE_WRITER_HOST": "db",
-        "SOURCE_WRITER_PORT": "5432",
-        "SOURCE_WRITER_NAME": "health",
-        "SOURCE_WRITER_USER": "source_writer",
-        "SOURCE_WRITER_PASSWORD": "synthetic",
-        "SOURCE_WRITER_ACTOR": "issue-800",
+        "SOURCE_PUBLISHER_HOST": "db",
+        "SOURCE_PUBLISHER_PORT": "5432",
+        "SOURCE_PUBLISHER_NAME": "health",
+        "SOURCE_PUBLISHER_USER": "source_publisher",
+        "SOURCE_PUBLISHER_PASSWORD": "synthetic",
+        "SOURCE_PUBLISHER_ACTOR": "issue-800",
         "SOURCE_ARTIFACT_READER_ROOT": str(tmp_path.resolve()),
     }
     config = MfdsProductRematerializationConfig.from_environment(env)
@@ -394,3 +394,69 @@ async def test_hierarchy_mismatch_fails_without_update():
 
     assert caught.value.code == BLOCKED_BY_PRODUCT_SOURCE_HIERARCHY_CONFLICT
     assert session.execute.await_count == 1
+
+
+def test_rematerialization_succeeds_via_transient_spool_without_opening_vault_root(tmp_path: Path) -> None:
+    import stat
+
+    from ai_worker.tasks.rag.source_ingestion.artifacts import verify_raw_artifact
+
+    manifest, receipt, objects, payload = _manifest(tmp_path)
+    vault_root = tmp_path / "unreadable-vault"
+    vault_root.mkdir(mode=0o000)
+    spool_root = tmp_path / "remat-spool"
+    reader = _Reader(objects)
+
+    try:
+        prepared = prepare_product_rematerialization(
+            manifest_path=manifest,
+            receipt_path=receipt,
+            repository_root=tmp_path,
+            artifact_root=vault_root,
+            reader=reader,
+            spool_root=spool_root,
+        )
+        try:
+            page_num, staged_path, meta = prepared.acquisition.artifacts[0]
+            assert staged_path.is_relative_to(spool_root.resolve())
+            assert stat.S_IMODE(staged_path.stat().st_mode) == 0o600
+            assert stat.S_IMODE(staged_path.parent.stat().st_mode) == 0o700
+            verify_raw_artifact(file_path=staged_path, metadata=meta)
+            stored = prepared.artifact_store.put_verified(
+                page_number=page_num,
+                file_path=staged_path,
+                metadata=meta,
+            )
+            assert stored.object_key == payload["artifacts"][0]["object_key"]
+        finally:
+            prepared.cleanup()
+        assert list(spool_root.iterdir()) == []
+    finally:
+        vault_root.chmod(0o700)
+
+
+def test_rematerialization_rejects_mutated_transient_spool_file_and_cleans_up(tmp_path: Path) -> None:
+    manifest, receipt, objects, _ = _manifest(tmp_path)
+    spool_root = tmp_path / "remat-spool"
+    prepared = prepare_product_rematerialization(
+        manifest_path=manifest,
+        receipt_path=receipt,
+        repository_root=tmp_path,
+        artifact_root=tmp_path / "artifacts",
+        reader=_Reader(objects),
+        spool_root=spool_root,
+    )
+    try:
+        page_num, staged_path, meta = prepared.acquisition.artifacts[0]
+        staged_path.chmod(0o600)
+        staged_path.write_bytes(b"corrupted-after-staging")
+        with pytest.raises(ProductRematerializationBlockedError) as caught:
+            prepared.artifact_store.put_verified(
+                page_number=page_num,
+                file_path=staged_path,
+                metadata=meta,
+            )
+        assert caught.value.code == BLOCKED_BY_PRODUCT_ARTIFACT
+    finally:
+        prepared.cleanup()
+    assert list(spool_root.iterdir()) == []

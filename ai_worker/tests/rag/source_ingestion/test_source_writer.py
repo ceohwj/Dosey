@@ -30,7 +30,9 @@ def test_requires_each_dedicated_setting(key):
         WriterConfig.from_environment(env)
 
 
-@pytest.mark.parametrize("key", ["DB_PASSWORD", "DB_APP_PASSWORD", "DB_MIGRATION_PASSWORD", "DB_ADMIN_PASSWORD"])
+@pytest.mark.parametrize(
+    "key", ["DB_PASSWORD", "DB_APP_PASSWORD", "DB_MIGRATION_PASSWORD", "DB_ADMIN_PASSWORD", "SOURCE_PUBLISHER_PASSWORD"]
+)
 def test_rejects_mixed_credentials(key):
     with pytest.raises(ValueError):
         WriterConfig.from_environment({**_environment(), key: "synthetic-other-secret"})

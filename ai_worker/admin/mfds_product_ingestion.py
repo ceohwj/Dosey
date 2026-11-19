@@ -20,12 +20,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from ai_worker.adapters.local_private_source_artifact_finalizer import (
     FinalizingLocalPrivateSourceArtifactStore,
     LocalPrivateSourceArtifactReader,
+    OwnerBackedSourceArtifactReader,
+    OwnerBackedSourceArtifactStore,
+    OwnerClientConfig,
+    SourceArtifactReader,
 )
 from ai_worker.adapters.local_private_source_cleanup import LocalPrivateCleanupRequestJournal
 from ai_worker.adapters.sqlalchemy_orphan_artifact_references import lock_source_artifact_mutation
 from ai_worker.adapters.sqlalchemy_source_snapshot_repository import SqlAlchemySourceSnapshotRepository
 from ai_worker.admin.mfds_label_writer import record_transaction_cleanup_request
-from ai_worker.admin.source_writer import WriterConfig, validate_source_writer_session
+from ai_worker.admin.source_publisher import SourcePublisherConfig, validate_source_publisher_session
 from ai_worker.tasks.rag.source_ingestion.failure_runs import FailedIngestionRunResult
 from ai_worker.tasks.rag.source_ingestion.mfds_product import (
     PRODUCT_IDENTITY,
@@ -49,36 +53,55 @@ _SECRET_ENVIRONMENT_NAME = "RAG_MFDS_API_KEY"
 
 @dataclass(frozen=True, slots=True)
 class MfdsProductIngestionConfig:
-    """Source Writer 자격과 read-only artifact 경계만 담는다. 최종 artifact root는 받지 않는다."""
+    """Source Publisher 자격과 read-only artifact 경계만 담는다. 최종 artifact root는 받지 않는다."""
 
-    writer: WriterConfig = field(repr=False)
+    publisher: SourcePublisherConfig = field(repr=False)
     artifact_reader_root: Path = field(repr=False)
     artifact_finalizer_command: Path = field(repr=False)
     cleanup_journal_root: Path = field(repr=False)
     spool_root: Path = field(repr=False)
     secret_value: str = field(repr=False)
+    owner_client: OwnerClientConfig | None = field(default=None, repr=False)
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str]) -> "MfdsProductIngestionConfig":
-        writer = WriterConfig.from_environment(env)
+        publisher = SourcePublisherConfig.from_environment(env)
         if env.get("SOURCE_ARTIFACT_STORAGE_BACKEND") != LOCAL_PRIVATE_STORAGE_BACKEND:
             raise ValueError("MFDS product ingestion requires LOCAL_PRIVATE artifact storage")
         if env.get("SOURCE_ARTIFACT_LOCAL_ROOT"):
             raise ValueError("MFDS product ingestion must not receive the writable final artifact root")
+        spool_root = _require_absolute_path(env, "SOURCE_ACQUISITION_SPOOL_ROOT", "acquisition spool root")
+        secret_value = env.get(_SECRET_ENVIRONMENT_NAME, "")
+        if not secret_value.strip():
+            raise ValueError("MFDS product ingestion requires the provider service key")
+        if env.get("SOURCE_ARTIFACT_OWNER_SOCKET", "").strip():
+            owner_client = OwnerClientConfig.from_environment(env, require_intent_root=True)
+            assert owner_client.intent_root is not None
+            if _paths_overlap(owner_client.intent_root, spool_root):
+                raise ValueError("MFDS product ingestion requires separate intent and spool roots")
+            return cls(
+                publisher=publisher,
+                artifact_reader_root=Path(env.get("SOURCE_ARTIFACT_READER_ROOT", "/nonexistent/owner-vault")),
+                artifact_finalizer_command=Path(
+                    env.get("SOURCE_ARTIFACT_FINALIZER_COMMAND", "/nonexistent/owner-finalizer")
+                ),
+                cleanup_journal_root=Path(
+                    env.get("SOURCE_CLEANUP_JOURNAL_ROOT", "/nonexistent/owner-cleanup-disabled")
+                ),
+                spool_root=spool_root,
+                secret_value=secret_value,
+                owner_client=owner_client,
+            )
         reader_root = _require_absolute_path(env, "SOURCE_ARTIFACT_READER_ROOT", "read-only artifact root")
         finalizer_command = _require_absolute_path(env, "SOURCE_ARTIFACT_FINALIZER_COMMAND", "artifact finalizer")
         cleanup_root = _require_absolute_path(env, "SOURCE_CLEANUP_JOURNAL_ROOT", "cleanup journal root")
-        spool_root = _require_absolute_path(env, "SOURCE_ACQUISITION_SPOOL_ROOT", "acquisition spool root")
         for name, candidate in (("cleanup journal", cleanup_root), ("acquisition spool", spool_root)):
             if _paths_overlap(candidate, reader_root):
                 raise ValueError(f"MFDS product ingestion requires a separate {name} root")
         if _paths_overlap(cleanup_root, spool_root):
             raise ValueError("MFDS product ingestion requires separate cleanup and spool roots")
-        secret_value = env.get(_SECRET_ENVIRONMENT_NAME, "")
-        if not secret_value.strip():
-            raise ValueError("MFDS product ingestion requires the provider service key")
         return cls(
-            writer=writer,
+            publisher=publisher,
             artifact_reader_root=reader_root,
             artifact_finalizer_command=finalizer_command,
             cleanup_journal_root=cleanup_root,
@@ -150,19 +173,31 @@ async def run_ingestion(
     """
     receipt = load_product_receipt(receipt_path=receipt_path, repository_root=repository_root)
     run_group_key = f"mfds-product-{uuid4().hex[:16]}"
-    artifact_reader = LocalPrivateSourceArtifactReader(config.artifact_reader_root)
-    artifact_store = FinalizingLocalPrivateSourceArtifactStore(
-        finalizer_command=config.artifact_finalizer_command,
-        reader=artifact_reader,
+    artifact_reader: SourceArtifactReader
+    if config.owner_client is not None:
+        owner_reader = OwnerBackedSourceArtifactReader(config.owner_client)
+        artifact_reader = owner_reader
+        artifact_store: FinalizingLocalPrivateSourceArtifactStore | OwnerBackedSourceArtifactStore = (
+            OwnerBackedSourceArtifactStore(config.owner_client, reader=owner_reader)
+        )
+    else:
+        artifact_reader = LocalPrivateSourceArtifactReader(config.artifact_reader_root)
+        artifact_store = FinalizingLocalPrivateSourceArtifactStore(
+            finalizer_command=config.artifact_finalizer_command,
+            reader=artifact_reader,
+        )
+    cleanup_journal: LocalPrivateCleanupRequestJournal | None = (
+        LocalPrivateCleanupRequestJournal(config.cleanup_journal_root)
+        if getattr(artifact_store, "supports_transaction_cleanup", True)
+        else None
     )
-    cleanup_journal = LocalPrivateCleanupRequestJournal(config.cleanup_journal_root)
-    engine = create_async_engine(config.writer.url, hide_parameters=True)
+    engine = create_async_engine(config.publisher.url, hide_parameters=True)
     try:
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         attempted_run_id: UUID | None = None
         try:
             async with sessions.begin() as session:
-                await validate_source_writer_session(session)
+                await validate_source_publisher_session(session)
                 await lock_source_artifact_mutation(session)
                 repository = SqlAlchemySourceSnapshotRepository(session)
                 acquisition = await _acquire(config, client=client, gate=repository)
@@ -170,7 +205,7 @@ async def run_ingestion(
                 metadata = build_product_snapshot_metadata(
                     acquisition=acquisition,
                     run_group_key=run_group_key,
-                    verified_by=config.writer.actor,
+                    verified_by=config.publisher.actor,
                 )
                 persistence = await ingest_and_persist_mfds_product(
                     acquisition=acquisition,
@@ -183,15 +218,16 @@ async def run_ingestion(
                 attempted_run_id = persistence.ingestion_run_id
                 record_count = acquisition.result.record_count
         except Exception:
-            cleanup_request_id = record_transaction_cleanup_request(
-                journal=cleanup_journal,
-                run_group_key=run_group_key,
-                ingestion_run_id=attempted_run_id,
-                stored_artifacts=artifact_store.finalized,
-                requested_at=datetime.now(UTC),
-            )
-            if cleanup_request_id is not None:
-                raise MfdsProductTransactionCleanupRequiredError(cleanup_request_id) from None
+            if cleanup_journal is not None and getattr(artifact_store, "supports_transaction_cleanup", True):
+                cleanup_request_id = record_transaction_cleanup_request(
+                    journal=cleanup_journal,
+                    run_group_key=run_group_key,
+                    ingestion_run_id=attempted_run_id,
+                    stored_artifacts=artifact_store.finalized,
+                    requested_at=datetime.now(UTC),
+                )
+                if cleanup_request_id is not None:
+                    raise MfdsProductTransactionCleanupRequiredError(cleanup_request_id) from None
             raise
         try:
             async with sessions() as session:
@@ -227,7 +263,7 @@ async def _acquire(
 
 async def _requery(session: AsyncSession, persistence: ProductIngestionOutcome) -> SnapshotProvenanceReceipt | None:
     """commit된 상태만 다시 읽어 provenance를 확인한다. 여기서 CURRENT를 바꾸지 않는다."""
-    await validate_source_writer_session(session)
+    await validate_source_publisher_session(session)
     repository = SqlAlchemySourceSnapshotRepository(session)
     snapshot_id = persistence.snapshot_id if isinstance(persistence, SnapshotPersistenceResult) else None
     if snapshot_id is None:

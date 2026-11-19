@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from typing import Protocol
 from uuid import UUID
 
-from ai_worker.adapters.local_private_source_artifact_finalizer import LocalPrivateSourceArtifactReader
+from ai_worker.adapters.local_private_source_artifact_finalizer import SourceArtifactReader
 from ai_worker.tasks.rag.catalog.build import CatalogProductInput
 from ai_worker.tasks.rag.catalog.types import CandidateRecordStatus
 from ai_worker.tasks.rag.source_client.contracts import SourceOperationIdentity
@@ -112,7 +112,7 @@ def _validate_run(
 async def _read_matching_records(
     *,
     repository: ProductSourceRepository,
-    artifact_reader: LocalPrivateSourceArtifactReader,
+    artifact_reader: SourceArtifactReader,
     run_uuid: UUID,
     item_seq: str,
 ) -> list[Mapping[str, object]]:
@@ -143,7 +143,7 @@ async def _read_matching_records(
 async def read_product_input(
     *,
     repository: ProductSourceRepository,
-    artifact_reader: LocalPrivateSourceArtifactReader,
+    artifact_reader: SourceArtifactReader,
     source_snapshot_id: str,
     ingestion_run_id: str,
     item_seq: str,

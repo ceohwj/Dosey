@@ -4,14 +4,15 @@
 \getenv migration_user DB_MIGRATION_USER
 \getenv app_user DB_APP_USER
 \getenv writer_user SOURCE_WRITER_USER
+\getenv publisher_user SOURCE_PUBLISHER_USER
 
 -- Optional, separately invoked bootstrap. No data privileges are granted here.
-SELECT count(DISTINCT name)=5 AND bool_and(length(name)>0) AS roles_valid
-FROM (VALUES (current_user), (:'migration_user'), (:'app_user'), (:'writer_user'), (:'management_user')) AS roles(name)
+SELECT count(DISTINCT name)=6 AND bool_and(length(name)>0) AS roles_valid
+FROM (VALUES (current_user), (:'migration_user'), (:'app_user'), (:'writer_user'), (:'publisher_user'), (:'management_user')) AS roles(name)
 \gset
 \if :roles_valid
 \else
-  \echo 'Management, Admin, Migration, Runtime and Source Writer must be distinct'
+  \echo 'Management, Admin, Migration, Runtime and Source Writer/Publisher must be distinct'
   SELECT 1 / 0;
 \endif
 SELECT length(:'management_password')>0 AS password_valid

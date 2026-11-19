@@ -292,6 +292,7 @@ async def persist_mfds_label_plan(
     raw_artifacts = tuple(
         (index, document.file_path, document.metadata) for index, document in enumerate(plan.documents, start=1)
     )
+    await repository.lock_artifact_publication()
     stored_artifacts = preserve_raw_artifacts(artifacts=raw_artifacts, store=artifact_store)
     persistence = await persist_source_ingestion_result(
         repository=repository,

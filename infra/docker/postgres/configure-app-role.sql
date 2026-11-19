@@ -5,6 +5,13 @@
 \getenv app_password DB_APP_PASSWORD
 \getenv writer_user SOURCE_WRITER_USER
 \getenv writer_password SOURCE_WRITER_PASSWORD
+\getenv publisher_user SOURCE_PUBLISHER_USER
+\getenv publisher_password SOURCE_PUBLISHER_PASSWORD
+\getenv management_user SOURCE_MANAGEMENT_USER
+\if :{?management_user}
+\else
+  \set management_user ''
+\endif
 \getenv index_builder_user KNOWLEDGE_INDEX_BUILDER_USER
 \getenv index_builder_password KNOWLEDGE_INDEX_BUILDER_PASSWORD
 \getenv account_withdrawal_cleanup_user ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE
@@ -73,27 +80,29 @@ WHERE extname = 'vector'
 -- 관리 계정 변경을 포함한 어떤 변경도 하지 않는다.
 SELECT
   count(DISTINCT name) FILTER (WHERE length(name)>0)
-    = 4 + CASE WHEN length(:'index_builder_user')>0 THEN 1 ELSE 0 END
+    = 5 + CASE WHEN length(:'management_user')>0 THEN 1 ELSE 0 END
+        + CASE WHEN length(:'index_builder_user')>0 THEN 1 ELSE 0 END
         + CASE WHEN length(:'account_withdrawal_cleanup_user')>0 THEN 1 ELSE 0 END
         + CASE WHEN length(:'catalog_writer_user')>0 THEN 1 ELSE 0 END
         + CASE WHEN length(:'catalog_approval_user')>0 THEN 1 ELSE 0 END
         + CASE WHEN length(:'candidate_builder_user')>0 THEN 1 ELSE 0 END
   AND bool_and(length(name)>0)
-    FILTER (WHERE name NOT IN (:'index_builder_user', :'account_withdrawal_cleanup_user', :'catalog_writer_user', :'catalog_approval_user', :'candidate_builder_user'))
+    FILTER (WHERE name NOT IN (:'management_user', :'index_builder_user', :'account_withdrawal_cleanup_user', :'catalog_writer_user', :'catalog_approval_user', :'candidate_builder_user'))
+  AND length(:'publisher_user')>0 AND length(:'publisher_password')>0
   AND (length(:'index_builder_user')=0) = (length(:'index_builder_password')=0)
   AND (length(:'account_withdrawal_cleanup_user')=0) = (length(:'account_withdrawal_cleanup_password')=0)
   AND (length(:'catalog_writer_user')=0) = (length(:'catalog_writer_password')=0)
   AND (length(:'catalog_approval_user')=0) = (length(:'catalog_approval_password')=0)
   AND (length(:'candidate_builder_user')=0) = (length(:'candidate_builder_password')=0)
   AS roles_valid
-FROM (VALUES (current_user), (:'migration_user'), (:'app_user'), (:'writer_user'),
+FROM (VALUES (current_user), (:'migration_user'), (:'app_user'), (:'writer_user'), (:'publisher_user'), (:'management_user'),
              (:'index_builder_user'), (:'account_withdrawal_cleanup_user'),
              (:'catalog_writer_user'), (:'catalog_approval_user'),
              (:'candidate_builder_user')) AS roles(name)
 \gset
 \if :roles_valid
 \else
-  \echo 'Admin, Migration, Runtime, Writer and optional Index Builder/Cleanup/Catalog/Approval/Candidate roles must be distinct'
+  \echo 'Admin, Migration, Runtime, Writer, Publisher and optional Management/ Index Builder/Cleanup/Catalog/Approval/Candidate roles must be distinct'
   -- SQL 오류로 ON_ERROR_STOP을 발동합니다 (psql 17의 \quit는 종료 코드를 받지 않음).
   SELECT 1 / 0;
 \endif
@@ -104,6 +113,7 @@ BEGIN;
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', name, password)
 FROM (VALUES (:'migration_user', :'migration_password'),
              (:'app_user', :'app_password'), (:'writer_user', :'writer_password'),
+             (:'publisher_user', :'publisher_password'),
              (:'index_builder_user', :'index_builder_password'),
              (:'account_withdrawal_cleanup_user', :'account_withdrawal_cleanup_password'),
              (:'catalog_writer_user', :'catalog_writer_password'),
@@ -114,6 +124,7 @@ WHERE length(name)>0 AND NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=name)
 SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS', name, password)
 FROM (VALUES (:'migration_user', :'migration_password'),
              (:'app_user', :'app_password'), (:'writer_user', :'writer_password'),
+             (:'publisher_user', :'publisher_password'),
              (:'index_builder_user', :'index_builder_password'),
              (:'account_withdrawal_cleanup_user', :'account_withdrawal_cleanup_password'),
              (:'catalog_writer_user', :'catalog_writer_password'),
@@ -122,7 +133,7 @@ FROM (VALUES (:'migration_user', :'migration_password'),
 WHERE length(name)>0
 \gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), name)
-FROM (VALUES (:'migration_user'), (:'app_user'), (:'writer_user'), (:'index_builder_user'),
+FROM (VALUES (:'migration_user'), (:'app_user'), (:'writer_user'), (:'publisher_user'), (:'index_builder_user'),
              (:'account_withdrawal_cleanup_user'), (:'catalog_writer_user'),
              (:'catalog_approval_user'),
              (:'candidate_builder_user')) AS roles(name)
@@ -132,14 +143,14 @@ REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'migration_user')
 \gexec
 SELECT format('REVOKE CREATE ON SCHEMA public FROM %I', name)
-FROM (VALUES (:'app_user'), (:'writer_user'), (:'index_builder_user'),
+FROM (VALUES (:'app_user'), (:'writer_user'), (:'publisher_user'), (:'index_builder_user'),
              (:'account_withdrawal_cleanup_user'), (:'catalog_writer_user'),
              (:'catalog_approval_user'),
              (:'candidate_builder_user')) AS roles(name)
 WHERE length(name)>0
 \gexec
 SELECT format('GRANT USAGE ON SCHEMA public TO %I', name)
-FROM (VALUES (:'app_user'), (:'writer_user'), (:'index_builder_user'),
+FROM (VALUES (:'app_user'), (:'writer_user'), (:'publisher_user'), (:'index_builder_user'),
              (:'account_withdrawal_cleanup_user'), (:'catalog_writer_user'),
              (:'catalog_approval_user'),
              (:'candidate_builder_user')) AS roles(name)
@@ -157,7 +168,7 @@ SELECT format('ALTER DEFAULT PRIVILEGES FOR ROLE %I %s REVOKE ALL ON %s FROM %I'
               :'migration_user', scope, object_type, name)
 FROM (VALUES (''), ('IN SCHEMA public')) AS scopes(scope)
 CROSS JOIN (VALUES ('TABLES'), ('SEQUENCES')) AS objects(object_type)
-CROSS JOIN (VALUES (:'index_builder_user'), (:'account_withdrawal_cleanup_user'),
+CROSS JOIN (VALUES (:'publisher_user'), (:'index_builder_user'), (:'account_withdrawal_cleanup_user'),
                    (:'catalog_writer_user'), (:'catalog_approval_user'),
                    (:'candidate_builder_user')) AS roles(name)
 WHERE length(name)>0

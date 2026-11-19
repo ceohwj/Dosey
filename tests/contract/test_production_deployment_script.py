@@ -25,6 +25,8 @@ def test_deployment_script_rejects_missing_redis_password_before_external_action
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 # REDIS_PASSWORD는 의도적으로 생략한다.
                 "ACCOUNT_WITHDRAWAL_REQUEST_ENABLED=false",
                 "",
@@ -65,6 +67,8 @@ def test_deployment_script_rejects_placeholder_redis_password_before_external_ac
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 "ENV=production",
                 f"IDEMPOTENCY_SNAPSHOT_ENCRYPTION_KEY={VALID_SNAPSHOT_ENCRYPTION_KEY}",
                 "REDIS_PASSWORD=replace-with-production-redis-password",
@@ -106,6 +110,8 @@ def test_deployment_script_rejects_quoted_placeholder_redis_password(tmp_path: P
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 "ENV=production",
                 f"IDEMPOTENCY_SNAPSHOT_ENCRYPTION_KEY={VALID_SNAPSHOT_ENCRYPTION_KEY}",
                 'REDIS_PASSWORD="replace-with-production-redis-password"',
@@ -148,6 +154,8 @@ def test_deployment_script_rejects_env_file_missing_redis_password_even_when_inh
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 "ENV=production",
                 f"IDEMPOTENCY_SNAPSHOT_ENCRYPTION_KEY={VALID_SNAPSHOT_ENCRYPTION_KEY}",
                 # REDIS_PASSWORD는 파일에서 의도적으로 생략하고, 실행 셸에만 상속시킨다.
@@ -194,6 +202,8 @@ def test_deployment_script_rejects_env_file_missing_env_key_even_when_inherited(
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 "REDIS_PASSWORD=dummy-redis-password",
                 # ENV는 파일에서 의도적으로 생략하고, 실행 셸에만 상속시킨다.
                 "ACCOUNT_WITHDRAWAL_REQUEST_ENABLED=false",
@@ -239,6 +249,8 @@ def test_deployment_script_rejects_non_production_env_before_external_actions(tm
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 "REDIS_PASSWORD=dummy-redis-password",
                 "ENV=local",
                 f"IDEMPOTENCY_SNAPSHOT_ENCRYPTION_KEY={VALID_SNAPSHOT_ENCRYPTION_KEY}",
@@ -279,6 +291,8 @@ def test_deployment_script_passes_redis_check_when_password_present(tmp_path: Pa
                 "DB_APP_PASSWORD=dummy-app-password",
                 "SOURCE_WRITER_USER=dummy_writer",
                 "SOURCE_WRITER_PASSWORD=dummy-writer-password",
+                "SOURCE_PUBLISHER_USER=dummy_publisher",
+                "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
                 "REDIS_PASSWORD=dummy-redis-password",
                 "ENV=production",
                 f"IDEMPOTENCY_SNAPSHOT_ENCRYPTION_KEY={VALID_SNAPSHOT_ENCRYPTION_KEY}",
@@ -470,6 +484,8 @@ def test_worker_preflight_blocks_before_registry_and_ssh(tmp_path, key, value, e
         "DB_APP_PASSWORD": "synthetic-app",
         "SOURCE_WRITER_USER": "writer",
         "SOURCE_WRITER_PASSWORD": "synthetic-writer",
+        "SOURCE_PUBLISHER_USER": "publisher",
+        "SOURCE_PUBLISHER_PASSWORD": "synthetic-publisher",
         "DOCKER_USER": "synthetic",
         "DOCKER_REPOSITORY": "demo",
         "APP_VERSION": "test123",
@@ -515,6 +531,8 @@ def test_worker_preflight_allows_chat_history_context_enabled_after_approval(tmp
         "DB_APP_PASSWORD": "synthetic-app",
         "SOURCE_WRITER_USER": "writer",
         "SOURCE_WRITER_PASSWORD": "synthetic-writer",
+        "SOURCE_PUBLISHER_USER": "publisher",
+        "SOURCE_PUBLISHER_PASSWORD": "synthetic-publisher",
         "DOCKER_USER": "synthetic",
         "DOCKER_REPOSITORY": "demo",
         "APP_VERSION": "test123",
@@ -630,6 +648,8 @@ def _withdrawal_env_lines() -> list[str]:
         "DB_APP_PASSWORD=synthetic-app-secret",
         "SOURCE_WRITER_USER=dummy_writer",
         "SOURCE_WRITER_PASSWORD=synthetic-writer-secret",
+        "SOURCE_PUBLISHER_USER=publisher",
+        "SOURCE_PUBLISHER_PASSWORD=synthetic-publisher",
     ]
 
 
@@ -805,3 +825,92 @@ def test_deployment_script_rejects_cleanup_credentials_inherited_from_parent_she
     assert "ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE" in completed.stdout
     assert "docker" not in completed.stdout.lower()
     assert "inherited-cleanup-secret" not in completed.stdout + completed.stderr
+
+
+@pytest.mark.parametrize(
+    ("publisher_user", "publisher_password", "expected"),
+    [
+        ("", "synthetic-publisher-secret", "SOURCE_PUBLISHER_USER"),
+        ("publisher", "", "SOURCE_PUBLISHER_PASSWORD"),
+        ("writer", "synthetic-publisher-secret", "다른 이름"),
+        ("publisher", "replace-with-password", "placeholder"),
+    ],
+)
+def test_publisher_preflight_fails_closed_before_external_actions(
+    tmp_path, publisher_user, publisher_password, expected
+):
+    env_file = tmp_path / "prod.env"
+    values = {
+        "ENV": "production",
+        "REDIS_PASSWORD": "synthetic-redis",
+        "IDEMPOTENCY_SNAPSHOT_ENCRYPTION_KEY": VALID_SNAPSHOT_ENCRYPTION_KEY,
+        "ACCOUNT_WITHDRAWAL_REQUEST_ENABLED": "false",
+        "DB_ADMIN_USER": "admin",
+        "DB_ADMIN_PASSWORD": "synthetic-admin-secret",
+        "DB_MIGRATION_USER": "migration",
+        "DB_MIGRATION_PASSWORD": "synthetic-migration-secret",
+        "DB_APP_USER": "runtime",
+        "DB_APP_PASSWORD": "synthetic-runtime-secret",
+        "SOURCE_WRITER_USER": "writer",
+        "SOURCE_WRITER_PASSWORD": "synthetic-writer-secret",
+        "SOURCE_PUBLISHER_USER": publisher_user,
+        "SOURCE_PUBLISHER_PASSWORD": publisher_password,
+    }
+    env_file.write_text("\n".join(f'{key}="{value}"' for key, value in values.items()))
+    result = subprocess.run(
+        ["bash", str(SCRIPT_PATH)],
+        cwd=PROJECT_ROOT,
+        env={"PATH": "/usr/bin:/bin", "PROD_ENV_FILE": str(env_file)},
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert expected in result.stdout
+    assert "Docker login" not in result.stdout
+    assert "synthetic-publisher-secret" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("failed_stage", ["deny", "grant"])
+def test_source_cutover_failure_keeps_services_stopped(tmp_path, failed_stage):
+    remote = SCRIPT_PATH.read_text().split("bash -s\" <<'EOF'\n", 1)[1].split("\nEOF\n", 1)[0]
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    docker = bin_dir / "docker"
+    docker.write_text(
+        "#!/bin/bash\n"
+        'printf "%s\\n" "$*" >> "$COMMAND_LOG"\n'
+        'if [[ "$*" == "wait migrate" ]]; then echo 0; fi\n'
+        'if [[ "$*" == *"provision-db-roles --source-writer-deny-only" ]]; then\n'
+        '  if [[ "$FAILED_STAGE" == "deny" ]]; then exit 41; fi\n'
+        'elif [[ "$*" == *"provision-db-roles" && "$FAILED_STAGE" == "grant" ]]; then exit 42; fi\n'
+        "exit 0\n"
+    )
+    docker.chmod(0o700)
+    (tmp_path / "project").mkdir()
+    log = tmp_path / "commands.log"
+    result = subprocess.run(
+        ["bash"],
+        input=remote,
+        text=True,
+        capture_output=True,
+        timeout=10,
+        env={
+            "HOME": str(tmp_path),
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "DEPLOY_SERVICES": "fastapi ai-worker nginx checkin-deadline-scheduler",
+            "COMMAND_LOG": str(log),
+            "FAILED_STAGE": failed_stage,
+        },
+    )
+    assert result.returncode == {"deny": 41, "grant": 42}[failed_stage]
+    commands = log.read_text()
+    assert "stop -t 90 fastapi ai-worker source-writer source-publisher" in commands
+    assert "provision-db-roles --source-writer-deny-only" in commands
+    if failed_stage == "deny":
+        assert "provision-db-roles\n" not in commands
+    else:
+        assert commands.index("--source-writer-deny-only") < commands.index("provision-db-roles\n")
+    assert "--wait fastapi" not in commands
+    assert "image prune" not in commands
+    assert "source-publisher-admin run" not in commands

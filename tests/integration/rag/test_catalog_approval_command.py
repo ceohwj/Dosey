@@ -708,6 +708,7 @@ async def test_credential_isolation_rejects_forbidden_keys():
         "DB_ADMIN_PASSWORD",
         "DB_MIGRATION_PASSWORD",
         "SOURCE_WRITER_PASSWORD",
+        "SOURCE_PUBLISHER_PASSWORD",
         "CATALOG_WRITER_PASSWORD",
         "CANDIDATE_INDEX_BUILDER_PASSWORD",
     ):

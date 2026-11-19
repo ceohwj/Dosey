@@ -517,6 +517,8 @@ class SnapshotSelectionResult:
 class SnapshotLifecycleRepository(Protocol):
     """한 DB transaction 안에서 Snapshot lifecycle을 저장하는 포트입니다."""
 
+    async def lock_artifact_publication(self) -> None: ...
+
     async def lock_operation(self, identity: SourceOperationIdentity) -> UUID:
         """Operation을 조회해 잠그고, 없으면 ValueError를 발생시킵니다."""
         ...
@@ -549,18 +551,13 @@ class SnapshotLifecycleRepository(Protocol):
         details_summary: str | None = None,
     ) -> None: ...
 
-    async def create_run(self, record: SnapshotRunRecord) -> UUID: ...
+    async def persist_complete_attempt(
+        self, record: SnapshotRunRecord, artifacts: tuple[StoredRawArtifact, ...]
+    ) -> UUID: ...
 
     async def record_observation_exclusions(self, receipt: SnapshotExclusionReceipt) -> None:
         """partial 적재 사실을 Snapshot 단위로 남깁니다. 같은 사유를 중복 기록하지 않습니다."""
         ...
-
-    async def create_artifacts(
-        self,
-        *,
-        ingestion_run_id: UUID,
-        artifacts: tuple[StoredRawArtifact, ...],
-    ) -> None: ...
 
     async def lock_snapshot_operation(self, *, snapshot_id: UUID) -> UUID:
         """Snapshot의 Operation을 잠그고, 없으면 ValueError를 발생시킵니다."""
@@ -641,8 +638,9 @@ async def _persist_identity_rejections(
                 code=artifact.reject_code,
                 location=artifact.parser_location,
             )
+        await repository.lock_artifact_publication()
         operation_id = await repository.lock_operation(ingestion.identity)
-        run_id = await repository.create_run(
+        run_id = await repository.persist_complete_attempt(
             _run_record(
                 operation_id=operation_id,
                 snapshot_id=None,
@@ -650,9 +648,9 @@ async def _persist_identity_rejections(
                 ingestion=ingestion,
                 run_status="FAILED",
                 failure_code="PARSER_VALIDATION_FAILED",
-            )
+            ),
+            artifacts,
         )
-        await repository.create_artifacts(ingestion_run_id=run_id, artifacts=artifacts)
         return SnapshotPersistenceResult(
             SnapshotIngestionDecision.VALIDATION_FAILED, operation_id, run_id, None, "PARSER_VALIDATION_FAILED"
         )
@@ -684,6 +682,7 @@ async def persist_source_ingestion_result(
     )
     if rejected is not None:
         return rejected
+    await repository.lock_artifact_publication()
     operation_id = await repository.lock_operation(ingestion.identity)
     stored_policy = await repository.get_source_policy(operation_id=operation_id)
     policy_result = evaluate_snapshot_policy(
@@ -704,7 +703,7 @@ async def persist_source_ingestion_result(
         if failure_code is None:
             raise RuntimeError("Snapshot 정책 거부 결과에 failure_code가 없습니다.")
 
-        ingestion_run_id = await repository.create_run(
+        ingestion_run_id = await repository.persist_complete_attempt(
             _run_record(
                 operation_id=operation_id,
                 snapshot_id=None,
@@ -715,11 +714,8 @@ async def persist_source_ingestion_result(
                 validation_reason_code=(
                     SNAPSHOT_POLICY_EMPTY_RESULT if failure_code is SnapshotPolicyFailureCode.EMPTY_RESULT else None
                 ),
-            )
-        )
-        await repository.create_artifacts(
-            ingestion_run_id=ingestion_run_id,
-            artifacts=artifacts,
+            ),
+            artifacts,
         )
         return SnapshotPersistenceResult(
             decision=SnapshotIngestionDecision.VALIDATION_FAILED,
@@ -764,16 +760,16 @@ async def persist_source_ingestion_result(
             verified_by=metadata.verified_by,
         )
         run_status = "SUCCEEDED_WITH_REJECTIONS" if metadata.rejected_record_count else "SUCCEEDED"
-        ingestion_run_id = await repository.create_run(
+        ingestion_run_id = await repository.persist_complete_attempt(
             _run_record(
                 operation_id=operation_id,
                 snapshot_id=snapshot_id,
                 metadata=metadata,
                 ingestion=ingestion,
                 run_status=run_status,
-            )
+            ),
+            artifacts,
         )
-        await repository.create_artifacts(ingestion_run_id=ingestion_run_id, artifacts=artifacts)
         return SnapshotPersistenceResult(decision, operation_id, ingestion_run_id, snapshot_id)
 
     if decision is SnapshotIngestionDecision.NO_CHANGE:
@@ -786,16 +782,16 @@ async def persist_source_ingestion_result(
             verified_at=metadata.finished_at,
             verified_by=metadata.verified_by,
         )
-        ingestion_run_id = await repository.create_run(
+        ingestion_run_id = await repository.persist_complete_attempt(
             _run_record(
                 operation_id=operation_id,
                 snapshot_id=comparison_snapshot.snapshot_id,
                 metadata=metadata,
                 ingestion=ingestion,
                 run_status="NO_CHANGE",
-            )
+            ),
+            artifacts,
         )
-        await repository.create_artifacts(ingestion_run_id=ingestion_run_id, artifacts=artifacts)
         return SnapshotPersistenceResult(
             decision,
             operation_id,
@@ -803,7 +799,7 @@ async def persist_source_ingestion_result(
             comparison_snapshot.snapshot_id,
         )
 
-    ingestion_run_id = await repository.create_run(
+    ingestion_run_id = await repository.persist_complete_attempt(
         _run_record(
             operation_id=operation_id,
             snapshot_id=None,
@@ -811,9 +807,9 @@ async def persist_source_ingestion_result(
             ingestion=ingestion,
             run_status="FAILED",
             failure_code=SOURCE_VERSION_CONFLICT,
-        )
+        ),
+        artifacts,
     )
-    await repository.create_artifacts(ingestion_run_id=ingestion_run_id, artifacts=artifacts)
     return SnapshotPersistenceResult(
         decision,
         operation_id,

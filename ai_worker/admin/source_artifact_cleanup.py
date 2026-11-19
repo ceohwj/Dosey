@@ -37,7 +37,10 @@ class CleanupExecutorConfig:
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str]) -> "CleanupExecutorConfig":
-        if any(env.get(key) for key in ("SOURCE_WRITER_PASSWORD", "DB_PASSWORD", "DB_ADMIN_PASSWORD")):
+        if any(
+            env.get(key)
+            for key in ("SOURCE_WRITER_PASSWORD", "SOURCE_PUBLISHER_PASSWORD", "DB_PASSWORD", "DB_ADMIN_PASSWORD")
+        ):
             raise ValueError("Cleanup executor requires an isolated credential environment")
         values = {
             name: env.get(f"SOURCE_CLEANUP_EXECUTOR_{name}", "")
