@@ -1,5 +1,7 @@
 # RET-H AWS Synthetic Deployment Smoke (Issue #178)
 
+> **2026-11-05 B1 이후 실행 제한:** [Owner 결정](../governance/decisions/2026-11-05-source-trusted-publisher-b1.md)에 따라 이 문서의 구 Source Writer Stage1 bootstrap CLI는 credential·DB·fixture·receipt I/O 전에 명시 차단된다. 아래 Stage1 실행 예시는 이전 경계의 기록이며 현재 실행 지시가 아니다. Publisher 발행과 Writer 선택으로 나누는 후속 계약은 미승인 보류 상태다. Stage2 코드와 과거 receipt/data는 변경하지 않으며, 테스트의 admin fixture 준비를 운영 Stage1 경로로 사용하지 않는다. B1이 실제 AWS/Source/공개 gate를 여는 것은 아니다.
+
 이 문서는 Issue #178의 남은 범위인 **RET-H AWS 합성 배포 smoke**의 실행 방법과 증빙 artifact
 형식을 기록한다. 이 smoke는 **배포 가능성(deployability) 증빙**이며 품질 평가도 Release 판정도
 아니다. `PUBLIC_TRACK_F_ENABLED`는 계속 `false`로 유지하고 active Bundle pointer는 변경하지 않는다.
@@ -294,7 +296,7 @@ manifest가 스스로를 "synthetic"이라 부르는 것은 증거가 아니다.
 identity로 이 bootstrap을 실행할 수 없다.
 
 이 authority split은 이번 diff에서 구현하지 않는다. 후속 Issue 초안은
-`docs/designs/ceohwj/issue-178-followup-bootstrap-authority-split.md`에 있다. 해당 후속이
+`docs/designs/rag/issue-178-followup-bootstrap-authority-split.md`에 있다. 해당 후속이
 해소되기 전까지 live AWS smoke는 `SUCCESS`가 될 수 없고, smoke는 fixture manifest 부재를
 `AWS_SMOKE_NOT_EXECUTED`로 fail-closed 처리한다.
 

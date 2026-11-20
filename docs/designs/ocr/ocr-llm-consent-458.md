@@ -8,8 +8,8 @@
 
 ## 2026-09-14 갱신
 
-#465가 develop에 병합됐다. [최신 구현 기록](ocr-consent-gate-458-implementation.md)과
-[Worker 저장 결정안](../governance/decisions/2026-09-14-ocr-consent-worker-458.md)에
+#465가 develop에 병합됐다. [최신 구현 기록](../ocr-consent-gate-458-implementation.md)과
+[Worker 저장 결정안](../../governance/decisions/2026-09-14-ocr-consent-worker-458.md)에
 가빈·은영 답변 링크, Worker 검사·차단 저장 구현, 남은 Backend/Frontend 경계를 기록했다.
 아래 9/13의 검사 위치·미병합 전제는 최신 기록으로 대체한다. 구체 payload 최소화는 아직 미구현이다.
 철회 후 결과 재노출·검수·수정은 데모 제외이며 보관·삭제는 미확정이다. 신규 완전 수동 입력은
@@ -58,7 +58,7 @@ LLM이 참조해도 거부하도록 계약·테스트를 설계한다. 규칙 �
 4. 메시지에 동의 상태를 싣거나 enqueue 시점의 동의를 재사용하지 않는다.
 5. 이미 외부로 전송된 요청을 철회로 회수할 수 있다고 주장하지 않는다.
 
-가빈님 답변을 반영한 정책 정본은 [#458 후속 계약](../contracts/proposed/ocr-llm-transfer-458.md)이다.
+가빈님 답변을 반영한 정책 정본은 [#458 후속 계약](../../contracts/proposed/ocr-llm-transfer-458.md)이다.
 기존 OCR 목적에 LLM을 명시하되 과거 동의를 자동 확대하지 않고, 변경 안내·policy version 및
 재동의를 거친다. OCR 전체 텍스트·이미지는 전송하지 않으며 최소화 불가 시 LLM을 생략한다.
 미동의·철회는 정상 성공으로 처리하지 않는다. 철회 후 기존 OCR 결과 검수는 아직 허용을
@@ -77,7 +77,7 @@ Frontend 안내 연결·검증과 기존 외부 게이트 충족 이후다.
 신규 API 필드·enum·route는 여전히 Proposed다.
 
 호출 경로와 token 최소화의 현행 한계, 합성 테스트 및 남은 인수 시나리오는
-[사전 검증 기록](../testing/ocr-transfer-preparation-458.md)에 정리했다.
+[사전 검증 기록](../../testing/ocr-transfer-preparation-458.md)에 정리했다.
 
 남한솔에게 외부 OCR 이미지 처리와 외부 LLM OCR 텍스트 처리를 구분한 안내,
 목적별 동의 설정 이동, 미동의·철회·LLM 미사용 시 안내 상태를 전달한다.
@@ -101,5 +101,5 @@ Frontend 코드를 이 작업에서 대신 수정하지 않는다. UI 문구·�
 - [#458](https://github.com/AI-HealthCare-05/AH_05_04/issues/458)
 - [#207](https://github.com/AI-HealthCare-05/AH_05_04/issues/207)
 - [PR #465](https://github.com/AI-HealthCare-05/AH_05_04/pull/465)
-- [#453 범위 기록](../contracts/proposed/ocr-llm-worker-consent-453.md)
-- [동의 Gate 계약](../contracts/proposed/consent-gate-207.md)
+- [#453 범위 기록](../../contracts/proposed/ocr-llm-worker-consent-453.md)
+- [동의 Gate 계약](../../contracts/proposed/consent-gate-207.md)

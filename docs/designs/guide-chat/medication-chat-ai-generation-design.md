@@ -397,7 +397,7 @@ Backend Service
 ## Backend 연동 계약
 
 Backend는 기존 OpenAI 설정과 process-scoped client를 재사용해 AI 모듈을 조립한다.
-트랜잭션, 동일 세션 직렬화, 저장 상태, HTTP·캐시 오류 계약을 포함한 후속 조립 설계는 [복약 챗봇 AI Backend 연동 설계](./medication-chat-ai-backend-integration-design.md)에서 다룬다. 이 문서의 프롬프트·Provider 정책과 AI 입·출력 경계는 후속 Backend 연동에서도 유지한다.
+트랜잭션, 동일 세션 직렬화, 저장 상태, HTTP·캐시 오류 계약을 포함한 후속 조립 설계는 [복약 챗봇 AI Backend 연동 설계](../ceohwj/medication-chat-ai-backend-integration-design.md)에서 다룬다. 이 문서의 프롬프트·Provider 정책과 AI 입·출력 경계는 후속 Backend 연동에서도 유지한다.
 
 ```python
 provider = OpenAIResponsesClient(async_openai_client)

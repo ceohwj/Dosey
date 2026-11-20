@@ -18,20 +18,20 @@
 
 | 영역 | 현재 코드에서 확인한 내용 | 후속 구현·검증 방향 |
 | --- | --- | --- |
-| LLM 변환 | [validator](../../backend/app/services/ocr_ai/validator.py)의 `_EMPTY_REVIEW_FIELD_TYPES`에 함량·단위가 없다. 생성값 누락과 `_make_field()`의 grounding 실패 모두 집합에 없는 필드를 생략한다. | 두 필드를 빈 검수 대상에 포함한다. 누락과 grounding 실패를 각각 검증한다. |
+| LLM 변환 | [validator](../../../backend/app/services/ocr_ai/validator.py)의 `_EMPTY_REVIEW_FIELD_TYPES`에 함량·단위가 없다. 생성값 누락과 `_make_field()`의 grounding 실패 모두 집합에 없는 필드를 생략한다. | 두 필드를 빈 검수 대상에 포함한다. 누락과 grounding 실패를 각각 검증한다. |
 | 빈 필드 표현 | 같은 파일의 `_make_empty_review_field()`가 raw/normalized/version/confidence 네 값을 모두 `None`으로 생성한다. | 기존 표현을 유지하며 실패한 추정값을 복사하지 않는다. |
-| 규칙 구조화 | [실제 구현](../../ocr_runtime/prescription_ocr_structurer.py)의 `_structure_medication_row()`는 인식된 함량·단위만 반환한다. `structure()`는 `_extract_medication_rows()`가 찾은 행을 순회한다. | 식별된 약품 행에 누락된 검수 필드만 보충한다. 행 탐지 기준을 바꾸거나 새 약품 행을 만들지 않는다. |
-| Backend 진입점 | [Backend structurer](../../backend/app/services/prescription_ocr_structurer.py)는 공통 runtime 구현을 재노출하는 shim이다. | 실제 수정은 runtime에 적용한다. #309의 날짜 함수 재노출 수정은 섞지 않는다. |
-| 공유 Provider 필드 | [RecognizedField](../../provider_contracts/ocr.py)는 raw/confidence 및 정규화 metadata의 null을 허용한다. | 신규 DTO나 필드 enum 없이 기존 표현을 사용한다. Worker 전달·저장에서도 null이 유지되는지 검증한다. |
-| DB | [ExtractedField](../../backend/app/models/ocr.py)는 네 값의 null을 허용한다. `(ocr_job_id, medication_index, field_type)` unique와 index 범위 CHECK가 있다. | 생성 단계에서 동일 identity가 중복되지 않게 한다. 현재 모델상 신규 컬럼은 불필요하며 실제 migration 스키마는 4단계에서 확인한다. |
-| 저장 | [OcrRepository.replace_fields](../../backend/app/repositories/ocr_repository.py)는 입력 필드마다 DB 행을 만든다. | 빈 필드도 저장·조회되어 `field_id`를 갖는지 통합 검증한다. PATCH 시 누락 행을 생성하는 upsert는 추가하지 않는다. |
-| PATCH·확정 | [OCR 서비스](../../backend/app/services/ocr.py)의 `update_extracted_field()`는 기존 소유 필드를 갱신한다. 모델은 함량·단위·TIMING의 null 확정을 허용한다. | 빈 필드의 값 입력 및 null 확정을 검증하고, 필수 필드 null 거부·소유권·처방 확정 후 수정 차단을 유지한다. |
-| 현재 계약 | [OCR 구조화 계약](../contracts/current/ocr-medication-structuring.md)의 Grounding 검증·부분 인식 절에 함량·단위 생략과 규칙 경로 미생성이 명시되어 있다. | 동작 구현과 함께 해당 절 및 계약 인덱스를 정렬한다. 이번 조사에서는 current 문서를 선제적으로 바꾸지 않는다. |
+| 규칙 구조화 | [실제 구현](../../../ocr_runtime/prescription_ocr_structurer.py)의 `_structure_medication_row()`는 인식된 함량·단위만 반환한다. `structure()`는 `_extract_medication_rows()`가 찾은 행을 순회한다. | 식별된 약품 행에 누락된 검수 필드만 보충한다. 행 탐지 기준을 바꾸거나 새 약품 행을 만들지 않는다. |
+| Backend 진입점 | [Backend structurer](../../../backend/app/services/prescription_ocr_structurer.py)는 공통 runtime 구현을 재노출하는 shim이다. | 실제 수정은 runtime에 적용한다. #309의 날짜 함수 재노출 수정은 섞지 않는다. |
+| 공유 Provider 필드 | [RecognizedField](../../../provider_contracts/ocr.py)는 raw/confidence 및 정규화 metadata의 null을 허용한다. | 신규 DTO나 필드 enum 없이 기존 표현을 사용한다. Worker 전달·저장에서도 null이 유지되는지 검증한다. |
+| DB | [ExtractedField](../../../backend/app/models/ocr.py)는 네 값의 null을 허용한다. `(ocr_job_id, medication_index, field_type)` unique와 index 범위 CHECK가 있다. | 생성 단계에서 동일 identity가 중복되지 않게 한다. 현재 모델상 신규 컬럼은 불필요하며 실제 migration 스키마는 4단계에서 확인한다. |
+| 저장 | [OcrRepository.replace_fields](../../../backend/app/repositories/ocr_repository.py)는 입력 필드마다 DB 행을 만든다. | 빈 필드도 저장·조회되어 `field_id`를 갖는지 통합 검증한다. PATCH 시 누락 행을 생성하는 upsert는 추가하지 않는다. |
+| PATCH·확정 | [OCR 서비스](../../../backend/app/services/ocr.py)의 `update_extracted_field()`는 기존 소유 필드를 갱신한다. 모델은 함량·단위·TIMING의 null 확정을 허용한다. | 빈 필드의 값 입력 및 null 확정을 검증하고, 필수 필드 null 거부·소유권·처방 확정 후 수정 차단을 유지한다. |
+| 현재 계약 | [OCR 구조화 계약](../../contracts/current/ocr-medication-structuring.md)의 Grounding 검증·부분 인식 절에 함량·단위 생략과 규칙 경로 미생성이 명시되어 있다. | 동작 구현과 함께 해당 절 및 계약 인덱스를 정렬한다. 이번 조사에서는 current 문서를 선제적으로 바꾸지 않는다. |
 
 ## 2단계 결과 — 변경안 정리 완료
 
-[Proposed 변경안](../contracts/current/ocr-medication-structuring.md)과
-[Decision 초안](../governance/decisions/2026-09-08-ocr-empty-review-fields-144.md)에
+[Proposed 변경안](../../contracts/current/ocr-medication-structuring.md)과
+[Decision 초안](../../governance/decisions/2026-09-08-ocr-empty-review-fields-144.md)에
 생성 대상·null·중복·기존 값 보존·저장·PATCH 경계 및 ER-01~12 인수 항목을 정리했다.
 현재 실행 계약과 코드의 동작은 변경하지 않았다.
 
@@ -48,7 +48,7 @@ LLM은 공통 보충 대상에 함량·단위를 포함했고, 규칙 경로는 
 행의 누락 유형만 순서대로 보충한다. 공통 대상은 `ocr_runtime/review_fields.py`에서
 관리한다. 기존 정상값·행 탐지·날짜 정책을 유지한다.
 
-[검증 증빙](../testing/optional-review-fields-144.md)에 179개 테스트 결과와
+[검증 증빙](../../testing/optional-review-fields-144.md)에 179개 테스트 결과와
 실행 범위를 기록했다. 실제 DB 저장·PATCH·DOC-03 확인은 4~5단계에 남아 있다.
 current 계약 승격 및 담당 승인 완료를 선언하지 않는다.
 
@@ -56,7 +56,7 @@ current 계약 승격 및 담당 승인 완료를 선언하지 않는다.
 
 Backend 53개·Worker PostgreSQL 3개 테스트와 실제 Alembic 적용·제약 조회를 완료했다.
 빈 필드 값 입력·null 확정·중복 저장 실패 rollback을 검증했고 신규 migration은 필요하지 않았다.
-[실행 범위와 재현 명령](../testing/optional-review-fields-144.md)을 참고한다.
+[실행 범위와 재현 명령](../../testing/optional-review-fields-144.md)을 참고한다.
 DOC-03·담당 리뷰·CI·current 계약 정렬은 5단계에 남아 있다.
 
 ## 단계별 완료 기준
@@ -73,13 +73,13 @@ DOC-03·담당 리뷰·CI·current 계약 정렬은 5단계에 남아 있다.
 
 | 검증 | 기존 출발점 | 추가 확인 |
 | --- | --- | --- |
-| LLM 누락·grounding | [validator tests](../../backend/app/tests/ocr_ai/test_validator.py)의 빈 TIMING·횟수 처리 | 함량·단위 각각 누락/근거 실패/유효값, 다른 행 근거 거부, 네 값 null |
-| 규칙 부분 인식 | [structurer tests](../../backend/app/tests/ocr/test_prescription_ocr_structurer.py)의 이름만 인식한 두 번째 행, 안내문 배제 사례 | 누락 필드 보충, 기존 값 보존, 중복 없음, 헤더/약품 행 없는 입력에서 행 비생성 |
-| 구조화 어댑터 | [structurer adapter tests](../../backend/app/tests/ocr/test_structurer.py) | 경로 변경 후 출력 필드의 연결과 기존 정상값 유지 |
-| DB 저장 | [repository tests](../../backend/app/tests/ocr/test_ocr_repository.py) | 빈 필드 저장·field_id 조회·identity unique 및 null 제약 |
-| 사용자 검수 | [confirmation API tests](../../backend/app/tests/ocr/test_prescription_confirmation_api.py)의 optional null 확정 | 기존 테스트는 인식된 함량을 null 확정하는 사례다. 새로 생성한 빈 함량·단위의 PATCH와 null 확정을 각각 추가 |
-| 처방 검증 | [confirmation validation tests](../../backend/app/tests/ocr/test_prescription_confirmation_validation.py) | 필수값 누락 거부 유지, 미확인 OCR 값이 확정값으로 사용되지 않음 |
-| Worker 저장 경계 | [Worker result store tests](../../ai_worker/tests/core/test_sqlalchemy_ocr_result_store.py) | 공통 구조화 결과의 빈 값 전달·저장 및 기존 쓰기 가능 상태 제약 유지 |
+| LLM 누락·grounding | [validator tests](../../../backend/app/tests/ocr_ai/test_validator.py)의 빈 TIMING·횟수 처리 | 함량·단위 각각 누락/근거 실패/유효값, 다른 행 근거 거부, 네 값 null |
+| 규칙 부분 인식 | [structurer tests](../../../backend/app/tests/ocr/test_prescription_ocr_structurer.py)의 이름만 인식한 두 번째 행, 안내문 배제 사례 | 누락 필드 보충, 기존 값 보존, 중복 없음, 헤더/약품 행 없는 입력에서 행 비생성 |
+| 구조화 어댑터 | [structurer adapter tests](../../../backend/app/tests/ocr/test_structurer.py) | 경로 변경 후 출력 필드의 연결과 기존 정상값 유지 |
+| DB 저장 | [repository tests](../../../backend/app/tests/ocr/test_ocr_repository.py) | 빈 필드 저장·field_id 조회·identity unique 및 null 제약 |
+| 사용자 검수 | [confirmation API tests](../../../backend/app/tests/ocr/test_prescription_confirmation_api.py)의 optional null 확정 | 기존 테스트는 인식된 함량을 null 확정하는 사례다. 새로 생성한 빈 함량·단위의 PATCH와 null 확정을 각각 추가 |
+| 처방 검증 | [confirmation validation tests](../../../backend/app/tests/ocr/test_prescription_confirmation_validation.py) | 필수값 누락 거부 유지, 미확인 OCR 값이 확정값으로 사용되지 않음 |
+| Worker 저장 경계 | [Worker result store tests](../../../ai_worker/tests/core/test_sqlalchemy_ocr_result_store.py) | 공통 구조화 결과의 빈 값 전달·저장 및 기존 쓰기 가능 상태 제약 유지 |
 
 기존 규칙 테스트 중 필드 집합이 약품명·함량뿐임을 단언하는 부분은
 변경 계약에 맞춰 수정해야 한다. 기대값만 늘리지 않고 약품 행 수와 인식값 보존을

@@ -1,6 +1,6 @@
 ---
 name: Task
-about: 이미 합의된 일반 작업과 팀 협업 항목을 관리합니다
+about: 이미 합의된 일반 작업과 개인 프로젝트 실행 항목을 관리합니다
 title: "[Task] "
 labels: "type: task"
 assignees: ""
@@ -14,9 +14,9 @@ assignees: ""
 
 ## 담당과 검토
 
-- 구현 담당자:
-- 담당 리뷰어:
-- 담당 리뷰어 검토 범위:
+- 구현 Agent / TASK_ID:
+- 독립 검토 (Codex / Claude Code / 기타):
+- 검토 범위 / commit 또는 snapshot:
 - 외부 승인·공개 게이트(해당 시):
 
 ## 관련 영역

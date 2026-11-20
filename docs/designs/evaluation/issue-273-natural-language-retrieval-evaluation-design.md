@@ -24,8 +24,8 @@ HOLDOUT 40개의 질문 본문과 실제 Retriever 성능 수치는 승인된 �
 
 1. `docs/contracts/targets/post-mvp-1/rag-evaluation-v1.md`
 2. `docs/governance/decisions/2026-09-03-rag-evaluation-schema-set-1-2-freeze.md`
-3. `docs/designs/ceohwj/issue-158-rag-retrieval-metric-baseline-design.md`
-4. `docs/designs/ceohwj/issue-178-rag-evidence-retrieval-design.md`
+3. `docs/designs/evaluation/issue-158-rag-retrieval-metric-baseline-design.md`
+4. `docs/designs/rag/issue-178-rag-evidence-retrieval-design.md`
 5. `docs/privacy-safety.md`, `docs/testing.md`
 6. GitHub Issue `#273`
 

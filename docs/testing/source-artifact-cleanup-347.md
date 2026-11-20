@@ -5,7 +5,7 @@
 - 구현: 김지혜. DB·보안 검토: 송은영, Source·provenance 검토: 정현우, 정책·배치 승인: 권가빈.
 - 기준: `8da32d7` 및 이 문서와 함께 커밋하는 2단계 변경. develop 기준은 `a6e5645`.
 - 정책: [#335 보존·삭제 정책](../contracts/proposed/post-mvp-1/source-artifact-retention-cleanup.md)
-- 계획: [1단계 경계 조사](../designs/jye-rookie/issue-347-source-artifact-cleanup-plan.md)
+- 계획: [1단계 경계 조사](../designs/rag/issue-347-source-artifact-cleanup-plan.md)
 - 현재 상태: 2·3단계 내부 조사·사전 검사와 4단계 임시 Local 합성 파일 삭제·파일 감사·복구 모델 구현. 실제 Source adapter·승인 저장소·공유 writer 잠금·운영 감사 DB 연결은 미구현.
 - 아래 2단계 결과는 해당 시점 증빙이며, 최신 3단계 결과는 마지막 절에 기록한다.
 

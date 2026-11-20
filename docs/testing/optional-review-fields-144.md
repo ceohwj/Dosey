@@ -1,7 +1,7 @@
 # #144 빈 검수 필드 — 3·4단계 증빙
 
 - 상태: 작업 브랜치 구조화 및 DB·PATCH 통합 검증 완료. DOC-03·담당 리뷰·CI 대기.
-- 관련: [구현 계획](../designs/issue-144-optional-review-fields-implementation-plan.md), [변경안](../contracts/current/ocr-medication-structuring.md)
+- 관련: [구현 계획](../designs/ocr/issue-144-optional-review-fields-implementation-plan.md), [변경안](../contracts/current/ocr-medication-structuring.md)
 - 기반: `7d4510f5f6e1f9f70fd25ce4bff30127fda41955`, 계약 초안 커밋 `2d9bcdf`
 - 실행일: 2026-09-08
 - 검증 대상: 이 문서와 함께 커밋하는 3단계 코드·테스트 변경분. 이후 변경은 재검증한다.

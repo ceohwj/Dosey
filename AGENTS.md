@@ -1,81 +1,61 @@
 # Repository Agent Guide
 
-## Purpose and Sources of Truth
+## Scope and authority
 
-This file gives coding agents the minimum repository-wide collaboration rules. It does not replace the team's existing documentation.
+Dosey is a personal project. The Human Owner makes final decisions on product scope, architecture, shared contracts, migrations, security, privacy, medical safety, merge, deployment, and release. Agents provide implementation, evidence, and recommendations; agent review does not grant those approvals. Do not infer current runtime behavior or approval from a historical team decision.
 
-- Follow `CONTRIBUTING.md` and the GitHub Ruleset for branches, commits, reviews, pull requests, and completion checks.
-- CODEOWNERS is not used. Every Issue and Pull Request names the implementation owner and responsible reviewer separately, and merge is allowed only after the responsible reviewer approves.
-- Follow `SECURITY.md` and `docs/privacy-safety.md` for security, patient data, and medical safety requirements.
-- Follow the relevant files under `docs/`, especially `docs/contracts/`, `docs/api.md`, `docs/data-schema.md`, and `docs/testing.md`, for architecture, contracts, schemas, and verification.
+Read the task-relevant parts of `CONTRIBUTING.md`, `SECURITY.md`, `docs/privacy-safety.md`, `docs/testing.md`, and `docs/`. Use each document for its subject: CONTRIBUTING for Git and verification, SECURITY and privacy-safety for safety, status-specific contracts for shared behavior, and release-gates for publication. Some historical documents retain former-team roles; those are provenance, not current staffing or new approval authority. Do not silently waive an actual external or legal approval condition. Keep work within the assigned scope, avoid unrelated refactors or dependency changes, and preserve other work in progress.
 
-If these sources disagree or do not define a boundary clearly, do not invent a rule. Call out the ambiguity and ask the relevant owners before changing the affected area.
+## Integrator and agent lanes
 
-### Document Status and Authority
+The main Codex session is the Integrator. It clarifies the goal, splits work into independently verifiable tasks, identifies dependencies and shared contracts, assigns file ownership, integrates results, and decides what verification and independent review are needed. It can complete small tasks directly. Agents are task lanes, not permanent Backend, Frontend, or RAG owners.
 
-- **Current runtime contract** means behavior supported together by merged code, migrations, the current OpenAPI/Pydantic DTOs, and automated tests.
-- **Approved target / Not implemented** documents are approved implementation targets, not current API, database, or deployment behavior. Approved Contract Freeze v4 is the current normative target baseline, but document approval alone does not prove implementation, tests, external approval, or public release.
-- Product and planning documents provide intent and context but do not replace runtime contracts.
-- Use `docs/governance/post-mvp-1-document-authority.md` for Post-MVP-1 provenance and status interpretation. If current implementation and a target differ, do not combine or infer values; reconcile the source Decision and repository target with the relevant domain reviewers.
-- Changing an enum, API route or DTO, required field, error code, transaction order, or publication condition requires a new Decision or Contract Freeze version and matching contract and test updates.
-- Use the status directories as the source of truth for contract status. Promote a target or proposed contract into `docs/contracts/current/` only in the implementation PR that includes the required implementation, migrations, OpenAPI/DTO, automated tests, evidence, and designated reviewer approval; update its status and index entry in the same PR, and do not leave a duplicate in the previous status directory.
-- Keep Track C and Track F publication and the common Privacy Production gate closed until `docs/release-gates/post-mvp-1-external-approvals.md` is satisfied. OTC is part of Track F and has no separate Track D publication flag.
+- `dosey_explore`: read-only repository facts and bounded audits; distinguish implemented runtime from target and proposed behavior. No decisions or edits.
+- `dosey_executor`: bounded implementation within the assigned scope and `ALLOWED_FILES`. Report needed contract, schema, migration, dependency, or scope changes before making them. Preserve existing behavior unless the task explicitly changes it.
+- Domain implementation agents: `dosey_frontend`, `dosey_backend`, `dosey_llm`, `dosey_ocr`, and `dosey_rag`. Use the matching specialist for a bounded task; these are expertise profiles, not exclusive directory owners. Their reading, typical scope, and tests are in `docs/ai/workflow.md`.
+- `dosey_writer`: document settled facts and decisions from authoritative evidence. Do not create product, architecture, privacy, or medical decisions or present disputes as settled.
+- `dosey_integration_verifier`: read-only trace of an assigned Frontend → API/DTO → Backend/Worker/RAG → response flow, including tests and state/error meaning. Its report is evidence, not approval.
+- `dosey_reviewer`: independent read-only review of consequential changes. Prioritize correctness, regression, shared contracts, DB side effects, privacy/security, medical safety, AI/RAG grounding, and missing tests/evals. Classify findings `BLOCKING`, `HIGH`, `MEDIUM`, or `LOW` with file and line evidence. Its report is evidence, not approval.
 
-## Team Roles
+Delegate only when an independent task benefits from it. Give implementation tasks, as applicable, `TASK_ID`, `GOAL`, `SCOPE`, `ALLOWED_FILES`, `FORBIDDEN_FILES`, `DEPENDENCIES`, `AUTHORITATIVE_CONTRACT`, `ACCEPTANCE_CRITERIA`, `REQUIRED_TESTS`, and `NON_GOALS`. One write agent owns each file at a time. Parallel work follows independently mergeable changes; settle a shared contract before dependent implementation fans out. The Integrator owns integration and final verification. Use `docs/ai/task-template.md` to record task ID, base revision, dependencies, exact file ownership, acceptance, checks, and handoff. Independent ready tasks may run in parallel within the host concurrency limit; fewer slots mean queueing, not changing models or launching another orchestrator. Backend, LLM, OCR, and RAG often share files: assign each shared file to one task, settle contracts first, and serialize migrations and shared Git operations. Never let children reset, clean, switch branches, merge, or overwrite another task. All writers stop before a final review of the frozen snapshot.
 
-The current Post-MVP-1 responsibility baseline is:
+After bounded work, implementation agents may report `READY_FOR_REVIEW`, `BLOCKED`, `CONTRACT_REQUEST`, `DEPENDENCY_WAIT`, `TEST_FAILED`, `READY_TO_MERGE`, or `STOPPED_SCOPE_VIOLATION`. Read-only discovery does not need a status. `READY_TO_MERGE` is a recommendation, not merge authorization.
 
-- 권가빈 — PM, product acceptance, Privacy policy and consent scope, external-approval tracking, Track C final responsibility
-- 송은영 — Backend, data and Security technical controls; Track A API·DB·Outbox, Track B Backend, Track F Chat data boundary
-- 김지혜 — Worker and OCR; Track A Consumer·Worker, Track C Backend, Track E delivery
-- 정현우 — AI/RAG implementation owner; Track F Guide·Chat·Citation·Safety·OTC delivery and evidence
-- 남한솔 — Frontend and consent UX; common Job states and Track B·C·E·F integration
+## Agent continuity
 
-Former Track D is not a separate execution or ownership unit. Its historical document and requirement IDs remain for traceability, while current OTC scope is owned and accepted under Track F.
+새 opt-in 작업의 시작·종료, worktree writer claim과 복구는 [workflow](docs/ai/workflow.md)와 [task 템플릿](docs/ai/task-template.md)을 따른다. 근거는 [지식 인덱스](docs/ai/knowledge-index.md), 실패·기각 기록은 [실패 기록 안내](docs/failures/README.md)에서 찾는다. 기존 task를 자동 이관하거나 이 기록으로 sandbox·제품·공개 권한을 확대하지 않는다.
 
-## Reviewer Assignment and Merge
+## Contracts and document status
 
-- The Issue and Pull Request name the implementation owner and responsible reviewer separately.
-- Select the responsible reviewer for the actual change scope. Do not infer the reviewer from file history, document authorship, a former CODEOWNERS entry, or an unrecorded GitHub handle/name mapping.
-- The PR author cannot count self-approval as the required approval.
-- Merge only after the named responsible reviewer approves and blocking review comments are resolved.
-- Every Issue and Pull Request names exactly one responsible reviewer, including cross-domain changes. Record every affected domain in that reviewer's scope and attach specialist or external approval evidence for Security·Privacy, medical safety, Source, and AI/RAG when applicable; evidence providers are not additional required Pull Request reviewers.
-- AI/RAG detailed assignments and PR review scopes are scheduled to be finalized in the 2026-08-28 responsibility matrix under 정현우's overall responsibility. Until that matrix is published and linked from the repository, every affected Issue and Pull Request must name its implementation owner and single responsible reviewer explicitly; do not treat the matrix as an available source.
+A shared contract includes public API/routes, request/response DTOs, enums, error/status meanings, transaction order, publication conditions, DB or message schemas, and structures shared across Frontend, Backend, OCR, RAG, LLM, or Evaluation. Field removal or rename, type, meaning or requiredness change, new required field, and shared state/error change are contract changes. Do not disguise one as an internal implementation detail.
 
-## Ownership Boundaries
+Before editing a shared contract or DB schema, an agent investigates reuse and raises `CONTRACT_REQUEST` with the proposed delta, affected consumers, evidence, tests, and migration impact. The Integrator analyzes it; the Human Owner decides `APPROVED`, `REJECTED`, `REUSE_EXISTING_CONTRACT`, or `NEEDS_MORE_EVIDENCE`. An agent may not approve its own request. Changes to an enum, API route/DTO, required field, error code, transaction order, or publication condition require a new versioned Decision or Contract Freeze update and matching contract and test changes. Align the authoritative contract, index, API/schema, implementations, and contract/integration tests in the approved change. Keep one canonical document per contract status in `docs/contracts/README.md`.
 
-- Identify every affected domain and name the single responsible reviewer before editing shared contracts. Record any required specialist evidence separately.
-- Do not modify another owner's implementation merely because it is adjacent or convenient. Cross-owner changes require explicit task scope or prior coordination, and the relevant owners must review them.
-- Keep changes within the issue's stated scope. Do not include unrelated refactors, formatting sweeps, generated files, or dependency changes.
-- Co-owned and cross-cutting areas require coordination with all affected domains; ownership of one implementation area does not grant authority to change a shared interface unilaterally.
+Reviewers must classify missing or stale authoritative contract/index updates or required contract/integration tests for a shared-contract change as `BLOCKING`; implementation or review alone does not satisfy this gate.
 
-## Shared Contracts and Implementations
+- `docs/contracts/current/`: current runtime only where code, migration where relevant, OpenAPI/Pydantic DTOs, and automated tests together support it.
+- `docs/contracts/targets/`: approved future targets, including Contract Freeze material; approval does not establish implementation or public release.
+- `docs/contracts/proposed/`: unsettled proposals, not an implementation mandate.
 
-- Do not introduce database triggers or row-level security policies. Do not implement business rules in stored procedures or user-defined database functions. An approved contract is not an exception to these prohibitions. Implement explicit Python Service/Repository validation and transactions, supported by ordinary constraints and least-privilege DB roles. Preserve applied migration history; remove legacy definitions through forward migrations. Do not expand the legacy exception manifest to permit new definitions.
+Keep historical Decisions and `docs/governance/post-mvp-1-document-authority.md` as provenance and status context. If target and current runtime conflict, record the difference and request a Human Owner decision; do not combine values. Promote a target to current only with implementation, applicable migration, API/DTO, tests, evidence, status/index update, and Human Owner decision. The existing release and external approval gates in `docs/release-gates/post-mvp-1-external-approvals.md` remain closed until their recorded conditions are met. A historical team role or sign-off does not itself satisfy a new approval or publication condition. Source-use, provenance, citation, and medical safety conditions remain technical boundaries.
 
-A shared contract is an externally consumed API, request or response shape, error or status meaning, database or message schema, or other interface shared across Frontend, Backend, OCR, RAG, LLM, or Evaluation. An implementation change stays behind an existing contract and does not alter those observable semantics.
+## Database and safety
 
-- Do not disguise a contract change as an implementation detail. Removing or renaming fields, changing types or meanings, adding required fields, or changing shared states is a contract change.
-- Before implementation and during pull request review, explicitly determine whether the change affects a shared API, data structure, error meaning, state transition, or cross-domain DTO.
-- Coordinate a proposed contract change with every affected owner before implementation. Update the authoritative contract or schema, affected implementations, documentation, and contract or integration tests together in the same focused pull request.
-- For every shared-contract change, update the relevant Markdown file under `docs/contracts/current/`, `docs/contracts/targets/`, or `docs/contracts/proposed/` according to its status and add it to `docs/contracts/README.md`. Do not duplicate a contract across status folders. Promote a target into `current/` only in the implementation PR that includes the required code, migrations, OpenAPI/DTO, automated tests, evidence, and designated reviewer approval. The absence of an existing file is not a reason to leave the contract undocumented.
-- Pull request reviewers must treat a missing or stale `docs/contracts/` document, missing index entry, or missing contract/integration coverage as a blocking finding when shared behavior changed. Verify that the contract document, authoritative API or schema documentation, implementation, and tests describe the same fields, types, requiredness, error semantics, and states.
-- When implementing an already agreed contract without changing it, stay within the assigned ownership boundary and add or update the relevant local tests.
+Do not introduce DB triggers or row-level security policies, or put business rules in stored procedures or user-defined DB functions. Use explicit Python Service/Repository validation and transactions, ordinary constraints, and least-privilege roles. Preserve applied migration history; make schema changes through forward migrations only within an approved task. Do not expand the legacy exception manifest for new definitions.
 
-## Safety
+Never commit secrets, credentials, `.env` files, real patient information, prescriptions, medical records, or re-identifiable data. Use approved synthetic, de-identified fixtures. Read `SECURITY.md` and `docs/privacy-safety.md` for affected work. Do not weaken access, consent, retention, source, or medical safety controls or add advice to stop, increase, or decrease medication without an explicit approved boundary. If sensitive data exposure or safety weakening is possible, stop that change and raise it to the Human Owner with evidence.
 
-- Never commit secrets or credentials, including `.env` files, API keys, tokens, passwords, and certificates.
-- Never add real patient information, prescriptions, medical records, or re-identifiable data. Repository examples and test fixtures must use approved de-identified synthetic data.
-- If a change could expose sensitive data or weaken medical safety controls, stop and follow `SECURITY.md` and `docs/privacy-safety.md`; do not improvise a workaround.
+## Verification
 
-## Verification and Pull Request Scope
+Start with the smallest relevant check, then affected unit, contract and integration tests; run broader regression when warranted. Medical AI/RAG changes require applicable `evals/` checks, including grounding, citations, and safety. Compare behavioral or performance claims with a baseline and actual metrics. Never label an unrun check `PASS`.
 
-- Run the smallest relevant checks first, then the required checks defined in `CONTRIBUTING.md` and `docs/testing.md` for the affected area.
-- Shared-contract changes require the relevant contract and integration tests. Medical AI changes require the applicable `evals/` checks.
-- For documentation-only changes, review the rendered content, references, repository scope, `git diff --check`, and the complete `git diff`.
-- Keep each pull request small, issue-focused, and easy for the designated reviewers to review. Clearly report checks that were run, skipped, or could not run.
+For documentation-only changes, check content, references, repository scope, `git diff --check`, and the complete diff. Report changed files, results, evidence locations, checks run or skipped, uncertainty, and decisions still needed. Agent review and tests do not replace Human Owner merge or release decisions.
 
+Project model and role configuration is in `.codex/config.toml` and `.codex/agents/`; `docs/ai/model-routing.md` explains configured routing and observed runtime evidence. A model setting alone does not verify a result. Existing OMX workflow rules apply when an OMX workflow is active.
 
-## Agent continuity (opt-in)
+## External review and document map
 
-새 opt-in 개발 작업의 시작·복구·종료와 협력적 writer claim은 [workflow](docs/ai/workflow.md)와 [task 템플릿](docs/ai/task-template.md)을 따른다. [지식 인덱스](docs/ai/knowledge-index.md)와 [실패 기록](docs/failures/README.md)은 근거를 찾는 안내다. 기존 작업을 자동 이관하거나 이 기록으로 sandbox·제품·공개 권한을 확대하지 않는다.
+- The main Integrator alone requests external Claude Code reviews with `python3 scripts/claude_review.py`; implementation children return their work and checks to the Integrator. The bridge sends an explicit selected-file packet with pinned revisions or a hashed working snapshot. It provides no model tools, repo access, shell, MCP, or repair workflow. Run `--dry-run` first to inspect the selected paths and size. Follow `docs/ai/workflow.md` for commands, failure handling, and data boundaries. A missing login, failed CLI, invalid response, or stale input is a review gap, never approval. A successful review is evidence, not proof that tests passed.
+- `dosey_reviewer` remains a Codex internal review lane; it is not Claude Code. Use it for local/preliminary review and explicitly record when an intended external review could not run. Only the main Integrator coordinates repairs and reruns the relevant checks.
+- Antigravity is manually operated by the Human Owner. Give it the same task contract and file ownership; pause competing writers and inspect its Git changes before integration. Do not invoke Antigravity or wrap its CLI automatically.
+- `PRD.md` records the current personal-project purpose and product decisions; `docs/architecture.md` remains the architecture source; `DESIGN.md` currently covers Report/clinic UX, not all product surfaces. The workflow and task template link to technical/safety sources instead of reproducing them. Do not create competing RULES.md, TASK.md, or MEMORY.md authorities. Local session memory and tool-specific state are not product decisions or approval records.

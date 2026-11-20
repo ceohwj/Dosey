@@ -113,8 +113,8 @@ shasum -a 256 tests/fixtures/rag/catalog/hash-v2/catalog.jsonl tests/fixtures/ra
 - #164·#165 이슈 종료를 D-02 자동 확정으로 해석하지 않는다. 합의된 migration 순서 역시 적용 직전에 확인한다.
 - 6단계 중 독립적인 인계 증빙·PR 초안 준비까지만 완료했으며 #166을 종료하지 않는다.
 
-[현재 #167 설계](../designs/ceohwj/issue-167-rag-candidate-index-design.md)와
-[구현 계획](../designs/ceohwj/issue-167-rag-candidate-index-implementation-plan.md)의 공개 입력은
+[현재 #167 설계](../designs/rag/issue-167-rag-candidate-index-design.md)와
+[구현 계획](../designs/rag/issue-167-rag-candidate-index-implementation-plan.md)의 공개 입력은
 이미 CatalogExportArtifacts/v2로 정렬돼 있다. 해당 담당 문서를 불필요하게 변경하지 않았다.
 `docs/validation/rag/catalog/synthetic-catalog-v1`은 과거 자료로 보존한다.
 

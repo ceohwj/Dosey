@@ -164,4 +164,4 @@ migration revision, 합성 fixture 및 실기기 환경을 별도 증빙으로 �
 - [pywebpush 공식 저장소](https://github.com/web-push-libs/pywebpush): Python Web Push/VAPID 후보. `pywebpush==2.3.0`으로 잠금. 전용 pinned transport 및 합성 VAPID/복호화 roundtrip 검증.
 - [RFC 8030](https://www.rfc-editor.org/rfc/rfc8030.html): TTL 및 Push 서비스 접수·만료 경계. 위 300초는 표준값이 아닌 제품 제안이다.
 - [기존 계정 계약](../current/user-account.md): token_version 및 탈퇴 미구현 경계.
-- [기존 Notification 계약](./track-b-notifications-v1.md): 앱 내부 게시·읽음 의미.
+- [기존 Notification 계약](../current/track-b-notifications-v1.md): 앱 내부 게시·읽음 의미.
