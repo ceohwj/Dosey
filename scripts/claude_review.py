@@ -265,31 +265,60 @@ def select_review_hunks(diff: str, line_count: int, review_ranges: list[tuple[in
     return diff
 
 
-def focused_entry(path: str, before: str | None, after: str | None, ranges: list[tuple[int, int]], review_ranges: list[tuple[int, int]] | None = None) -> dict:
+def focused_entry(
+    path: str,
+    before: str | None,
+    after: str | None,
+    ranges: list[tuple[int, int]],
+    review_ranges: list[tuple[int, int]] | None = None,
+) -> dict:
     """Send changed hunks, never a duplicate full final file, with explicit extra context."""
-    diff = "".join(difflib.unified_diff(
-        (before or "").splitlines(keepends=True),
-        (after or "").splitlines(keepends=True),
-        fromfile=f"base/{path}", tofile=f"head/{path}", n=6,
-    ))
+    diff = "".join(
+        difflib.unified_diff(
+            (before or "").splitlines(keepends=True),
+            (after or "").splitlines(keepends=True),
+            fromfile=f"base/{path}",
+            tofile=f"head/{path}",
+            n=6,
+        )
+    )
     lines = (after or "").splitlines()
     if review_ranges is not None:
         diff = select_review_hunks(diff, len(lines), review_ranges)
     coverage = []
     for old, old_count, new, new_count in re.findall(
-        r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", diff, re.M,
+        r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@",
+        diff,
+        re.M,
     ):
-        coverage.append({"before_start": int(old), "before_count": int(old_count or 1),
-                         "after_start": int(new), "after_count": int(new_count or 1)})
+        coverage.append(
+            {
+                "before_start": int(old),
+                "before_count": int(old_count or 1),
+                "after_start": int(new),
+                "after_count": int(new_count or 1),
+            }
+        )
     lines = (after or "").splitlines()
     excerpts = []
     for start, end in ranges:
         if start < 1 or end < start or end > len(lines) or end - start + 1 > 120:
             raise ReviewError("Context range must contain 1–120 existing final-source lines")
-        excerpts.append({"start_line": start, "end_line": end,
-                         "numbered_source": "\n".join(f"{i}: {lines[i - 1]}" for i in range(start, end + 1))})
-    return {"file": path, "diff": diff, "hunk_coverage": coverage, "context_ranges": excerpts,
-            "review_ranges": review_ranges, "other_changes_excluded": review_ranges is not None}
+        excerpts.append(
+            {
+                "start_line": start,
+                "end_line": end,
+                "numbered_source": "\n".join(f"{i}: {lines[i - 1]}" for i in range(start, end + 1)),
+            }
+        )
+    return {
+        "file": path,
+        "diff": diff,
+        "hunk_coverage": coverage,
+        "context_ranges": excerpts,
+        "review_ranges": review_ranges,
+        "other_changes_excluded": review_ranges is not None,
+    }
 
 
 def read_private_json(path: Path) -> dict:
@@ -384,9 +413,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901 - CLI boundary orc
             if path not in files:
                 raise ReviewError("Review range file must also be explicitly selected with --file")
             review_ranges.setdefault(path, []).append(bounds)
-        entries = [focused_entry(path, records[path]["before"], records[path]["after"], ranges.get(path, []),
-                                 review_ranges.get(path, []) if args.review_range else None)
-                   for path in files]
+        entries = [
+            focused_entry(
+                path,
+                records[path]["before"],
+                records[path]["after"],
+                ranges.get(path, []),
+                review_ranges.get(path, []) if args.review_range else None,
+            )
+            for path in files
+        ]
         if args.review_range and not any(entry["diff"] for entry in entries):
             raise ReviewError("Review selection has no changed hunks")
         if any(not entry["diff"] and not entry["context_ranges"] for entry in entries):
@@ -434,8 +470,17 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901 - CLI boundary orc
             if cached_meta.get("status") == "reviewed" and cached_meta.get("packet_sha256") == digest:
                 cached_report = validate_report(cached_report, {p: records[p] for p in files})
                 check_live_snapshot(root, live)
-                print(json.dumps({"status": "reused", "findings": len(cached_report["findings"]),
-                                  "output": str(cached), "packet_sha256": digest, "claude_called": False}))
+                print(
+                    json.dumps(
+                        {
+                            "status": "reused",
+                            "findings": len(cached_report["findings"]),
+                            "output": str(cached),
+                            "packet_sha256": digest,
+                            "claude_called": False,
+                        }
+                    )
+                )
                 return 0
         output.mkdir(parents=True, exist_ok=False, mode=0o700)
         output.chmod(0o700)
@@ -447,7 +492,15 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901 - CLI boundary orc
             "packet_sha256": digest,
             "packet_bytes": len(encoded),
             "review_mode": "focused-hunks",
-            "coverage": {e["file"]: {"hunks": e["hunk_coverage"], "review_ranges": e["review_ranges"], "other_changes_excluded": e["other_changes_excluded"], "ranges": [{"start_line": r["start_line"], "end_line": r["end_line"]} for r in e["context_ranges"]]} for e in entries},
+            "coverage": {
+                e["file"]: {
+                    "hunks": e["hunk_coverage"],
+                    "review_ranges": e["review_ranges"],
+                    "other_changes_excluded": e["other_changes_excluded"],
+                    "ranges": [{"start_line": r["start_line"], "end_line": r["end_line"]} for r in e["context_ranges"]],
+                }
+                for e in entries
+            },
             "status": "prepared",
         }
         write_private(output / "metadata.json", json.dumps(metadata, indent=2) + "\n")

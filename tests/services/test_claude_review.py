@@ -450,7 +450,7 @@ def test_failed_reviews_are_not_cached(tmp_path):
     bindir = tmp_path / "bin"
     bindir.mkdir()
     cli = bindir / "claude"
-    cli.write_text("#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'fake 1.0'; exit 0; fi\nexit 2\n")
+    cli.write_text('#!/bin/sh\nif [ "$1" = "--version" ]; then echo \'fake 1.0\'; exit 0; fi\nexit 2\n')
     cli.chmod(0o755)
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}"}
     for _ in range(2):
@@ -485,12 +485,35 @@ def test_review_range_deleted_file_anchor_and_no_full_fallback(tmp_path):
     setup(tmp_path)
     (tmp_path / "source.py").unlink()
     (tmp_path / "other.py").write_text("new unrelated content\n")
-    result = run(tmp_path, "--working-tree", "--file", "source.py", "--file", "other.py",
-                 "--review-range", "source.py:1:1", "--context-range", "other.py:1:1", "--dry-run")
+    result = run(
+        tmp_path,
+        "--working-tree",
+        "--file",
+        "source.py",
+        "--file",
+        "other.py",
+        "--review-range",
+        "source.py:1:1",
+        "--context-range",
+        "other.py:1:1",
+        "--dry-run",
+    )
     assert result.returncode == 0, result.stderr
     packet = json.loads((Path(json.loads(result.stdout)["output"]) / "packet.json").read_text())
     assert "-original" in packet["files"][0]["diff"]
     assert packet["files"][1]["diff"] == ""
     assert packet["files"][1]["context_ranges"][0]["numbered_source"] == "1: new unrelated content"
-    assert run(tmp_path, "--working-tree", "--file", "source.py", "--file", "other.py",
-               "--review-range", "source.py:1:1", "--dry-run").returncode == 1
+    assert (
+        run(
+            tmp_path,
+            "--working-tree",
+            "--file",
+            "source.py",
+            "--file",
+            "other.py",
+            "--review-range",
+            "source.py:1:1",
+            "--dry-run",
+        ).returncode
+        == 1
+    )
