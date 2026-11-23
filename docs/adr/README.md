@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-팀 전체에 영향을 주는 기술 결정을 `NNNN-short-title.md` 형식으로 기록합니다.
+프로젝트·시스템에 영향을 주는 기술 결정을 `NNNN-short-title.md` 형식으로 기록합니다.
 
 각 문서는 다음을 포함합니다.
 

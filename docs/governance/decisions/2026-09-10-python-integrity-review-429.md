@@ -18,7 +18,7 @@
 
 ## 기존 Source 결정과 #386 참조 정렬
 
-[2026-09-08 Source DB-owned 결정](2026-09-08-source-snapshot-db-transition.md)을 superseded로 명시한다. 이미 적용된 migration 파일은 역사적 이력으로 보존하며 신규 정의의 예외 근거로 사용하지 않는다. 이를 승인 선례로 인용하던 [protected retrieval 결정](2026-09-09-protected-retrieval-runner-access-control-candidate.md) §4·§14는 Python 검증·권한 분리·일반 제약과 별도 담당 리뷰 원칙으로 정렬한다. 이는 #386의 미구현 protected 기능 전체를 이번 PR에서 구현했다는 뜻이 아니다.
+[2026-09-08 Source DB-owned 결정](2026-09-08-source-snapshot-db-transition.md)을 superseded로 명시한다. 이미 적용된 migration 파일은 역사적 이력으로 보존하며 신규 정의의 예외 근거로 사용하지 않는다. 이를 승인 선례로 인용하던 [protected retrieval 결정](2026-09-09-protected-retrieval-runner-access-control.md) §4·§14는 Python 검증·권한 분리·일반 제약과 별도 담당 리뷰 원칙으로 정렬한다. 이는 #386의 미구현 protected 기능 전체를 이번 PR에서 구현했다는 뜻이 아니다.
 
 ## 검증 및 배포 설명의 범위
 

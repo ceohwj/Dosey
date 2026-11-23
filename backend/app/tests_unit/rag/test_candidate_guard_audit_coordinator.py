@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
@@ -38,7 +39,7 @@ from rag_runtime.request_guard_runtime_binding import (
 from rag_runtime.runtime_environment import RuntimeEnvironmentCode
 
 
-def _ref_dict(ref: object) -> dict[str, str]:
+def _ref_dict(ref: Any) -> dict[str, str]:
     return {"artifact_code": ref.artifact_code, "version": ref.version, "content_sha256": ref.content_sha256}
 
 
@@ -153,11 +154,14 @@ def test_envelope_freezes_proof_and_rejects_missing_decision() -> None:
 
 
 @pytest.mark.asyncio
-async def test_denial_written_only_after_existing_operation_survives_replay_check() -> None:
+async def test_denial_written_only_after_existing_operation_survives_replay_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     envelope = _envelope()
     coordinator = CandidateGuardAuditCoordinator(_session())
-    coordinator._revalidate_denial_parent = AsyncMock()
-    coordinator._write = AsyncMock(return_value="a" * 64)
+    write_mock = AsyncMock(return_value="a" * 64)
+    monkeypatch.setattr(coordinator, "_revalidate_denial_parent", AsyncMock())
+    monkeypatch.setattr(coordinator, "_write", write_mock)
 
     async def denied() -> None:
         raise CandidateGuardPolicyDenied(envelope)
@@ -166,30 +170,35 @@ async def test_denial_written_only_after_existing_operation_survives_replay_chec
     assert isinstance(result, CandidateAuditStopResult)
     assert result.status_code == 503
     assert result.error_response(trace_id="synthetic-trace").code == "CANDIDATE_RESOLVER_UNAVAILABLE"
-    coordinator._write.assert_awaited_once_with(envelope)
+    write_mock.assert_awaited_once_with(envelope)
 
-    coordinator._write.reset_mock()
+    write_mock.reset_mock()
 
     async def replay() -> str:
         return "winner receipt"
 
     assert await coordinator.execute_mutation(replay) == "winner receipt"
-    coordinator._write.assert_not_awaited()
+    write_mock.assert_not_awaited()
 
     async def unrelated_error() -> None:
         raise ApiError(status_code=409, code="IDENTIFICATION_CONTEXT_STALE", message="stale")
 
     with pytest.raises(ApiError):
         await coordinator.execute_mutation(unrelated_error)
-    coordinator._write.assert_not_awaited()
+    write_mock.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_parent_404_blocks_denial_audit() -> None:
+async def test_parent_404_blocks_denial_audit(monkeypatch: pytest.MonkeyPatch) -> None:
     envelope = _envelope()
     coordinator = CandidateGuardAuditCoordinator(_session())
-    coordinator._candidate = SimpleNamespace(get_medication_for_candidate_search_owned=AsyncMock(return_value=None))
-    coordinator._write = AsyncMock()
+    write_mock = AsyncMock()
+    monkeypatch.setattr(
+        coordinator,
+        "_candidate",
+        SimpleNamespace(get_medication_for_candidate_search_owned=AsyncMock(return_value=None)),
+    )
+    monkeypatch.setattr(coordinator, "_write", write_mock)
 
     async def denied() -> None:
         raise CandidateGuardPolicyDenied(envelope)
@@ -197,4 +206,4 @@ async def test_parent_404_blocks_denial_audit() -> None:
     with pytest.raises(ApiError) as raised:
         await coordinator.execute_mutation(denied)
     assert raised.value.status_code == 404
-    coordinator._write.assert_not_awaited()
+    write_mock.assert_not_awaited()

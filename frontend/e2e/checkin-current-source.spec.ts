@@ -167,26 +167,28 @@ test('CHECKIN-01 · 같은 시간 약 2개를 모두 선택해야 기록하기�
   await expect(
     page.getByRole('heading', { name: '13:00 약을 확인해 주세요' }),
   ).toBeVisible()
-  await expect(page.locator('.checkin-medication-card')).toHaveCount(2)
+  await expect(page.locator('.checkin-medication-card')).toHaveCount(1)
+
+  const next = page.getByRole('button', { name: '다음 약 확인하기' })
+  await expect(next).toBeDisabled()
+  await page.getByRole('button', { name: '복용했어요' }).click()
+  await expect(next).toBeEnabled()
+  await next.click()
 
   const cta = page.getByRole('button', { name: '기록하기' })
   await expect(cta).toBeDisabled()
-
-  // 일부만 선택하면 여전히 disabled
-  await page.getByRole('button', { name: '복용했어요' }).first().click()
-  await expect(cta).toBeDisabled()
-
-  // 전부 선택하면 enabled
-  await page.getByRole('button', { name: '복용하지 않았어요' }).nth(1).click()
+  await page.getByRole('button', { name: '복용하지 않았어요' }).click()
   await expect(cta).toBeEnabled()
+  await expect(page.getByRole('heading', { name: '선택한 내용 · 저장 전' })).toBeVisible()
 })
 
 test('CHECKIN-01 · 혼합 선택을 occurrence별로 저장하고 완료를 표시한다', async ({ page }) => {
   const state = await installCheckinApi(page)
   await page.goto(`/schedule/checkin/${OCC_A}?date=${DATE}`)
 
-  await page.getByRole('button', { name: '복용했어요' }).first().click()
-  await page.getByRole('button', { name: '복용하지 않았어요' }).nth(1).click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
+  await page.getByRole('button', { name: '다음 약 확인하기' }).click()
+  await page.getByRole('button', { name: '복용하지 않았어요' }).click()
   await page.getByRole('button', { name: '기록하기' }).click()
 
   await expect(page.getByText('2/2 기록 완료')).toBeVisible()
@@ -214,8 +216,9 @@ test('CHECKIN-01 · 저장 실패 시 선택을 유지하고 다시 시도할 �
   state.failPuts = true
 
   await page.goto(`/schedule/checkin/${OCC_A}?date=${DATE}`)
-  await page.getByRole('button', { name: '복용했어요' }).first().click()
-  await page.getByRole('button', { name: '복용했어요' }).nth(1).click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
+  await page.getByRole('button', { name: '다음 약 확인하기' }).click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
   await page.getByRole('button', { name: '기록하기' }).click()
 
   await expect(
@@ -410,7 +413,7 @@ test('CHECKIN-01 · PB-02 Figma visual QA 390x1180', async ({ page }) => {
   ).toBeVisible()
 
   await expect(
-    page.getByRole('button', { name: '기록하기' }),
+    page.getByRole('button', { name: '다음 약 확인하기' }),
   ).toBeDisabled()
 
   await page.screenshot({
@@ -425,11 +428,9 @@ test('CHECKIN-01 · PB-03 Figma visual QA 390x1180', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1180 })
   await page.goto(`/schedule/checkin/${OCC_A}?date=${DATE}`)
 
-  await page.getByRole('button', { name: '복용했어요' }).first().click()
-  await page
-    .getByRole('button', { name: '복용하지 않았어요' })
-    .nth(1)
-    .click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
+  await page.getByRole('button', { name: '다음 약 확인하기' }).click()
+  await page.getByRole('button', { name: '복용하지 않았어요' }).click()
 
   await expect(
     page.getByRole('button', { name: '기록하기' }),
@@ -447,8 +448,9 @@ test('CHECKIN-01 · PB-04 Figma visual QA 390x1180', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1180 })
   await page.goto(`/schedule/checkin/${OCC_A}?date=${DATE}`)
 
-  await page.getByRole('button', { name: '복용했어요' }).first().click()
-  await page.getByRole('button', { name: '복용했어요' }).nth(1).click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
+  await page.getByRole('button', { name: '다음 약 확인하기' }).click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
 
   state.failPuts = true
   await page.getByRole('button', { name: '기록하기' }).click()
@@ -469,11 +471,9 @@ test('CHECKIN-01 · PB-05 Figma visual QA 390x1180', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1180 })
   await page.goto(`/schedule/checkin/${OCC_A}?date=${DATE}`)
 
-  await page.getByRole('button', { name: '복용했어요' }).first().click()
-  await page
-    .getByRole('button', { name: '복용하지 않았어요' })
-    .nth(1)
-    .click()
+  await page.getByRole('button', { name: '복용했어요' }).click()
+  await page.getByRole('button', { name: '다음 약 확인하기' }).click()
+  await page.getByRole('button', { name: '복용하지 않았어요' }).click()
 
   await page.getByRole('button', { name: '기록하기' }).click()
 

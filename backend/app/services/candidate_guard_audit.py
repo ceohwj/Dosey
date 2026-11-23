@@ -47,9 +47,12 @@ T = TypeVar("T")
 
 
 class _ArtifactRef(Protocol):
-    artifact_code: str
-    version: str
-    content_sha256: str
+    @property
+    def artifact_code(self) -> str: ...
+    @property
+    def version(self) -> str: ...
+    @property
+    def content_sha256(self) -> str: ...
 
 
 def _ref_dict(ref: _ArtifactRef) -> dict[str, str]:

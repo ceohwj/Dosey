@@ -20,7 +20,7 @@
 
 사용자 수정은 OCR이 성공해 생성된 추출 필드에만 적용할 수 있습니다. 전체 OCR 실패 후 처방 필드를 새로 입력하는 수동 입력 경로는 현재 구현되어 있지 않으며, 실패한 문서는 OCR을 다시 실행해야 합니다.
 
-현재 API의 `202 Accepted`는 비동기 Job 접수 응답입니다. 접수 API는 Provider를 직접 호출하지 않습니다. Backend에 구현된 `OCR_STRUCTURE_LLM_ENABLED` 기반 비-RAG LLM 구조화는 Worker의 규칙 기반 OCR 경로에 아직 연결되지 않았으며, 그 이관·실패 복구는 별도 범위입니다.
+현재 API의 `202 Accepted`는 비동기 Job 접수 응답입니다. 접수 API는 Provider를 직접 호출하지 않습니다. Worker에는 `OCR_STRUCTURE_LLM_ENABLED` 기반 구조화기와 동의 gate를 조립하는 경로가 있고 기본값은 `false`입니다. 다만 현재 공용 `LlmPrescriptionStructurer`는 승인된 최소전송 selector가 마련되기 전 Provider 호출을 차단하고 규칙 기반 결과와 `llm_processing=SKIPPED_MINIMIZATION`을 반환합니다. 조립·동의 검사 구현과 실제 LLM 전송·v4 provenance·실패 복구 완료를 구분합니다. 근거는 `ai_worker/core/runtime_assembly.py`, `ai_worker/tasks/ocr/consent.py`, `ocr_runtime/llm/structurer.py`입니다.
 
 ### 복약 가이드 LLM — MVP 구현
 
@@ -41,6 +41,10 @@
 
 이 안전 제한은 현재 프롬프트와 단위·계약 테스트의 범위입니다. [Issue #129](https://github.com/AI-HealthCare-05/AH_05_04/issues/129)은 `chat-v2-history-eval-v1` 결정론적 replay, 최대 입력의 Local application-path latency와 PII sentinel 비복제를 검증했습니다. [Issue #306](https://github.com/AI-HealthCare-05/AH_05_04/issues/306)은 동결된 `chat-v3-history-eval-v1`에 대상 불명확·현재 응급 우선 사례와 30회 live 분류 집계를 추가했습니다. [2026-09-09 live 실행](validation/issue-306-chat-live-evaluation.md)은 당시 v3 기준 대상 불명확 재확인 30/30, 세 응급 case의 baseline/history 6/6과 PII 비복제를 통과했습니다. Issue #581의 `chat-v4-conversation-quality-eval-v1`은 v3 16 case와 원 재현 흐름·별도 과량 복용을 포함한 신규 11 case, 총 27 case의 현재 canonical 합성 평가셋입니다. 새 사례는 8개 품질 축별 expectation을 독립 채점하며, 이미 발생한 중복 복용과 과량 복용의 baseline/history 4개 경로를 live blocking gate에 포함합니다. 결정론적 replay는 실제 Provider 품질이나 Production 승인 근거가 아닙니다.
 
+### 제한된 CLOSED_DEMO RAG 조립
+
+Backend lifespan과 DI에는 Guide·Chat의 별도 검색·생성 경로를 조건부로 조립하는 코드가 있습니다. 두 flag는 기본 비활성입니다. Chat은 Local 환경과 공개 flag 차단 조건을 따르고, Guide는 허용 대상·최대 7일 기간·공개 flag 및 일반 Guide Runtime 차단 조건을 검사합니다. [기술 스택](technology-stack.md)의 소스 연결과 [Guide 경계 결정](governance/decisions/2026-09-21-guide-closed-demo-rag-provider-boundary.md)의 승인 대기 상태를 함께 확인합니다. 이 경로를 일반 사용자용 정규 RAG·Citation·의료 안전 공개 승인으로 간주하지 않습니다.
+
 ## 구현 상태 표
 
 | 영역 | 상태 | 현재 연결 여부 | 전환 조건 |
@@ -49,9 +53,9 @@
 | Backend 동기 가이드 | MVP 구현 | FastAPI → OpenAI | 내부 staging 검증. Production은 근거·검증 원칙 또는 코드로 강제되는 제한 모드와 재현 가능한 안전 기준 구현 후 전환 |
 | Backend 동기 챗봇 | MVP 구현 | FastAPI → OpenAI. history는 기본 빈 배열이며 Local 또는 승인된 Production explicit opt-in에서만 최대 3쌍 | 실제 Production 활성화 전 질문 admission·동시성·DB 수용량과 근거·검증 안전 조건 충족 필요 |
 | AI Worker | OCR 실행 구현 | Consumer·CLOVA Provider·Outbox Publisher·복구 Scheduler 연결 | Production health check·운영 관제·배포 조립·실제 환경 smoke 완료 필요 |
-| Track E 비-RAG LLM 확장 | Approved v4 target — Partially implemented | feature flag 기반 LLM 구조화·grounding과 flag 비활성화 시 규칙 기반 경로 사용은 Current; LLM 실패 시 규칙 기반 자동 fallback은 없고 Worker 이관과 v4 provenance는 미연결 | 최소 allowlist, versioned schema·prompt·validator, raw/rule/draft/corrected/confirmed provenance와 실패 복구 구현 |
+| Track E 비-RAG LLM 확장 | Approved v4 target — Partially implemented | Worker 조립·동의 gate와 규칙 구조화 경로가 있다. 현재 최소전송 selector 미연결로 LLM 전송은 `SKIPPED_MINIMIZATION`; Provider 장애를 숨기는 fallback 완료 주장이 아님 | 최소 allowlist, versioned schema·prompt·validator, raw/rule/draft/corrected/confirmed provenance와 실패 복구 구현 |
 | MFDS 공식 Identity | Approved v4 target — Not implemented | 연결되지 않음 | Source Snapshot·Catalog, Candidate Resolver, Single Candidate Gate, 사용자 확인·거절, append-only Identification과 Preflight 구현 |
-| Rule-first RAG·Citation | Schema-only / Approved v4 target — Not implemented | 지식 문서·청크·citation 테이블만 존재하고 실행 경로는 미연결 | 고정 LangGraph, 승인 Rule/Evidence, 결정적 Citation 완전성 검증과 fail-closed fallback 구현 |
+| Rule-first RAG·Citation 전체 통합 | Approved v4 target — 전체 완료 아님 | 검색·검증 구성요소와 제한된 CLOSED_DEMO 경로는 존재. 일반 공개 경로·정식 Citation·Release 완료와 구분 | 고정 LangGraph, 승인 Rule/Evidence, 결정적 Citation 완전성 검증과 fail-closed fallback 구현 |
 | AI 응답 평가 | RAG-00 Approved Target — Not implemented | 자동 배포 게이트가 아니며 미실행은 `execution_status=NOT_EVALUATED`, `decision_status=null` | `HOLDOUT`·`SAFETY_REGRESSION`·`END_TO_END_RAG` 실행, versioned 지표·분모·신뢰구간과 승인 증빙 구현. 실행 완료 후 분모·표본·독립 Group 부족일 때만 `INCONCLUSIVE` |
 | OTC 상호작용 | Track F Approved v4 target — Not implemented | 연결되지 않음 | 기존 Chat의 `OTC_INTERACTION` 유형에서 처방약–OTC Rule을 먼저 실행하고 Evidence·Citation·Safety fallback 적용 |
 
@@ -63,4 +67,4 @@ OCR의 Job·Outbox·Redis·Worker 경로는 현재 구현입니다. 아래 전�
 
 Redis Consumer·retry/reclaim, Outbox reconciler와 commit-before-ACK는 OCR 경로에 구현되었다. 후속 확장에서는 대상별 멱등성·소유권·STALE 계약과 장애 테스트를 함께 검증해야 한다. `ASYNC_OCR → ASYNC_GUIDE → ASYNC_CHAT` 신규 접수 canary 전환과 rollback 뒤 기존 Job drain은 목표 전환 정책이며 현재 배포 flag의 구현을 뜻하지 않는다. 공개 기능은 [외부 승인 게이트](./release-gates/post-mvp-1-external-approvals.md)를 별도로 충족한다.
 
-`SECURITY.md`의 근거·모델·프롬프트·검증 결과 추적은 장기 안전 원칙으로 유지합니다. 현재 MVP가 RAG·Citation·Safety를 구현하지 않았다는 상태 표시는 이 원칙을 폐기하거나 충족한 것으로 간주한다는 의미가 아닙니다. 의미 기반 NLI는 Post-MVP-1 완료 게이트에서 제외되며 결정적 Citation 완전성과 Source·Safety 검증을 먼저 적용합니다.
+`SECURITY.md`의 근거·모델·프롬프트·검증 결과 추적은 장기 안전 원칙으로 유지합니다. 일반 공개용 RAG·Citation·Safety 전체 통합의 미완료 표시는 이 원칙을 폐기하거나 충족한 것으로 간주한다는 의미가 아닙니다. 의미 기반 NLI는 Post-MVP-1 완료 게이트에서 제외되며 결정적 Citation 완전성과 Source·Safety 검증을 먼저 적용합니다.

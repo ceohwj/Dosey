@@ -18,9 +18,9 @@ assignees: ""
 
 ## 담당과 검토
 
-- 구현 담당자:
-- 담당 리뷰어:
-- 담당 리뷰어 검토 범위:
+- 구현 Agent / TASK_ID:
+- 독립 검토 (Codex / Claude Code / 기타):
+- 검토 범위 / commit 또는 snapshot:
 - 외부 승인·공개 게이트(해당 시):
 
 ## 관련 영역

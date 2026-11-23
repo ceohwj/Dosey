@@ -183,7 +183,7 @@ SQL·migration·실행 ID·Set 상태를 만들지 않으며, 실제 PostgreSQL 
 
 ## 4단계 — 인계 점검, migration 미착수
 
-[Migration 인계 점검](issue-166-db-migration-readiness.md)에 최신 조회 결과, 실제 모델·revision graph,
+[Migration 인계 점검](../rag/issue-166-db-migration-readiness.md)에 최신 조회 결과, 실제 모델·revision graph,
 변경 순서와 기존 데이터 이행 항목을 기록했다. D-02 인계와 합의된 선행 병합이 확인되지 않아
 schema·migration은 구현하지 않았다. 3단계 코드 완료와 4단계 인계 대기를 구분한다.
 

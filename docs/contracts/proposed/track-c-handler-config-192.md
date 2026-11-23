@@ -215,6 +215,6 @@ Notion에서 연결된 “구현 상세 설계 v2”는 Draft·Product/Contract 
 
 ## PD-194-3 상황 선택과 문구 후속
 
-[상황 선택 계약](track-c-travel-situation-194.md)에서 명시적 일정 변경·약 미지참 선택을 추가한다.
+[상황 선택 계약](../current/track-c-travel-situation-194.md)에서 명시적 일정 변경·약 미지참 선택을 추가한다.
 Rule·Copy 2026-09-16.1은 기존 6개 코드·priority·parameters를 유지하고 약 챙기기 안내를 구체화한다.
 과거 2026-09-15.1은 수정하지 않으며 기존 Plan은 해당 버전으로 복원한다. 기술 리뷰·공개 승인과 구분한다.

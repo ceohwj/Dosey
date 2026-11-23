@@ -42,15 +42,15 @@
 ## 충돌과 승격 규칙
 
 1. 원본과 저장소 목표 계약이 다르면 구현을 중단하고 차이를 기록한다. 값을 추정하거나 두 계약을 혼합하지 않는다.
-2. 계약 변경은 Decision 또는 Contract Freeze version, 관련 요구사항 ID, API·migration·테스트와 함께 단일 지정 책임 리뷰어의 검토를 받는다. 영향받는 모든 영역을 그 리뷰어의 검토 범위에 기록하고, 필요한 전문 검토·외부 승인은 별도 근거로 첨부한다.
-3. 상태 디렉터리를 계약 상태의 기준으로 사용한다. 목표 또는 Proposed 계약을 Current로 승격하려면 구현 PR에서 관련 구현, migration, OpenAPI/DTO, 계약·통합 테스트와 실행 증빙을 연결하고 지정 리뷰어 승인을 받은 뒤 `docs/contracts/current/`로 이동한다. 같은 PR에서 문서 상태와 인덱스를 갱신하고 이전 상태 디렉터리에 중복 파일을 남기지 않는다.
+2. 계약 변경은 Decision 또는 Contract Freeze version, 관련 요구사항 ID, API·migration·테스트와 함께 독립 검토를 받고 Human Owner가 최종 결정한다. Integrator가 영향받는 모든 영역을 검토 범위에 기록하고, 필요한 전문 검토·외부 승인은 별도 근거로 첨부한다. Agent의 검토는 승인 대행이 아니다.
+3. 상태 디렉터리를 계약 상태의 기준으로 사용한다. 목표 또는 Proposed 계약을 Current로 승격하려면 구현 PR에서 관련 구현, migration, OpenAPI/DTO, 계약·통합 테스트와 실행 증빙을 연결하고 독립 검토 및 Human Owner 결정을 거친 뒤 `docs/contracts/current/`로 이동한다. 같은 PR에서 문서 상태와 인덱스를 갱신하고 이전 상태 디렉터리에 중복 파일을 남기지 않는다.
 4. 외부 승인과 공개 flag는 구현 완료와 별도로 관리한다. 상세 조건은 [외부 승인 게이트](../release-gates/post-mvp-1-external-approvals.md)를 따른다.
 
 ## RAG-00 Approved Target
 
 [Product Decision `PD-125-20260831`](./decisions/2026-08-31-rag-p0-contract-freeze.md)과 `docs/contracts/targets/post-mvp-1/`의 RAG P0 계약은 외부 Authority Manifest `post-mvp-rag-evaluation-contract@2026-08-29.11`을 저장소 공유 경계로 투영한 `Approved Target · Not implemented`다. 외부 논리 계약 `medication-candidate-identification-v1`은 기존 `medication-identification-v1.md`에 통합하며 같은 상태 폴더에 중복 파일을 두지 않는다. Safety Result v1은 Approved v4 이력으로 유지하고 Safety Result·Citation v2는 후속 Target으로 별도 관리한다.
 
-[Issue #136](https://github.com/AI-HealthCare-05/AH_05_04/issues/136)의 Guide·Chat 책임 경계·상태 표시 산출물은 RAG-00의 입력 Receipt다. 해당 산출물은 [PR #191](https://github.com/AI-HealthCare-05/AH_05_04/pull/191)의 `docs/contracts/proposed/guide-chat-session-message-status-ui-v1.md`로 연결됐다(리뷰 반영 중). 이 PR이 병합되어 Issue #136이 Close되기 전까지는 같은 문서를 RAG-00에서 중복 작성하거나 미확정 상태 UI 계약을 추정하지 않는다. Issue #125는 이 Receipt 확정 전인 2026-09-01에 이미 수동으로 Close됐다 — 아래 서술은 애초에 지켜지지 않았으므로 향후에는 Receipt 확정 여부와 무관하게 개별 이슈 Close 판단을 각 담당자에게 맡기고, 이 문서는 계약 상태 자체의 정합성만 기록한다.
+[Issue #136](https://github.com/AI-HealthCare-05/AH_05_04/issues/136)의 Guide·Chat 책임 경계·상태 표시 산출물은 RAG-00의 입력 Receipt다. 해당 산출물은 [PR #191](https://github.com/AI-HealthCare-05/AH_05_04/pull/191)의 `docs/contracts/proposed/guide-chat-session-message-status-ui-v1.md`로 연결됐다(리뷰 반영 중). 이 PR이 병합되어 Issue #136이 Close되기 전까지는 같은 문서를 RAG-00에서 중복 작성하거나 미확정 상태 UI 계약을 추정하지 않는다. Issue #125는 이 Receipt 확정 전인 2026-09-01에 이미 수동으로 Close됐다 — 아래 서술은 애초에 지켜지지 않았으므로 개인 프로젝트의 개별 이슈 Close 판단은 Human Owner가 하며, 이 문서는 계약 상태 자체의 정합성만 기록한다.
 
 `ISS-TBD-035`는 `FinalProject Documents/00_Index.md`의 상류 계획 레지스터 ID이며, 이 구현 저장소에서는 [Issue #91](https://github.com/AI-HealthCare-05/AH_05_04/issues/91)과 연결해 추적한다. 상류 artifact에 공개 가능한 안정 URL이 생기기 전에는 존재하지 않는 저장소 링크를 만들지 않는다. HIRA 식별, Track D 전용 OTC API 또는 의미 기반 NLI를 Approved v4 목표로 복원하지 않는다.
 

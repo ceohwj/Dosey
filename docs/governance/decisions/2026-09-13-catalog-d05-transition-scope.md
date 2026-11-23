@@ -8,7 +8,7 @@
 ## 근거와 승인 범위
 
 - 기존 검토 반영본: 사용자 제공 `issue-166-d05-hash-calculation-draft-v2.md` (2026-09-08).
-  원문은 저장소에 복제하지 않는다. 식별용 SHA-256과 코드 대조는 [선행 조건 점검](../../designs/jye-rookie/issue-166-d05-readiness.md)에 기록한다.
+  원문은 저장소에 복제하지 않는다. 식별용 SHA-256과 코드 대조는 [선행 조건 점검](../../designs/rag/issue-166-d05-readiness.md)에 기록한다.
 - 기존 공개 근거: [#166 현우님 댓글 D-05](https://github.com/AI-HealthCare-05/AH_05_04/issues/166#issuecomment-5594696171).
   현행 v2 계산·저장과 미확정 Authority/Runtime hash를 구분하라는 요청이다.
 - 최신 답변: [정현우 D-05 원문 메시지](https://discord.com/channels/@me/1545029651477307442/1548684514866495550).
@@ -59,5 +59,5 @@
 ## 검증 이력
 
 같은 코드 HEAD에서 기존 hash·복원·Component 순서 테스트 39건이 통과했다.
-이는 [선행 조건 점검 문서](../../designs/jye-rookie/issue-166-d05-readiness.md)의 기존 코드 검증 이력이며,
+이는 [선행 조건 점검 문서](../../designs/rag/issue-166-d05-readiness.md)의 기존 코드 검증 이력이며,
 이번 문서 변경 후 전체 CI·신규 hash 계약·운영 승인 증빙이 아니다.

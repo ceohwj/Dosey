@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from types import SimpleNamespace
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -129,19 +130,19 @@ def _evidence(snapshot: object, hits: tuple[CandidateHit, ...]) -> HydratedCandi
 
 
 class _Session:
-    def __init__(self, *, products: tuple[object, ...] = (), ingredients: tuple[object, ...] = ()) -> None:
+    def __init__(self, *, products: tuple[Any, ...] = (), ingredients: tuple[Any, ...] = ()) -> None:
         self.products = products
         self.ingredients = ingredients
-        self.queries: list[object] = []
+        self.queries: list[Any] = []
         self.product_query_count = 0
 
-    async def scalar(self, statement: object):
+    async def scalar(self, statement: Any):
         self.queries.append(statement)
         return SimpleNamespace(id=self.ingredients[0].entity_identity_id) if self.ingredients else None
 
-    async def scalars(self, statement: object):
+    async def scalars(self, statement: Any):
         self.queries.append(statement)
-        entity = statement.column_descriptions[0]["entity"]  # type: ignore[attr-defined]
+        entity = statement.column_descriptions[0]["entity"]
         if entity is RagMedicationProduct:
             selected = self.products[self.product_query_count : self.product_query_count + 1]
             self.product_query_count += 1
@@ -208,8 +209,8 @@ def test_relevance_uses_actual_lexical_signal_score() -> None:
     candidate = CandidateEvidence(hit.identity, hit.product, (CandidateSignal(hit.stage, 1, 0.83),), 0.36)
     assert (
         _LexicalRelevanceEvaluator().evaluate(
-            SimpleNamespace(),
-            candidate,  # type: ignore[arg-type]
+            SimpleNamespace(),  # type: ignore[arg-type]
+            candidate,
         )
         == 0.83
     )
