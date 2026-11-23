@@ -518,6 +518,7 @@ async def test_invalid_openai_credentials_fail_closed_without_leaking_provider_e
     assert synthetic_key not in all_logs
     assert provider_message not in all_logs
     assert request.medication_identities[0].prescription_version_medication_id not in all_logs
+    assert isinstance(request.evidence, ProductionGuidelineEvidenceSet)
     assert request.evidence.selections[0].content_text.reveal() not in all_logs
 
 
