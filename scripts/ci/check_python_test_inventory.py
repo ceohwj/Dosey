@@ -52,6 +52,7 @@ TEST_ENVIRONMENT_WRAPPERS = (
 )
 
 INVENTORY_CHECKER = "scripts/ci/check_python_test_inventory.py"
+RAG_SHARD_RUNNER = "scripts/ci/select_rag_test_shard.py"
 PYTEST_CONFIG = Path("pyproject.toml")
 ALTERNATIVE_PYTEST_CONFIGS = (Path("pytest.ini"), Path("tox.ini"), Path("setup.cfg"))
 
@@ -172,9 +173,28 @@ def _command_prefix(command: list[str], token_index: int) -> list[str]:
     return prefix
 
 
+def _rag_shard_invocation_targets(command: list[str]) -> list[str] | None:
+    normalized = _command_prefix(command, len(command))
+    if normalized[:4] != ["uv", "run", "python", RAG_SHARD_RUNNER]:
+        return None
+    arguments = normalized[4:]
+    if "--run-coverage" not in arguments or "--shard" not in arguments or "--total-shards" not in arguments:
+        return None
+    if "--root" not in arguments:
+        return None
+    root_index = arguments.index("--root")
+    if root_index + 1 >= len(arguments):
+        return None
+    return [arguments[root_index + 1]]
+
+
 def _pytest_invocations(commands: list[list[str]]) -> list[list[str]]:
     invocations: list[list[str]] = []
     for command in commands:
+        shard_targets = _rag_shard_invocation_targets(command)
+        if shard_targets is not None:
+            invocations.append(shard_targets)
+            continue
         for index, token in enumerate(command):
             if token != "pytest":
                 continue

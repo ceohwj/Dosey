@@ -609,7 +609,11 @@ def test_github_actions_combines_distinct_lane_coverage_artifacts() -> None:
     jobs = workflow["jobs"]
 
     assert jobs["test-backend"]["env"]["COVERAGE_FILE"] == ".coverage.backend"
-    assert jobs["test-rag"]["env"]["COVERAGE_FILE"] == ".coverage.rag"
+    assert jobs["test-rag"]["strategy"] == {
+        "fail-fast": False,
+        "matrix": {"shard": [1, 2, 3]},
+    }
+    assert jobs["test-rag"]["env"]["COVERAGE_FILE"] == ".coverage.rag.${{ matrix.shard }}"
     assert jobs["test-contract"]["env"]["COVERAGE_FILE"] == ".coverage.contract"
     assert jobs["test-worker"]["env"]["COVERAGE_FILE"] == ".coverage.worker"
 
@@ -645,15 +649,19 @@ def test_github_actions_combines_distinct_lane_coverage_artifacts() -> None:
         "if-no-files-found": "error",
     }
     assert rag_upload["with"] == {
-        "name": "python-coverage-rag",
-        "path": ".coverage.rag",
+        "name": "python-coverage-rag-${{ matrix.shard }}",
+        "path": ".coverage.rag.${{ matrix.shard }}",
         "include-hidden-files": True,
         "if-no-files-found": "error",
     }
 
     final_steps = {step["name"]: step for step in jobs["test"]["steps"]}
     assert final_steps["Download Backend Coverage Data"]["with"]["name"] == "python-coverage-backend"
-    assert final_steps["Download RAG Coverage Data"]["with"]["name"] == "python-coverage-rag"
+    assert final_steps["Download RAG Coverage Data"]["with"] == {
+        "pattern": "python-coverage-rag-*",
+        "path": "coverage-data/rag",
+        "merge-multiple": True,
+    }
     assert final_steps["Download Contract Coverage Data"]["with"]["name"] == "python-coverage-contract"
     assert final_steps["Download AI Worker Coverage Data"]["with"]["name"] == "python-coverage-worker"
     for name in (
