@@ -147,8 +147,8 @@ class FakeMfdsLabelRepository(FakeSnapshotRepository):
         self.requests_by_snapshot[snapshot_id] = request
         return snapshot_id
 
-    async def create_artifacts(self, *, ingestion_run_id, artifacts) -> None:
-        await super().create_artifacts(ingestion_run_id=ingestion_run_id, artifacts=artifacts)
+    async def persist_complete_attempt(self, record, artifacts):
+        ingestion_run_id = await super().persist_complete_attempt(record, artifacts)
         receipts = tuple(
             IngestionArtifactReceipt(
                 ingestion_artifact_id=uuid4(),
@@ -165,6 +165,7 @@ class FakeMfdsLabelRepository(FakeSnapshotRepository):
         )
         self.artifacts_by_run[ingestion_run_id] = receipts
         self.artifact_receipts.update((receipt.ingestion_artifact_id, receipt) for receipt in receipts)
+        return ingestion_run_id
 
     async def get_ingestion_artifact_receipts(self, *, ingestion_run_id):
         return self.artifacts_by_run.get(ingestion_run_id, ())
@@ -344,6 +345,26 @@ def test_plan_rejects_artifact_evidence_mismatch(tmp_path: Path, field: str) -> 
             collected_at=_COLLECTED_AT,
             include_e_drug=False,
         )
+
+
+async def test_publication_lock_precedes_label_permanent_put(tmp_path: Path) -> None:
+    repository = FakeMfdsLabelRepository()
+    plan = _plan(tmp_path)
+    backing_store = LocalPrivateSourceArtifactStore(tmp_path / "private")
+
+    class LockCheckingStore:
+        def put_verified(self, **kwargs):
+            assert repository.publication_locked
+            assert repository.locked_identities == []
+            return backing_store.put_verified(**kwargs)
+
+    await persist_mfds_label_plan(
+        plan=plan,
+        repository=repository,
+        artifact_store=LockCheckingStore(),
+        metadata=_metadata(plan),
+    )
+    assert repository.locked_identities
 
 
 async def test_persist_commit_boundary_and_requery_are_complete_and_idempotent(tmp_path: Path) -> None:

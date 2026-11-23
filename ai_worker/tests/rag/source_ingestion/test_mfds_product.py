@@ -117,7 +117,7 @@ def repository():
     repo.get_latest_snapshot.return_value = None
     repo.has_attempt_version_conflict.return_value = False
     repo.create_snapshot.return_value = uuid4()
-    repo.create_run.return_value = uuid4()
+    repo.persist_complete_attempt.return_value = uuid4()
     return repo
 
 
@@ -125,13 +125,13 @@ def store(tmp_path):
     return LocalPrivateSourceArtifactStore(root=tmp_path / "objects")
 
 
-async def persist(tmp_path, acquisition, *, receipt_path, repo=None, metadata=None):
+async def persist(tmp_path, acquisition, *, receipt_path, repo=None, metadata=None, artifact_store=None):
     repo = repo or repository()
     return (
         await ingest_and_persist_mfds_product(
             acquisition=acquisition,
             repository=repo,
-            artifact_store=store(tmp_path),
+            artifact_store=artifact_store or store(tmp_path),
             metadata=metadata
             or build_product_snapshot_metadata(acquisition=acquisition, run_group_key="synthetic-product"),
             receipt_path=receipt_path,
@@ -196,7 +196,7 @@ async def test_stale_receipt_count_fails_closed_before_any_persistence(tmp_path)
         await persist(tmp_path, acquisition, receipt_path=stale, repo=repo)
 
     repo.create_snapshot.assert_not_awaited()
-    repo.create_run.assert_not_awaited()
+    repo.persist_complete_attempt.assert_not_awaited()
 
 
 async def test_matching_receipt_count_is_required_exactly(tmp_path):
@@ -209,7 +209,7 @@ async def test_matching_receipt_count_is_required_exactly(tmp_path):
             await persist(
                 tmp_path, acquisition, receipt_path=receipt_file(tmp_path, validated_record_count=count), repo=repo
             )
-        repo.create_run.assert_not_awaited()
+        repo.persist_complete_attempt.assert_not_awaited()
 
 
 async def test_metadata_binds_an_api_source_version_to_the_observed_checksum(tmp_path):
@@ -242,7 +242,28 @@ async def test_verified_run_reaches_a_snapshot_with_every_raw_page(tmp_path):
 
     assert result.snapshot_id == repo.create_snapshot.return_value
     assert result.failure_code is None
-    assert len(repo.create_artifacts.call_args.kwargs["artifacts"]) == 2
+    assert len(repo.persist_complete_attempt.call_args.args[1]) == 2
+
+
+async def test_publication_lock_precedes_product_permanent_put(tmp_path):
+    acquisition, _ = await acquire(tmp_path, [envelope([product("P-001")])])
+    repo = repository()
+    backing_store = store(tmp_path)
+
+    class LockCheckingStore:
+        def put_verified(self, **kwargs):
+            repo.lock_artifact_publication.assert_awaited()
+            repo.lock_operation.assert_not_awaited()
+            return backing_store.put_verified(**kwargs)
+
+    await persist(
+        tmp_path,
+        acquisition,
+        receipt_path=receipt_file(tmp_path, validated_record_count=1),
+        repo=repo,
+        artifact_store=LockCheckingStore(),
+    )
+    repo.lock_operation.assert_awaited()
 
 
 @pytest.mark.parametrize(
@@ -272,7 +293,7 @@ async def test_missing_receipt_fails_closed_instead_of_a_silent_repository_defau
         await persist(tmp_path, acquisition, receipt_path=tmp_path / "absent-receipt.json", repo=repo)
 
     repo.create_snapshot.assert_not_awaited()
-    repo.create_run.assert_not_awaited()
+    repo.persist_complete_attempt.assert_not_awaited()
 
 
 async def test_contract_mismatched_metadata_is_refused_before_any_persistence(tmp_path):
@@ -289,7 +310,7 @@ async def test_contract_mismatched_metadata_is_refused_before_any_persistence(tm
                 repo=repo,
                 metadata=replace(metadata, **change),
             )
-        repo.create_run.assert_not_awaited()
+        repo.persist_complete_attempt.assert_not_awaited()
 
 
 async def test_acquisition_requires_the_source_lock_before_any_provider_call(tmp_path):

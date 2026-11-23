@@ -22,7 +22,12 @@ from sqlalchemy import text
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from ai_worker.adapters.local_private_source_artifact_finalizer import LocalPrivateSourceArtifactReader
+from ai_worker.adapters.local_private_source_artifact_finalizer import (
+    LocalPrivateSourceArtifactReader,
+    OwnerBackedSourceArtifactReader,
+    OwnerClientConfig,
+    SourceArtifactReader,
+)
 from ai_worker.adapters.sqlalchemy_knowledge_materialization import SqlAlchemyKnowledgeMaterializationRepository
 from ai_worker.adapters.sqlalchemy_source_snapshot_repository import SqlAlchemySourceSnapshotRepository
 from ai_worker.tasks.rag.knowledge_materialization import (
@@ -49,6 +54,7 @@ _ISOLATED_PASSWORDS = (
     "DB_MIGRATION_PASSWORD",
     "DB_ADMIN_PASSWORD",
     "SOURCE_WRITER_PASSWORD",
+    "SOURCE_PUBLISHER_PASSWORD",
     "SOURCE_CLEANUP_EXECUTOR_PASSWORD",
     "CATALOG_WRITER_PASSWORD",
 )
@@ -59,6 +65,7 @@ class MaterializationRunnerConfig:
     url: URL = field(repr=False)
     builder_user: str
     artifact_root: Path = field(repr=False)
+    owner_client: OwnerClientConfig | None = field(default=None, repr=False)
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str]) -> MaterializationRunnerConfig:
@@ -89,13 +96,6 @@ class MaterializationRunnerConfig:
         if storage_backend != "LOCAL_PRIVATE":
             raise ValueError("SOURCE_ARTIFACT_STORAGE_BACKEND must be 'LOCAL_PRIVATE'")
 
-        artifact_root_str = env.get("SOURCE_ARTIFACT_LOCAL_ROOT", "").strip()
-        if not artifact_root_str:
-            raise ValueError("SOURCE_ARTIFACT_LOCAL_ROOT is required")
-        artifact_root = Path(artifact_root_str)
-        if not artifact_root.is_absolute():
-            raise ValueError("SOURCE_ARTIFACT_LOCAL_ROOT must be an absolute path")
-
         url = URL.create(
             "postgresql+asyncpg",
             username=builder_user,
@@ -104,6 +104,22 @@ class MaterializationRunnerConfig:
             port=port,
             database=db_name,
         )
+        if env.get("SOURCE_ARTIFACT_OWNER_SOCKET", "").strip():
+            owner_client = OwnerClientConfig.from_environment(env)
+            return cls(
+                url=url,
+                builder_user=builder_user,
+                artifact_root=Path(env.get("SOURCE_ARTIFACT_LOCAL_ROOT", "/nonexistent/owner-vault")),
+                owner_client=owner_client,
+            )
+
+        artifact_root_str = env.get("SOURCE_ARTIFACT_LOCAL_ROOT", "").strip()
+        if not artifact_root_str:
+            raise ValueError("SOURCE_ARTIFACT_LOCAL_ROOT is required")
+        artifact_root = Path(artifact_root_str)
+        if not artifact_root.is_absolute():
+            raise ValueError("SOURCE_ARTIFACT_LOCAL_ROOT must be an absolute path")
+
         return cls(
             url=url,
             builder_user=builder_user,
@@ -271,7 +287,11 @@ async def execute_materialization(
         _validate_source_documents(source_docs, member_ids, expected_canonical_checksum)
 
         try:
-            artifact_reader = LocalPrivateSourceArtifactReader(config.artifact_root)
+            artifact_reader: SourceArtifactReader = (
+                OwnerBackedSourceArtifactReader(config.owner_client)
+                if config.owner_client is not None
+                else LocalPrivateSourceArtifactReader(config.artifact_root)
+            )
         except ValueError as exc:
             raise KnowledgeMaterializationError(KnowledgeMaterializationFailureReason.DEPENDENCY_ERROR) from exc
 

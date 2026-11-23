@@ -487,6 +487,42 @@ async def test_validation_failed_mappings() -> None:
 
 
 @pytest.mark.asyncio
+async def test_invalid_openai_credentials_fail_closed_without_leaking_provider_error() -> None:
+    synthetic_key = "sk-synthetic-invalid-credential"
+    provider_message = f"Incorrect API key provided: {synthetic_key}"
+    response = MagicMock(status_code=401, headers={})
+    client = build_mock_client(
+        side_effect=APIStatusError(message=provider_message, response=response, body={"error": provider_message})
+    )
+    capturing_logger = CapturingLogger()
+    adapter = OpenAIGuidelineGeneratorAdapter(
+        client=client,
+        model="gpt-4o-synthetic",
+        timeout_seconds=1.0,
+        context=make_context(),
+        call_logger=ProviderCallLogger(capturing_logger),  # type: ignore[arg-type]
+    )
+    request = make_valid_request()
+
+    result = await adapter.generate(request)
+
+    assert result is GuidelineGenerationFailure.VALIDATION_FAILED
+    assert adapter.last_response_model_name is None
+    events = [json.loads(record) for record in capturing_logger.records]
+    assert len(events) == 2
+    assert events[0]["event"] == "provider.call.started"
+    assert events[1]["event"] == "provider.call.failed"
+    assert events[1]["http_status"] == 401
+    assert events[1]["error_code"] == "PROVIDER_REQUEST_REJECTED"
+    all_logs = " ".join(capturing_logger.records)
+    assert synthetic_key not in all_logs
+    assert provider_message not in all_logs
+    assert request.medication_identities[0].prescription_version_medication_id not in all_logs
+    assert isinstance(request.evidence, ProductionGuidelineEvidenceSet)
+    assert request.evidence.selections[0].content_text.reveal() not in all_logs
+
+
+@pytest.mark.asyncio
 async def test_refusal_and_safety_filter_mappings() -> None:
     # 1. Refusal in response
     refusal_response = MagicMock()

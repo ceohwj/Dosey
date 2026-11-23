@@ -1,7 +1,7 @@
 """Separate bootstrap authority stages for RET-H AWS synthetic smoke (#684).
 
 Implements the 2-stage bootstrap authority split:
-- Stage 1 (SOURCE_WRITER): Source/Snapshot/Member/Seal creation.
+- Legacy Stage 1 CLI: disabled pending B1 publication/selection migration.
 - Stage 2 (KNOWLEDGE_INDEX_BUILDER): Read-only DB preflight and Knowledge/Index materialization.
 - Runtime parent lifecycle and cascade cleanup (DB_APP_USER).
 """
@@ -161,7 +161,7 @@ def stage2_receipt_from_dict(data: Mapping[str, Any]) -> Stage2IndexReceipt:
 
 
 # --------------------------------------------------------------------------------------
-# Stage 1: SOURCE_WRITER boundary
+# Legacy Stage 1 helper: test-only admin fixtures; production CLI disabled
 # --------------------------------------------------------------------------------------
 
 
@@ -172,7 +172,8 @@ async def bootstrap_ret_h_smoke_stage1_source(
 ) -> Stage1SourceReceipt:
     """Stage 1: idempotent creation and sealing of the synthetic Source hierarchy.
 
-    Executed exclusively by SOURCE_WRITER.
+    Retained for test-only admin fixtures; the production Stage 1 CLI is disabled
+    pending B1 publication/selection migration.
     """
     snapshot_id = uuid5(NAMESPACE_SYNTHETIC_RET_H_SMOKE, f"snapshot:{fixture.file_sha256}")
     verification_id = uuid5(NAMESPACE_SYNTHETIC_RET_H_SMOKE, f"verification:{fixture.file_sha256}")
@@ -771,31 +772,9 @@ def _build_database_url_for_role(role_user: str, role_pass: str) -> str:
 
 
 async def _run_cli_stage1(output_receipt: Path | None = None) -> None:
-    user = os.environ.get("SOURCE_WRITER_USER")
-    password = os.environ.get("SOURCE_WRITER_PASSWORD")
-    if not user or not password:
-        logger.error("SOURCE_WRITER_USER and SOURCE_WRITER_PASSWORD must be set")
-        sys.exit(1)
-
-    url = _build_database_url_for_role(user, password)
-    engine = create_async_engine(url, hide_parameters=True)
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    fixture = load_ret_h_smoke_synthetic_fixture()
-
-    try:
-        receipt = await bootstrap_ret_h_smoke_stage1_source(
-            session_factory=session_factory,
-            fixture=fixture,
-        )
-        if output_receipt is not None:
-            out = Path(output_receipt).resolve()
-            out.parent.mkdir(parents=True, exist_ok=True)
-            tmp = out.with_name(f".{out.name}.tmp.{uuid4().hex}")
-            tmp.write_text(json.dumps(stage1_receipt_to_dict(receipt), indent=2), encoding="utf-8")
-            tmp.replace(out)
-        print(f"Stage 1 completed successfully: snapshot_id={receipt.snapshot_id}, reused={receipt.reused}")
-    finally:
-        await engine.dispose()
+    """Fail closed before credentials, connections, fixture reads, or receipt writes."""
+    print("RET-H Stage 1 is disabled pending B1 publication/selection migration.", file=sys.stderr)
+    sys.exit(1)
 
 
 async def _run_cli_stage2(
@@ -904,7 +883,11 @@ def _run_cli_manifest(args: argparse.Namespace) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="RET-H AWS synthetic smoke bootstrap stages")
     subparsers = parser.add_subparsers(dest="stage", required=True)
-    stage1_parser = subparsers.add_parser("stage1", help="Run Stage 1 Source bootstrap (SOURCE_WRITER)")
+    stage1_parser = subparsers.add_parser(
+        "stage1",
+        help="Legacy Stage 1 disabled pending B1 migration",
+        description="Legacy Stage 1 disabled pending B1 migration; publication/selection must be separated.",
+    )
     stage1_parser.add_argument("--output-receipt", type=Path, required=False, help="Save receipt JSON to file")
 
     stage2_parser = subparsers.add_parser(

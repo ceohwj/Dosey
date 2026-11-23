@@ -49,6 +49,7 @@ def test_incomplete_explicit_input_fails_closed(argv, capsys, monkeypatch):
         "DB_ADMIN_PASSWORD",
         "DB_MIGRATION_PASSWORD",
         "SOURCE_WRITER_PASSWORD",
+        "SOURCE_PUBLISHER_PASSWORD",
         "SOURCE_MANAGEMENT_PASSWORD",
         "KNOWLEDGE_INDEX_BUILDER_PASSWORD",
         "CANDIDATE_INDEX_BUILDER_PASSWORD",

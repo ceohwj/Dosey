@@ -504,8 +504,10 @@ async def test_management_bootstrap_is_opt_in_and_redeploy_does_not_expand_right
         pytest.skip("Explicit disposable PostgreSQL container required")
     engine, url, (runtime, writer, manager) = database
     root = Path(__file__).resolve().parents[3]
+    publisher = f"publisher_{uuid4().hex[:12]}"
     environment = {
         **os.environ,
+        "SOURCE_PUBLISHER_USER": publisher,
         "SOURCE_MANAGEMENT_USER": manager,
         "SOURCE_MANAGEMENT_PASSWORD": "synthetic-management-only",
         "DB_MIGRATION_USER": "synthetic_owner",
@@ -519,6 +521,7 @@ async def test_management_bootstrap_is_opt_in_and_redeploy_does_not_expand_right
         "DB_MIGRATION_USER",
         "DB_APP_USER",
         "SOURCE_WRITER_USER",
+        "SOURCE_PUBLISHER_USER",
     ):
         arguments.extend(["-e", name])
     arguments.extend([container, "psql", "-X", "-U", config.DB_USER, "-d", url.database])
@@ -536,6 +539,8 @@ async def test_management_bootstrap_is_opt_in_and_redeploy_does_not_expand_right
         )
 
     assert (await bootstrap({"SOURCE_MANAGEMENT_USER": config.DB_USER})).returncode != 0
+    assert (await bootstrap({"SOURCE_PUBLISHER_USER": ""})).returncode != 0
+    assert (await bootstrap({"SOURCE_PUBLISHER_USER": manager})).returncode != 0
     assert (await bootstrap()).returncode == 0
     async with engine.begin() as connection:
         for role in (runtime, writer):

@@ -23,7 +23,7 @@ from ai_worker.admin.mfds_label_writer import (
     record_transaction_cleanup_request,
     run_ingestion,
 )
-from ai_worker.admin.source_writer import WriterConfig
+from ai_worker.admin.source_publisher import SourcePublisherConfig
 from ai_worker.tasks.rag.source_client.contracts import SourceOperationIdentity
 from ai_worker.tasks.rag.source_ingestion.artifacts import RawArtifactMetadata, RawArtifactStore, StoredRawArtifact
 from ai_worker.tasks.rag.source_ingestion.mfds_label import MfdsLabelPersistenceReceipt
@@ -35,12 +35,12 @@ from ai_worker.tasks.rag.source_ingestion.snapshot_lifecycle import (
 
 def _environment(tmp_path: Path) -> dict[str, str]:
     return {
-        "SOURCE_WRITER_HOST": "localhost",
-        "SOURCE_WRITER_PORT": "5432",
-        "SOURCE_WRITER_NAME": "synthetic",
-        "SOURCE_WRITER_USER": "synthetic_writer",
-        "SOURCE_WRITER_PASSWORD": "synthetic-password",
-        "SOURCE_WRITER_ACTOR": "synthetic-actor",
+        "SOURCE_PUBLISHER_HOST": "localhost",
+        "SOURCE_PUBLISHER_PORT": "5432",
+        "SOURCE_PUBLISHER_NAME": "synthetic",
+        "SOURCE_PUBLISHER_USER": "synthetic_writer",
+        "SOURCE_PUBLISHER_PASSWORD": "synthetic-password",
+        "SOURCE_PUBLISHER_ACTOR": "synthetic-actor",
         "SOURCE_ARTIFACT_STORAGE_BACKEND": "LOCAL_PRIVATE",
         "SOURCE_ARTIFACT_READER_ROOT": str(tmp_path / "private-reader"),
         "SOURCE_ARTIFACT_FINALIZER_COMMAND": "/usr/local/bin/source591-preserve",
@@ -189,7 +189,7 @@ async def test_commit_failure_after_artifact_write_creates_private_cleanup_reque
 
     monkeypatch.setattr(mfds_label_writer, "load_mfds_label_plan", lambda **kwargs: plan)
     monkeypatch.setattr(mfds_label_writer, "persist_mfds_label_plan", fake_persist)
-    monkeypatch.setattr(mfds_label_writer, "validate_source_writer_session", no_validation)
+    monkeypatch.setattr(mfds_label_writer, "validate_source_publisher_session", no_validation)
     monkeypatch.setattr(mfds_label_writer, "lock_source_artifact_mutation", no_validation)
     monkeypatch.setattr(mfds_label_writer, "create_async_engine", lambda *args, **kwargs: _Engine())
     monkeypatch.setattr(mfds_label_writer, "async_sessionmaker", lambda *args, **kwargs: _Sessions())
@@ -218,7 +218,7 @@ async def test_commit_failure_after_artifact_write_creates_private_cleanup_reque
         lambda **kwargs: _SyntheticFinalizingStore(),
     )
     config = MfdsLabelWriterConfig(
-        writer=WriterConfig(URL.create("postgresql+asyncpg", password="synthetic"), "synthetic-writer"),
+        publisher=SourcePublisherConfig(URL.create("postgresql+asyncpg", password="synthetic"), "synthetic-writer"),
         artifact_reader_root=artifact_root,
         artifact_finalizer_command=tmp_path / "source591-preserve",
         cleanup_journal_root=journal_root,
@@ -273,3 +273,207 @@ def test_command_does_not_report_rollback_after_post_commit_requery_failure(
     assert "committed but post-commit verification failed" in error
     assert "Do not rerun" in error
     assert "rolled back" not in error
+
+
+@pytest.mark.asyncio
+async def test_owner_backed_store_rollback_does_not_dispatch_legacy_cleanup_request(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw = b"synthetic-owner-backed"
+    checksum = hashlib.sha256(raw).hexdigest()
+    source = tmp_path / "EE.xml"
+    source.write_bytes(raw)
+    metadata = RawArtifactMetadata("mfds-label/200610660/EE.xml", checksum, len(raw), "application/xml")
+    plan = SimpleNamespace(source_version="synthetic-version", documents=(SimpleNamespace(metadata=metadata),))
+    persistence = MfdsLabelPersistenceReceipt(
+        SnapshotPersistenceResult(
+            SnapshotIngestionDecision.CREATED,
+            UUID("00000000-0000-4000-8000-000000000001"),
+            UUID("00000000-0000-4000-8000-000000000002"),
+            UUID("00000000-0000-4000-8000-000000000003"),
+        ),
+        "synthetic-version",
+        "a" * 64,
+        (),
+    )
+
+    async def fake_persist(*, artifact_store: RawArtifactStore, **kwargs: object) -> MfdsLabelPersistenceReceipt:
+        artifact_store.put_verified(page_number=1, file_path=source, metadata=metadata)
+        return persistence
+
+    async def no_validation(session: object) -> None:
+        return None
+
+    class _Transaction:
+        async def __aenter__(self) -> object:
+            return object()
+
+        async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> None:
+            raise RuntimeError("synthetic commit failure")
+
+    class _Sessions:
+        def begin(self) -> _Transaction:
+            return _Transaction()
+
+    class _Engine:
+        async def dispose(self) -> None:
+            return None
+
+    monkeypatch.setattr(mfds_label_writer, "load_mfds_label_plan", lambda **kwargs: plan)
+    monkeypatch.setattr(mfds_label_writer, "persist_mfds_label_plan", fake_persist)
+    monkeypatch.setattr(mfds_label_writer, "validate_source_publisher_session", no_validation)
+    monkeypatch.setattr(mfds_label_writer, "lock_source_artifact_mutation", no_validation)
+    monkeypatch.setattr(mfds_label_writer, "create_async_engine", lambda *args, **kwargs: _Engine())
+    monkeypatch.setattr(mfds_label_writer, "async_sessionmaker", lambda *args, **kwargs: _Sessions())
+    artifact_root = tmp_path / "artifacts"
+    artifact_root.mkdir(mode=0o500)
+    journal_root = _provision_cleanup_journal(tmp_path)
+
+    class _SyntheticOwnerBackedStore:
+        supports_transaction_cleanup = False
+
+        def __init__(self) -> None:
+            self.finalized: list[StoredRawArtifact] = []
+
+        def put_verified(self, **kwargs: object) -> StoredRawArtifact:
+            stored = StoredRawArtifact(
+                page_number=1,
+                metadata=metadata,
+                storage_backend="LOCAL_PRIVATE",
+                object_key=f"sha256/{checksum[:2]}/{checksum}.artifact",
+            )
+            self.finalized.append(stored)
+            return stored
+
+    monkeypatch.setattr(
+        mfds_label_writer,
+        "FinalizingLocalPrivateSourceArtifactStore",
+        lambda **kwargs: _SyntheticOwnerBackedStore(),
+    )
+    config = MfdsLabelWriterConfig(
+        publisher=SourcePublisherConfig(URL.create("postgresql+asyncpg", password="synthetic"), "synthetic-writer"),
+        artifact_reader_root=artifact_root,
+        artifact_finalizer_command=tmp_path / "source591-preserve",
+        cleanup_journal_root=journal_root,
+        identity=SourceOperationIdentity("SYNTHETIC_SOURCE", "SYNTHETIC_ENDPOINT", "SYNTHETIC_OPERATION"),
+        endpoint_receipt_hash="a" * 64,
+    )
+
+    with pytest.raises(RuntimeError, match="synthetic commit failure"):
+        await run_ingestion(
+            config,
+            item_seq="200610660",
+            input_dir=tmp_path,
+            collected_at=datetime(2026, 9, 15, 12, 0, tzinfo=UTC),
+            include_e_drug=False,
+        )
+
+    assert list((journal_root / "requests").iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_product_ingestion_and_env_configs_support_owner_socket_and_suppress_legacy_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from ai_worker.admin import mfds_product_ingestion
+    from ai_worker.admin.knowledge_materialization import MaterializationRunnerConfig
+    from ai_worker.admin.mfds_product_ingestion import MfdsProductIngestionConfig
+
+    owner_env = {
+        **_environment(tmp_path),
+        "SOURCE_ARTIFACT_OWNER_SOCKET": str(tmp_path / "owner.sock"),
+        "SOURCE_ARTIFACT_OWNER_UID": "10010",
+        "SOURCE_ARTIFACT_INTENT_ROOT": str(tmp_path / "intent"),
+        "SOURCE_ACQUISITION_SPOOL_ROOT": str(tmp_path / "spool"),
+        "RAG_MFDS_API_KEY": "synthetic-service-key",
+    }
+    label_cfg = MfdsLabelWriterConfig.from_environment(owner_env)
+    assert label_cfg.owner_client is not None
+    prod_cfg = MfdsProductIngestionConfig.from_environment(owner_env)
+    assert prod_cfg.owner_client is not None
+
+    mat_cfg = MaterializationRunnerConfig.from_environment(
+        {
+            "DB_HOST": "localhost",
+            "DB_PORT": "5432",
+            "DB_NAME": "synthetic",
+            "KNOWLEDGE_INDEX_BUILDER_USER": "builder",
+            "KNOWLEDGE_INDEX_BUILDER_PASSWORD": "secret",
+            "SOURCE_ARTIFACT_STORAGE_BACKEND": "LOCAL_PRIVATE",
+            "SOURCE_ARTIFACT_OWNER_SOCKET": str(tmp_path / "owner.sock"),
+            "SOURCE_ARTIFACT_OWNER_UID": "10010",
+        }
+    )
+    assert mat_cfg.owner_client is not None
+
+    # Verify mfds_product_ingestion.run_ingestion also suppresses legacy cleanup when supports_transaction_cleanup is False
+    raw = b"synthetic-product-page"
+    checksum = hashlib.sha256(raw).hexdigest()
+    metadata = RawArtifactMetadata("product-page-1.json", checksum, len(raw), "application/json")
+    stored = StoredRawArtifact(
+        page_number=1,
+        metadata=metadata,
+        storage_backend="LOCAL_PRIVATE",
+        object_key=f"sha256/{checksum[:2]}/{checksum}.artifact",
+    )
+
+    class _SyntheticOwnerStore:
+        supports_transaction_cleanup = False
+
+        def __init__(self) -> None:
+            self.finalized = [stored]
+
+    class _Transaction:
+        async def __aenter__(self) -> object:
+            return object()
+
+        async def __aexit__(self, exc_type: object, exc: object, traceback: object) -> None:
+            raise RuntimeError("synthetic product commit failure")
+
+    class _Sessions:
+        def begin(self) -> _Transaction:
+            return _Transaction()
+
+    class _Engine:
+        async def dispose(self) -> None:
+            return None
+
+    async def no_validation(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    async def fake_acquire(*_args: object, **_kwargs: object) -> object:
+        return SimpleNamespace(result=SimpleNamespace(record_count=1))
+
+    async def fake_ingest(**_kwargs: object) -> object:
+        return SimpleNamespace(ingestion_run_id=UUID("00000000-0000-4000-8000-000000000999"))
+
+    monkeypatch.setattr(mfds_product_ingestion, "load_product_receipt", lambda **_kwargs: object())
+    monkeypatch.setattr(mfds_product_ingestion, "LocalPrivateSourceArtifactReader", lambda _root: object())
+    monkeypatch.setattr(
+        mfds_product_ingestion, "FinalizingLocalPrivateSourceArtifactStore", lambda **_kwargs: _SyntheticOwnerStore()
+    )
+    monkeypatch.setattr(mfds_product_ingestion, "create_async_engine", lambda *_args, **_kwargs: _Engine())
+    monkeypatch.setattr(mfds_product_ingestion, "async_sessionmaker", lambda *_args, **_kwargs: _Sessions())
+    monkeypatch.setattr(mfds_product_ingestion, "validate_source_publisher_session", no_validation)
+    monkeypatch.setattr(mfds_product_ingestion, "lock_source_artifact_mutation", no_validation)
+    monkeypatch.setattr(mfds_product_ingestion, "_acquire", fake_acquire)
+    monkeypatch.setattr(mfds_product_ingestion, "write_product_report", lambda *_args, **_kwargs: tmp_path / "rep.json")
+    monkeypatch.setattr(mfds_product_ingestion, "build_product_snapshot_metadata", lambda **_kwargs: object())
+    monkeypatch.setattr(mfds_product_ingestion, "ingest_and_persist_mfds_product", fake_ingest)
+
+    journal_root = _provision_cleanup_journal(tmp_path)
+    legacy_prod_cfg = MfdsProductIngestionConfig(
+        publisher=SourcePublisherConfig(URL.create("postgresql+asyncpg", password="synthetic"), "synthetic-writer"),
+        artifact_reader_root=tmp_path / "reader",
+        artifact_finalizer_command=tmp_path / "preserve",
+        cleanup_journal_root=journal_root,
+        spool_root=tmp_path / "spool",
+        secret_value="synthetic-key",
+    )
+    with pytest.raises(RuntimeError, match="synthetic product commit failure"):
+        await mfds_product_ingestion.run_ingestion(
+            legacy_prod_cfg,
+            receipt_path=tmp_path / "receipt.json",
+            repository_root=tmp_path,
+        )
+    assert list((journal_root / "requests").iterdir()) == []

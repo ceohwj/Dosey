@@ -51,17 +51,90 @@ from infra.python.provision_database_roles import (
     RUNTIME_TRACK_C_FOLLOWUP_INSERT_ONLY_TABLES,
     RUNTIME_TRACK_C_FOLLOWUP_TABLES,
     RUNTIME_TRACK_C_FOLLOWUP_UPDATE_COLUMNS,
+    SOURCE_CAPTURE_RUNTIME_READ_TABLES,
     run_provisioning,
 )
 from infra.python.source_management_role_policy import CATALOG_TABLES
 from infra.python.source_role_policy import (
+    SOURCE_PUBLISHER_LOCK_COLUMNS,
     SOURCE_TABLES,
     SOURCE_USE_APPROVAL_TABLES,
-    WRITER_LOCK_TABLES,
     quoted_identifier,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+async def test_candidate_audit_and_capture_current_head_role_boundaries(database) -> None:
+    """The full migration head preserves separate runtime, writer and cleanup ACLs."""
+    from infra.python.provision_database_roles import provision_roles
+
+    admin = database
+    suffix = uuid4().hex[:12]
+    runtime, writer, cleanup, publisher = (
+        f"auditacl_{part}_{suffix}" for part in ("runtime", "writer", "cleanup", "publisher")
+    )
+    password = f"synthetic-{suffix}-only"
+    reader = create_async_engine(admin.url.set(username=runtime, password=password))
+    try:
+        async with admin.begin() as connection:
+            for role in (runtime, writer, cleanup, publisher):
+                await connection.execute(text(f"CREATE ROLE \"{role}\" LOGIN PASSWORD '{password}'"))
+            await provision_roles(
+                connection,
+                owner=config.DB_USER,
+                runtime=runtime,
+                writer=writer,
+                account_withdrawal_cleanup=cleanup,
+                publisher=publisher,
+            )
+        await _assert_runtime_table_privileges(
+            admin,
+            runtime,
+            {
+                "rag_candidate_request_guard_audit": _APPEND_ONLY_PRIVILEGES,
+                "rag_source_capture_observation": _READ_ONLY_PRIVILEGES,
+            },
+        )
+        await _assert_runtime_table_privileges(
+            admin,
+            writer,
+            {
+                "rag_source_capture_observation": {key: False for key in _READ_ONLY_PRIVILEGES},
+                "rag_candidate_request_guard_audit": {key: False for key in _READ_ONLY_PRIVILEGES},
+            },
+        )
+        await _assert_current_source_publisher_acl(admin, writer=writer, publisher=publisher)
+        async with admin.connect() as connection:
+            for table in (
+                "rag_candidate_request_guard_audit",
+                "rag_request_guard_runtime_binding",
+                "rag_request_guard_authority",
+                "rag_request_source_decision",
+                "rag_request_member_decision",
+            ):
+                assert await connection.scalar(
+                    text("SELECT has_table_privilege(:role,:table,'DELETE')"), {"role": cleanup, "table": table}
+                )
+            assert not await connection.scalar(
+                text("SELECT has_table_privilege(:role,'rag_source_capture_observation','DELETE')"), {"role": cleanup}
+            )
+        for sql in (
+            "UPDATE rag_candidate_request_guard_audit SET outcome='FAIL'",
+            "DELETE FROM rag_candidate_request_guard_audit",
+            "INSERT INTO rag_source_capture_observation DEFAULT VALUES",
+        ):
+            with pytest.raises(DBAPIError) as error:
+                async with reader.begin() as connection:
+                    await connection.execute(text(sql))
+            assert error.value.orig.sqlstate == "42501"
+    finally:
+        await reader.dispose()
+        async with admin.begin() as connection:
+            for role in (runtime, writer, cleanup, publisher):
+                await connection.execute(text(f'DROP OWNED BY "{role}"'))
+                await connection.execute(text(f'DROP ROLE IF EXISTS "{role}"'))
+
 
 # Runtime append-only 표에 기대하는 권한. 이력은 남기되 고쳐 쓰지 않는다.
 _APPEND_ONLY_PRIVILEGES = {
@@ -186,14 +259,15 @@ async def _create_role_fixture_table(connection, table: str) -> None:
     await connection.execute(text(f'CREATE TABLE "{table}" (id integer PRIMARY KEY)'))
 
 
-async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions() -> None:
+async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("ISSUE398_ALEMBIC_CWD", str(tmp_path))
     container = os.environ.get("ISSUE398_TEST_POSTGRES_CONTAINER")
     if not container or not shutil.which("docker"):
         pytest.skip("Requires an explicitly selected disposable PostgreSQL container")
     suffix = uuid4().hex[:12]
     database = f"provision398_{suffix}"
-    owner, runtime, writer, cleanup = (
-        f"provision398_{part}_{suffix}" for part in ("owner", "runtime", "writer", "cleanup")
+    owner, runtime, writer, cleanup, publisher = (
+        f"provision398_{part}_{suffix}" for part in ("owner", "runtime", "writer", "cleanup", "publisher")
     )
     password = "synthetic-provision398-only"
     url = URL.create(
@@ -221,6 +295,8 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
         "DB_APP_PASSWORD": password,
         "SOURCE_WRITER_USER": writer,
         "SOURCE_WRITER_PASSWORD": password,
+        "SOURCE_PUBLISHER_USER": publisher,
+        "SOURCE_PUBLISHER_PASSWORD": password,
         "ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE": cleanup,
         "ACCOUNT_WITHDRAWAL_CLEANUP_DB_PASSWORD": password,
     }
@@ -235,6 +311,8 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
             "DB_APP_PASSWORD",
             "SOURCE_WRITER_USER",
             "SOURCE_WRITER_PASSWORD",
+            "SOURCE_PUBLISHER_USER",
+            "SOURCE_PUBLISHER_PASSWORD",
             "ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE",
             "ACCOUNT_WITHDRAWAL_CLEANUP_DB_PASSWORD",
         ):
@@ -276,6 +354,7 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
                 | CATALOG_APPROVAL_READ_TABLES
                 | KNOWLEDGE_INDEX_RUNTIME_READ_TABLES
                 | CANDIDATE_INDEX_RUNTIME_READ_TABLES
+                | SOURCE_CAPTURE_RUNTIME_READ_TABLES
                 | set(SOURCE_TABLES)
                 | set(SOURCE_USE_APPROVAL_TABLES)
                 | set(RUNTIME_AUTH_UPDATE_COLUMNS)
@@ -297,11 +376,9 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
                     "ALTER TABLE rag_source_snapshot ADD COLUMN verification_status text, ADD COLUMN verified_at timestamptz, ADD COLUMN effective_at timestamptz, ADD COLUMN verification_seal_id char(36)"
                 )
             )
-            for table in WRITER_LOCK_TABLES:
+            for table, column in SOURCE_PUBLISHER_LOCK_COLUMNS.items():
                 await connection.execute(
-                    text(
-                        f"ALTER TABLE {table} ADD COLUMN knowledge_index_lock_marker integer NOT NULL DEFAULT 0 CHECK (knowledge_index_lock_marker=0)"
-                    )
+                    text(f"ALTER TABLE {table} ADD COLUMN {column} integer NOT NULL DEFAULT 0 CHECK ({column}=0)")
                 )
             await connection.execute(
                 text(
@@ -349,8 +426,9 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
             await connection.execute(text("UPDATE lifestyle_times SET id=2"))
             await connection.execute(text("DELETE FROM push_delivery"))
             await _exercise_track_c_runtime_writes(connection)
-        async with producer.begin() as connection:
+        async with admin.begin() as connection:
             await connection.execute(text("INSERT INTO rag_source_snapshot (id) VALUES (1)"))
+        async with producer.begin() as connection:
             await connection.execute(text("INSERT INTO rag_source_use_approval (id) VALUES (1)"))
             await connection.execute(text("UPDATE rag_source_use_approval SET revoked_reason='policy change'"))
             await connection.execute(text("UPDATE rag_source_snapshot SET verified_at=now()"))
@@ -515,8 +593,9 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
             await connection.execute(text("DROP TABLE checkin_audit"))
         with pytest.raises(ValueError, match="Required application tables"):
             await run_provisioning(environment)
+        await denied(producer, "INSERT INTO rag_source_snapshot (id) VALUES (4)")
         async with producer.begin() as connection:
-            await connection.execute(text("INSERT INTO rag_source_snapshot (id) VALUES (4)"))
+            await connection.execute(text("INSERT INTO rag_source_snapshot_verification VALUES (4)"))
         # Full applied migration history still contains the old transition function.
         # Provisioning must reject it, without requiring a newly defined test function.
         async with admin.begin() as connection:
@@ -524,7 +603,7 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
             await connection.execute(text("CREATE SCHEMA public"))
         migrated = subprocess.run(
             [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398b2c3d4e5f"],
-            cwd=ROOT,
+            cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
             env={**os.environ, "DB_NAME": database},
             capture_output=True,
             text=True,
@@ -542,7 +621,7 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions()
         await admin.dispose()
         async with cluster.connect() as connection:
             await connection.execute(text(f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)'))
-            for role in (cleanup, writer, runtime, owner):
+            for role in (cleanup, publisher, writer, runtime, owner):
                 await connection.execute(text(f'DROP ROLE IF EXISTS "{role}"'))
         await cluster.dispose()
 
@@ -604,7 +683,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
         )
     failed = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398c3d4e5f60"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
         text=True,
@@ -628,7 +707,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
         await connection.execute(text("DROP VIEW source_cutover_dependency"))
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398c3d4e5f60"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
         text=True,
@@ -679,7 +758,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
         assert error.value.orig.sqlstate == "42501"
     rollback = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398b2c3d4e5f"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
         text=True,
@@ -704,7 +783,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
 
     current = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "head"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
         text=True,
@@ -731,7 +810,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
         await connection.execute(text("CREATE SCHEMA public"))
     fresh = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "head"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
         text=True,
@@ -777,7 +856,7 @@ async def _exercise_audit_cutover(admin, reader, producer, environment):
             await connection.execute(text(f'GRANT UPDATE (id) ON {table} TO "{runtime}"'))
     migration = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398d4e5f6071"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -910,7 +989,7 @@ async def _exercise_audit_cutover(admin, reader, producer, environment):
     assert error.value.orig.sqlstate == "42501"
     rollback = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398c3d4e5f60"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1022,7 +1101,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
         await connection.execute(text("ALTER TABLE prescription_version ENABLE TRIGGER ALL"))
     invalid_prescription = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1063,7 +1142,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
         await connection.execute(text("ALTER TABLE medication_candidate_search ENABLE TRIGGER ALL"))
     invalid_candidate = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1080,7 +1159,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
         await connection.execute(text("ALTER TABLE medication_candidate_search ENABLE TRIGGER ALL"))
     migration = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1149,7 +1228,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
             assert error.value.orig.sqlstate == "42501"
     rollback = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398d4e5f6071"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1162,7 +1241,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
 async def _assert_runtime_transition_revisions_are_sealed(admin, environment_id: str, environment) -> None:
     downgrade = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398e5f607182"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1181,7 +1260,7 @@ async def _assert_runtime_transition_revisions_are_sealed(admin, environment_id:
         )
     rejected = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -1197,7 +1276,7 @@ async def _assert_runtime_transition_revisions_are_sealed(admin, environment_id:
         )
     upgrade = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
-        cwd=ROOT,
+        cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
         text=True,
@@ -2846,8 +2925,8 @@ async def test_catalog_approval_bootstrap_login_provisions_and_validates(databas
 
     admin = database
     suffix = uuid4().hex[:12]
-    owner, runtime, writer, approval = (
-        f"boot862_{part}_{suffix}" for part in ("owner", "runtime", "writer", "approval")
+    owner, runtime, writer, approval, publisher = (
+        f"boot862_{part}_{suffix}" for part in ("owner", "runtime", "writer", "approval", "publisher")
     )
     password = f"synthetic-{suffix}-only"
     environment = {
@@ -2857,6 +2936,8 @@ async def test_catalog_approval_bootstrap_login_provisions_and_validates(databas
         "DB_APP_PASSWORD": password,
         "SOURCE_WRITER_USER": writer,
         "SOURCE_WRITER_PASSWORD": password,
+        "SOURCE_PUBLISHER_USER": publisher,
+        "SOURCE_PUBLISHER_PASSWORD": password,
         "CATALOG_APPROVAL_USER": approval,
         "CATALOG_APPROVAL_PASSWORD": password,
     }
@@ -2941,6 +3022,41 @@ async def test_catalog_approval_bootstrap_login_provisions_and_validates(databas
     finally:
         await approval_engine.dispose()
         async with admin.begin() as connection:
-            for role in (approval, writer, runtime, owner):
+            for role in (approval, publisher, writer, runtime, owner):
                 await connection.execute(text(f'DROP OWNED BY "{role}"'))
                 await connection.execute(text(f'DROP ROLE IF EXISTS "{role}"'))
+
+
+async def _assert_current_source_publisher_acl(admin, *, writer, publisher):
+    """Check the real migration's marker names and exact Publisher business boundary."""
+    async with admin.connect() as connection:
+        for table in SOURCE_TABLES:
+            for privilege in ("SELECT", "INSERT"):
+                assert await connection.scalar(
+                    text("SELECT has_table_privilege(:role,:table,:privilege)"),
+                    {"role": publisher, "table": table, "privilege": privilege},
+                )
+            for privilege in ("UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"):
+                assert not await connection.scalar(
+                    text("SELECT has_table_privilege(:role,:table,:privilege)"),
+                    {"role": publisher, "table": table, "privilege": privilege},
+                )
+        for table, column in SOURCE_PUBLISHER_LOCK_COLUMNS.items():
+            assert await connection.scalar(
+                text("SELECT has_column_privilege(:role,:table,:column,'UPDATE')"),
+                {"role": publisher, "table": table, "column": column},
+            )
+        for table in (
+            "rag_source_snapshot",
+            "rag_source_snapshot_member",
+            "rag_source_ingestion_run",
+            "rag_source_ingestion_artifact",
+        ):
+            assert not await connection.scalar(
+                text("SELECT has_any_column_privilege(:role,:table,'INSERT')"), {"role": writer, "table": table}
+            )
+        for table in ("rag_source_use_approval", "rag_medication_product", "rag_knowledge_index"):
+            assert not await connection.scalar(
+                text("SELECT has_table_privilege(:role,:table,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')"),
+                {"role": publisher, "table": table},
+            )

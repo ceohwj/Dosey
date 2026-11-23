@@ -49,6 +49,7 @@ def test_finalizer_preserves_stdin_and_removes_owned_temporary_file(
         {"SOURCE_ARTIFACT_LOCAL_ROOT": "relative"},
         {"SOURCE_ARTIFACT_FINALIZER_STAGING_ROOT": "relative"},
         {"SOURCE_WRITER_PASSWORD": "mixed-secret"},
+        {"SOURCE_PUBLISHER_PASSWORD": "mixed-secret"},
         {"SOURCE_CLEANUP_EXECUTOR_PASSWORD": "mixed-secret"},
     ],
 )

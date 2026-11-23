@@ -293,6 +293,7 @@ async def ingest_and_persist_mfds_detail(
     failed_metadata = FailedIngestionRunMetadata(
         metadata.run_group_key, metadata.attempt_number, metadata.started_at, metadata.finished_at, metadata.duration_ms
     )
+    await repository.lock_artifact_publication()
     try:
         stored = (
             preserve_raw_artifacts(artifacts=acquisition.artifacts, store=artifact_store)
@@ -303,10 +304,8 @@ async def ingest_and_persist_mfds_detail(
         raise RuntimeError("MFDS detail raw preservation failed; caller must roll back.") from None
     if acquisition.result.status is not SourceRunStatus.SUCCEEDED:
         failure = await record_source_run_failure(
-            repository=repository, result=acquisition.result, metadata=failed_metadata
+            repository=repository, result=acquisition.result, metadata=failed_metadata, artifacts=stored
         )
-        if stored:
-            await repository.create_artifacts(ingestion_run_id=failure.ingestion_run_id, artifacts=stored)
         return failure
     try:
         ingestion, _ = build_detail_ingestion_result(
@@ -339,6 +338,6 @@ async def ingest_and_persist_mfds_detail(
             source_version=metadata.source_version,
             external_version=metadata.external_version,
             canonical_contract=attempt_canonical_contract(ingestion=ingestion, metadata=metadata),
+            artifacts=stored,
         )
-        await repository.create_artifacts(ingestion_run_id=failure.ingestion_run_id, artifacts=stored)
         return failure

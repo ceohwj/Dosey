@@ -67,16 +67,13 @@ class FailedIngestionRunResult:
 
 
 class FailedRunRepository(Protocol):
+    async def lock_artifact_publication(self) -> None: ...
+
     async def lock_operation(self, identity: SourceOperationIdentity) -> UUID: ...
 
-    async def create_run(self, record: SnapshotRunRecord) -> UUID: ...
-
-    async def create_artifacts(
-        self,
-        *,
-        ingestion_run_id: UUID,
-        artifacts: tuple[StoredRawArtifact, ...],
-    ) -> None: ...
+    async def persist_complete_attempt(
+        self, record: SnapshotRunRecord, artifacts: tuple[StoredRawArtifact, ...]
+    ) -> UUID: ...
 
 
 async def record_source_run_failure(
@@ -84,6 +81,7 @@ async def record_source_run_failure(
     repository: FailedRunRepository,
     result: SourceRunResult,
     metadata: FailedIngestionRunMetadata,
+    artifacts: tuple[StoredRawArtifact, ...] = (),
 ) -> FailedIngestionRunResult:
     """Provider 수집 실패를 부분 page나 Snapshot 없이 기록합니다."""
     if result.status is SourceRunStatus.SUCCEEDED or result.failure is None:
@@ -100,7 +98,7 @@ async def record_source_run_failure(
         identity=result.operation,
         metadata=metadata,
         failure_code=result.failure.code.value,
-        artifacts=(),
+        artifacts=artifacts,
         validation_reason_code=(
             COLLECTION_EMPTY_RESULT if result.failure.code is SourceFailureCode.EMPTY_RESULT else None
         ),
@@ -147,8 +145,9 @@ async def _record_failed_run(
     artifacts: tuple[StoredRawArtifact, ...],
     validation_reason_code: str | None = None,
 ) -> FailedIngestionRunResult:
+    await repository.lock_artifact_publication()
     operation_id = await repository.lock_operation(identity)
-    ingestion_run_id = await repository.create_run(
+    ingestion_run_id = await repository.persist_complete_attempt(
         SnapshotRunRecord(
             operation_id=operation_id,
             snapshot_id=None,
@@ -161,13 +160,9 @@ async def _record_failed_run(
             failure_code=failure_code,
             reject_code_contract_version=metadata.reject_code_contract_version,
             validation_reason_code=validation_reason_code,
-        )
+        ),
+        artifacts,
     )
-    if artifacts:
-        await repository.create_artifacts(
-            ingestion_run_id=ingestion_run_id,
-            artifacts=artifacts,
-        )
     return FailedIngestionRunResult(operation_id, ingestion_run_id, failure_code)
 
 
@@ -200,6 +195,7 @@ async def record_source_version_failure(
     source_version: str,
     external_version: str | None,
     canonical_contract: dict[str, str | int],
+    artifacts: tuple[StoredRawArtifact, ...] = (),
 ) -> FailedIngestionRunResult:
     """Persist a failed attempt without raw malformed version or exception text."""
     checksum = canonical_contract.get("canonical_checksum")
@@ -229,8 +225,9 @@ async def record_source_version_failure(
             build_external_source_version(external_version=safe_external)
         except SourceVersionValidationError:
             safe_external = None
+    await repository.lock_artifact_publication()
     operation_id = await repository.lock_operation(identity)
-    run_id = await repository.create_run(
+    run_id = await repository.persist_complete_attempt(
         SnapshotRunRecord(
             operation_id=operation_id,
             snapshot_id=None,
@@ -248,6 +245,7 @@ async def record_source_version_failure(
             invalid_source_version_sha256=invalid_hash,
             invalid_source_version_byte_length=invalid_length,
             validation_reason_code=failure_code,
-        )
+        ),
+        artifacts,
     )
     return FailedIngestionRunResult(operation_id, run_id, failure_code)

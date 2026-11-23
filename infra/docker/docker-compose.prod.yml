@@ -56,6 +56,9 @@ services:
       DB_APP_PASSWORD: ${DB_APP_PASSWORD}
       SOURCE_WRITER_USER: ${SOURCE_WRITER_USER}
       SOURCE_WRITER_PASSWORD: ${SOURCE_WRITER_PASSWORD}
+      SOURCE_PUBLISHER_USER: ${SOURCE_PUBLISHER_USER}
+      SOURCE_PUBLISHER_PASSWORD: ${SOURCE_PUBLISHER_PASSWORD}
+      SOURCE_MANAGEMENT_USER: ${SOURCE_MANAGEMENT_USER:-}
       KNOWLEDGE_INDEX_BUILDER_USER: ${KNOWLEDGE_INDEX_BUILDER_USER:-}
       KNOWLEDGE_INDEX_BUILDER_PASSWORD: ${KNOWLEDGE_INDEX_BUILDER_PASSWORD:-}
       ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE: ${ACCOUNT_WITHDRAWAL_CLEANUP_DB_ROLE:-}
@@ -160,6 +163,7 @@ services:
       DB_MIGRATION_USER: ${DB_MIGRATION_USER}
       DB_APP_USER: ${DB_APP_USER}
       SOURCE_WRITER_USER: ${SOURCE_WRITER_USER}
+      SOURCE_PUBLISHER_USER: ${SOURCE_PUBLISHER_USER}
       SOURCE_MANAGEMENT_USER: ${SOURCE_MANAGEMENT_USER:-}
       CATALOG_WRITER_USER: ${CATALOG_WRITER_USER:-}
       CATALOG_APPROVAL_USER: ${CATALOG_APPROVAL_USER:-}
@@ -495,6 +499,7 @@ services:
       DB_USER: ${SOURCE_MANAGEMENT_USER:-}
       DB_PASSWORD: ${SOURCE_MANAGEMENT_PASSWORD:-}
       SOURCE_MANAGEMENT_USER: ${SOURCE_MANAGEMENT_USER:-}
+      SOURCE_PUBLISHER_USER: ${SOURCE_PUBLISHER_USER}
       SQLALCHEMY_ECHO: "false"
     networks:
       - ws
@@ -514,6 +519,7 @@ services:
       DB_APP_USER: ${DB_APP_USER}
       SOURCE_WRITER_USER: ${SOURCE_WRITER_USER}
       SOURCE_MANAGEMENT_USER: ${SOURCE_MANAGEMENT_USER:-}
+      SOURCE_PUBLISHER_USER: ${SOURCE_PUBLISHER_USER}
       SOURCE_MANAGEMENT_PASSWORD: ${SOURCE_MANAGEMENT_PASSWORD:-}
     volumes:
       - ./postgres/configure-management-role.sql:/admin/configure-management-role.sql:ro
@@ -548,6 +554,64 @@ services:
       SOURCE_WRITER_USER: ${SOURCE_WRITER_USER:-}
       SOURCE_WRITER_PASSWORD: ${SOURCE_WRITER_PASSWORD:-}
       SOURCE_WRITER_ACTOR: ${SOURCE_WRITER_ACTOR:-}
+    networks:
+      - ws
+
+  # Trusted Source aggregate publisher: explicit one-shot only; no automatic ingestion.
+  # NOT_RUN/unprepared until the trusted client and separate artifact-owner ACLs are configured.
+  # UID/GID 10001 is dedicated to publishing; the read-only client must have a different owner.
+  # The client hands off to the separately controlled artifact owner; no owner mechanism is supplied here.
+  # Its env={} child contract is preserved; the publisher cannot write the final artifact mount.
+  source-publisher:
+    profiles: ["source-publisher-admin"]
+    image: ${DOCKER_USER}/${DOCKER_REPOSITORY}:ai-${AI_WORKER_VERSION}
+    restart: "no"
+    user: "10001:10001"
+    entrypoint: ["uv", "run", "--no-sync", "python", "-m", "ai_worker.admin.mfds_product_ingestion"]
+    command: ["--receipt-path", "/publisher-input/receipt.json", "--repository-root", "/publisher-input"]
+    environment:
+      SOURCE_PUBLISHER_HOST: postgres
+      SOURCE_PUBLISHER_PORT: "5432"
+      SOURCE_PUBLISHER_NAME: ${DB_NAME}
+      SOURCE_PUBLISHER_USER: ${SOURCE_PUBLISHER_USER:-}
+      SOURCE_PUBLISHER_PASSWORD: ${SOURCE_PUBLISHER_PASSWORD:-}
+      SOURCE_PUBLISHER_ACTOR: ${SOURCE_PUBLISHER_ACTOR:-}
+      SOURCE_ARTIFACT_STORAGE_BACKEND: LOCAL_PRIVATE
+      SOURCE_ARTIFACT_READER_ROOT: /artifacts
+      SOURCE_ARTIFACT_FINALIZER_COMMAND: /publisher-bin/source-artifact-finalizer
+      SOURCE_CLEANUP_JOURNAL_ROOT: /publisher-journal
+      SOURCE_ACQUISITION_SPOOL_ROOT: /publisher-spool
+      UV_CACHE_DIR: /publisher-spool/uv-cache
+      RAG_MFDS_API_KEY: ${RAG_MFDS_API_KEY:-}
+    volumes:
+      - type: bind
+        source: ${SOURCE_PUBLISHER_FINALIZER_HOST_PATH:-/dev/null}
+        target: /publisher-bin/source-artifact-finalizer
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SOURCE_PUBLISHER_INPUT_HOST_ROOT:-/dev/null}
+        target: /publisher-input
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${CATALOG_SOURCE_ARTIFACT_HOST_ROOT:-/dev/null}
+        target: /artifacts
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SOURCE_PUBLISHER_JOURNAL_HOST_ROOT:-/dev/null}
+        target: /publisher-journal
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SOURCE_PUBLISHER_SPOOL_HOST_ROOT:-/dev/null}
+        target: /publisher-spool
+        bind:
+          create_host_path: false
     networks:
       - ws
 

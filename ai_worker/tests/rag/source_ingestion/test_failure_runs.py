@@ -68,22 +68,25 @@ class RecordingRepository:
         self.locked: list[SourceOperationIdentity] = []
         self.runs: list[SnapshotRunRecord] = []
         self.artifacts: dict[UUID, tuple[StoredRawArtifact, ...]] = {}
+        self.publication_locked = False
+
+    async def lock_artifact_publication(self) -> None:
+        self.publication_locked = True
 
     async def lock_operation(self, identity: SourceOperationIdentity) -> UUID:
+        assert self.publication_locked
         self.locked.append(identity)
         return _OPERATION_ID
 
-    async def create_run(self, record: SnapshotRunRecord) -> UUID:
+    async def persist_complete_attempt(
+        self, record: SnapshotRunRecord, artifacts: tuple[StoredRawArtifact, ...]
+    ) -> UUID:
+        assert self.publication_locked
         self.runs.append(record)
-        return uuid4()
-
-    async def create_artifacts(
-        self,
-        *,
-        ingestion_run_id: UUID,
-        artifacts: tuple[StoredRawArtifact, ...],
-    ) -> None:
-        self.artifacts[ingestion_run_id] = artifacts
+        ingestion_run_id = uuid4()
+        if artifacts:
+            self.artifacts[ingestion_run_id] = artifacts
+        return ingestion_run_id
 
 
 def _failed_source_run() -> SourceRunResult:

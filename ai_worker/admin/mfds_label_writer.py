@@ -16,11 +16,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from ai_worker.adapters.local_private_source_artifact_finalizer import (
     FinalizingLocalPrivateSourceArtifactStore,
     LocalPrivateSourceArtifactReader,
+    OwnerBackedSourceArtifactReader,
+    OwnerBackedSourceArtifactStore,
+    OwnerClientConfig,
+    SourceArtifactReader,
 )
 from ai_worker.adapters.local_private_source_cleanup import LocalPrivateCleanupRequestJournal
 from ai_worker.adapters.sqlalchemy_orphan_artifact_references import lock_source_artifact_mutation
 from ai_worker.adapters.sqlalchemy_source_snapshot_repository import SqlAlchemySourceSnapshotRepository
-from ai_worker.admin.source_writer import WriterConfig, validate_source_writer_session
+from ai_worker.admin.source_publisher import SourcePublisherConfig, validate_source_publisher_session
 from ai_worker.tasks.rag.source_cleanup.orphan_artifact import CleanupRequest, CleanupTarget
 from ai_worker.tasks.rag.source_client.contracts import SourceOperationIdentity
 from ai_worker.tasks.rag.source_ingestion.artifacts import (
@@ -45,20 +49,50 @@ _CHECKSUM_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 
 @dataclass(frozen=True, slots=True)
 class MfdsLabelWriterConfig:
-    writer: WriterConfig = field(repr=False)
+    publisher: SourcePublisherConfig = field(repr=False)
     artifact_reader_root: Path = field(repr=False)
     artifact_finalizer_command: Path = field(repr=False)
     cleanup_journal_root: Path = field(repr=False)
     identity: SourceOperationIdentity
     endpoint_receipt_hash: str = field(repr=False)
+    owner_client: OwnerClientConfig | None = field(default=None, repr=False)
 
     @classmethod
     def from_environment(cls, env: Mapping[str, str]) -> "MfdsLabelWriterConfig":
-        writer = WriterConfig.from_environment(env)
+        publisher = SourcePublisherConfig.from_environment(env)
         if env.get("SOURCE_ARTIFACT_STORAGE_BACKEND") != LOCAL_PRIVATE_STORAGE_BACKEND:
             raise ValueError("MFDS label ingestion requires LOCAL_PRIVATE artifact storage")
         if env.get("SOURCE_ARTIFACT_LOCAL_ROOT"):
             raise ValueError("MFDS label writer must not receive the writable final artifact root")
+        values = {
+            name: env.get(name, "")
+            for name in ("MFDS_LABEL_SOURCE_CODE", "MFDS_LABEL_ENDPOINT_CODE", "MFDS_LABEL_OPERATION_CODE")
+        }
+        if any(_CODE_PATTERN.fullmatch(value) is None for value in values.values()):
+            raise ValueError("MFDS label Source identity is incomplete or invalid")
+        receipt_hash = env.get("MFDS_LABEL_ENDPOINT_RECEIPT_HASH", "")
+        if _CHECKSUM_PATTERN.fullmatch(receipt_hash) is None:
+            raise ValueError("MFDS label Endpoint Receipt hash is invalid")
+        identity = SourceOperationIdentity(
+            values["MFDS_LABEL_SOURCE_CODE"],
+            values["MFDS_LABEL_ENDPOINT_CODE"],
+            values["MFDS_LABEL_OPERATION_CODE"],
+        )
+        if env.get("SOURCE_ARTIFACT_OWNER_SOCKET", "").strip():
+            owner_client = OwnerClientConfig.from_environment(env, require_intent_root=True)
+            return cls(
+                publisher=publisher,
+                artifact_reader_root=Path(env.get("SOURCE_ARTIFACT_READER_ROOT", "/nonexistent/owner-vault")),
+                artifact_finalizer_command=Path(
+                    env.get("SOURCE_ARTIFACT_FINALIZER_COMMAND", "/nonexistent/owner-finalizer")
+                ),
+                cleanup_journal_root=Path(
+                    env.get("SOURCE_CLEANUP_JOURNAL_ROOT", "/nonexistent/owner-cleanup-disabled")
+                ),
+                identity=identity,
+                endpoint_receipt_hash=receipt_hash,
+                owner_client=owner_client,
+            )
         reader_root_value = env.get("SOURCE_ARTIFACT_READER_ROOT", "")
         reader_root = Path(reader_root_value)
         if not reader_root_value.strip() or not reader_root.is_absolute():
@@ -75,25 +109,12 @@ class MfdsLabelWriterConfig:
             or _paths_overlap(cleanup_root, reader_root)
         ):
             raise ValueError("MFDS label ingestion requires a separate absolute cleanup journal root")
-        values = {
-            name: env.get(name, "")
-            for name in ("MFDS_LABEL_SOURCE_CODE", "MFDS_LABEL_ENDPOINT_CODE", "MFDS_LABEL_OPERATION_CODE")
-        }
-        if any(_CODE_PATTERN.fullmatch(value) is None for value in values.values()):
-            raise ValueError("MFDS label Source identity is incomplete or invalid")
-        receipt_hash = env.get("MFDS_LABEL_ENDPOINT_RECEIPT_HASH", "")
-        if _CHECKSUM_PATTERN.fullmatch(receipt_hash) is None:
-            raise ValueError("MFDS label Endpoint Receipt hash is invalid")
         return cls(
-            writer=writer,
+            publisher=publisher,
             artifact_reader_root=reader_root,
             artifact_finalizer_command=finalizer_command,
             cleanup_journal_root=cleanup_root,
-            identity=SourceOperationIdentity(
-                values["MFDS_LABEL_SOURCE_CODE"],
-                values["MFDS_LABEL_ENDPOINT_CODE"],
-                values["MFDS_LABEL_OPERATION_CODE"],
-            ),
+            identity=identity,
             endpoint_receipt_hash=receipt_hash,
         )
 
@@ -204,21 +225,33 @@ async def run_ingestion(
         finished_at=finished_at,
         collected_at=collected_at,
         duration_ms=max(0, int((finished_at - started_at).total_seconds() * 1000)),
-        verified_by=config.writer.actor,
+        verified_by=config.publisher.actor,
     )
-    artifact_reader = LocalPrivateSourceArtifactReader(config.artifact_reader_root)
-    artifact_store = FinalizingLocalPrivateSourceArtifactStore(
-        finalizer_command=config.artifact_finalizer_command,
-        reader=artifact_reader,
+    artifact_reader: SourceArtifactReader
+    if config.owner_client is not None:
+        owner_reader = OwnerBackedSourceArtifactReader(config.owner_client)
+        artifact_reader = owner_reader
+        artifact_store: FinalizingLocalPrivateSourceArtifactStore | OwnerBackedSourceArtifactStore = (
+            OwnerBackedSourceArtifactStore(config.owner_client, reader=owner_reader)
+        )
+    else:
+        artifact_reader = LocalPrivateSourceArtifactReader(config.artifact_reader_root)
+        artifact_store = FinalizingLocalPrivateSourceArtifactStore(
+            finalizer_command=config.artifact_finalizer_command,
+            reader=artifact_reader,
+        )
+    cleanup_journal: LocalPrivateCleanupRequestJournal | None = (
+        LocalPrivateCleanupRequestJournal(config.cleanup_journal_root)
+        if getattr(artifact_store, "supports_transaction_cleanup", True)
+        else None
     )
-    cleanup_journal = LocalPrivateCleanupRequestJournal(config.cleanup_journal_root)
-    engine = create_async_engine(config.writer.url, hide_parameters=True)
+    engine = create_async_engine(config.publisher.url, hide_parameters=True)
     try:
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         attempted_run_id: UUID | None = None
         try:
             async with sessions.begin() as session:
-                await validate_source_writer_session(session)
+                await validate_source_publisher_session(session)
                 await lock_source_artifact_mutation(session)
                 persistence = await persist_mfds_label_plan(
                     plan=plan,
@@ -228,19 +261,20 @@ async def run_ingestion(
                 )
                 attempted_run_id = persistence.persistence.ingestion_run_id
         except Exception:
-            cleanup_request_id = record_transaction_cleanup_request(
-                journal=cleanup_journal,
-                run_group_key=run_group_key,
-                ingestion_run_id=attempted_run_id,
-                stored_artifacts=artifact_store.finalized,
-                requested_at=datetime.now(UTC),
-            )
-            if cleanup_request_id is not None:
-                raise MfdsLabelTransactionCleanupRequiredError(cleanup_request_id) from None
+            if cleanup_journal is not None and getattr(artifact_store, "supports_transaction_cleanup", True):
+                cleanup_request_id = record_transaction_cleanup_request(
+                    journal=cleanup_journal,
+                    run_group_key=run_group_key,
+                    ingestion_run_id=attempted_run_id,
+                    stored_artifacts=artifact_store.finalized,
+                    requested_at=datetime.now(UTC),
+                )
+                if cleanup_request_id is not None:
+                    raise MfdsLabelTransactionCleanupRequiredError(cleanup_request_id) from None
             raise
         try:
             async with sessions() as session:
-                await validate_source_writer_session(session)
+                await validate_source_publisher_session(session)
                 requery = await requery_mfds_label_persistence(
                     plan=plan,
                     receipt=persistence,

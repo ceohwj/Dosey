@@ -315,7 +315,7 @@ PD-362의 checksum·schema/parser/normalization/canonicalization version·Endpoi
 `record_source_version_failure`는 Snapshot metadata 생성 전 장문·제어문자 입력 실패에도 사용할 수 있다.
 원본 보존·저장 orchestration은 version 실패를 해당 감사 경로로 연결하고 Artifact를 쓰지 않는다.
 Run Receipt 조회는 Snapshot을 역으로 추정하지 않는다. Snapshot·Run·Artifact는 호출자 transaction에 속한다.
-Source Writer의 기존 Run 상태 갱신은 명시한 lifecycle 컬럼에만 허용하고 신규 시도 provenance UPDATE는 허용하지 않는다.
+Source 발행 경로는 아래 2026-11-05 B1 합성 내부 개정 범위에서 별도 publisher가 terminal Run payload와 시도 provenance를 최초 INSERT에 기록하고 이후 UPDATE하지 않는다. 기존 Writer의 Run INSERT는 회수하며 Run UPDATE는 기존 행 잠금용 `knowledge_index_lock_marker`에만 허용한다. 종전 lifecycle 컬럼 수정 권한은 제거된 상태를 유지한다.
 
 
 ### #436 리뷰 반영: invalid Version 감사와 Attempt 판정
@@ -354,3 +354,39 @@ Run 자체의 저장·감사 내역을 제거하는 동작은 아니다. 신규 
 [proposed 계약](../../proposed/source-attempt-receipt-436.md)과
 [PD-362-R2](../../../governance/decisions/2026-09-11-source-attempt-receipt-failures.md)를 따른다.
 추가 COLLECTION_FAILED와 EMPTY_RESULT 계열 구분은 담당 재리뷰 대상이며 승인 완료로 간주하지 않는다.
+
+
+## Source run·artifact 원자 발행 — 합성 내부 개정 (2026-11-04)
+
+[Owner 승인 Decision](../../../governance/decisions/2026-11-04-source-run-artifact-close.md)의 C1–C6을 합성 내부 계약으로 확정한다. Python Writer의 `persist_complete_attempt(record, artifacts) -> UUID`가 내부 새 UUID의 run·전체 raw/reject artifact를 하나의 savepoint에 저장한다. caller가 전체 Source aggregate의 outer commit/rollback을 소유한다. 완료 경계는 outer commit이며 기존 `finished_at`·NO_CHANGE·terminal 상태·실패 receipt 의미를 바꾸지 않는다. 이미 존재하는 run에 append하는 지원 API는 제거한다.
+
+기존 global artifact mutation 잠금은 permanent put부터 참조 commit까지 모든 지원 발행 경로가 참여한다. global → Operation의 blocking 순서와 Source acquisition의 nonblocking try-lock을 보존한다. 기존 성공 재시도·원본 hash·과거 run을 재작성하지 않는다. 이 개정은 신뢰된 Python Writer 경계이며 직접 Writer SQL의 조건부 DB 차단·schema·운영 수치·실제 Source/공개 승인이 아니다. 구현/합성 PostgreSQL 증거는 후속 검증 기록으로 구분하며 Current로 승격하지 않는다.
+
+[합성 구현·검증 기록](../../../testing/source-run-artifact-close-20261104.md)에 원자 저장·실패 보존·실제 역할·두 세션 경합 및 한계를 기록했다. 실제 Source 정책/운영·공개/Current 승격과 구분한다.
+
+## Source Writer run 최소 권한 — 합성 내부 개정 (2026-11-05)
+
+[Owner Decision](../../../governance/decisions/2026-11-05-source-writer-run-privileges.md)에 따라 Source Writer의 `rag_source_ingestion_run` UPDATE를 기존 zero CHECK·NOT NULL의 `knowledge_index_lock_marker` 열로 제한한다. 기존 `snapshot_id`, `run_status`, `failure_code`, `failure_message`, `duration_ms`, `finished_at` UPDATE는 제거한다. terminal run은 최초 INSERT로 저장하며 ARTIFACT SnapshotMember provenance 행 잠금은 marker 권한으로 유지한다. 별도 Knowledge Index Builder의 기존 provenance 잠금/권한은 변경하지 않는다.
+
+이는 A 단계의 합성 내부 권한 계약 축소다. 기존 Python 원자 발행·outer transaction·실패 원본·NO_CHANGE·capture exact-read/hash·Candidate 성공 재시도·기술적 안전 규칙은 유지한다. A 단계에서는 Writer artifact INSERT가 남았으며, 아래 B1에서 발행 login을 분리한다. 새 schema/migration·DTO·Trigger/RLS/업무 DB 함수·실제 Source·운영 적용·공개/Current 승격을 포함하지 않는다. [A 단계 합성 검증 기록](../../../testing/source-writer-role-boundary-20261105.md)은 당시 실행 결과다.
+
+## Source aggregate publisher B1 — 합성 내부 개정 (2026-11-05)
+
+[Owner Decision](../../../governance/decisions/2026-11-05-source-trusted-publisher-b1.md)에 따라 기존 Source Writer의 run/artifact/snapshot/member INSERT를 회수하고 별도 publisher login에 전체 Source aggregate 발행을 맡긴다. Product·Label·rematerialization은 `SOURCE_PUBLISHER_*` 전용 credential과 내부 `publisher` config를 사용하며 Writer fallback은 없다. Runtime·Writer·Capture·cleanup 및 다른 Builder에는 publisher secret을 주지 않는다. Writer의 기존 Snapshot 선택·상태 전이/Verification 감사·별도 승인된 governance 업무는 유지한다.
+
+Publisher는 기존 Source 8개 표 SELECT/INSERT와 기존 constrained lock-marker UPDATE만 가지며 Source Use Approval 표 쓰기·Catalog/Knowledge 쓰기·업무 열 UPDATE·metadata DELETE/TRUNCATE는 허용하지 않는다. 지원 Python 수집 경로는 PENDING/자동 integrity를 기록한다. 다만 publisher의 직접 SQL로 CURRENT Snapshot이나 publication-approval Verification을 작성하는 것까지 row별 DB ACL로 막는 보장은 아니다. 이 신뢰 경계는 별도 Source Use Approval 표 쓰기 금지와 구분한다.
+
+기존 caller의 단일 connection/outer transaction이 acquisition·put·Snapshot/Verification/run/artifact·Label member·rematerialization hierarchy를 소유한다. 부분 발행용 별도 connection·새 RPC/queue/staging/request-key를 추가하지 않는다. 기존 성공 재시도·NO_CHANGE·실패 원본·commit 결과 불명 처리·잠금 순서와 capture/의료/Privacy/공개 gate를 유지한다.
+
+관리 cutover는 명령 중지·drain → 전용 설정 준비(OFF) → T1 Writer INSERT 회수 commit → T2 최종 grant·read-back → 합성 smoke 후 새 CLI 재개다. T1 이후 실패는 거부 ACL을 유지하며 구 Writer INSERT 복원으로 복구하지 않는다. T1 실패 시 구 권한이 남을 수 있음을 보고하고 ingestion을 OFF로 둔다. 이는 관리 권한 적용 순서이며 Source 업무 transaction을 분할하지 않는다. 새 schema/migration·Trigger·RLS·업무 DB 함수·실제 Source·운영 적용·공개/Current 승격은 제외한다.
+
+기존 RET-H 합성 bootstrap Stage1의 Writer 생성+CURRENT seal 결합은 B1과 충돌하므로, Owner가 선택한 범위에 따라 해당 legacy CLI를 I/O 전에 명시 차단한다. 별도 단계 이관은 후속 미승인 계획이며 Publisher 업무 UPDATE/Writer INSERT 복원으로 우회하지 않는다. [기존 실행 문서의 현행 제한](../../../testing/ret-h-aws-synthetic-smoke-178.md)을 따른다.
+
+## Source artifact owner PUT·verified READ·OUTCOME — 합성 내부 개정 (2026-11-12)
+
+[Owner Decision](../../../governance/decisions/2026-11-12-source-artifact-owner-protocol-v1.md) (`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)과 [Owner 경계 계약](../../proposed/post-mvp-1/source-artifact-finalizer-owner-boundary-v1.md)에 따라 별도 non-root artifact owner와 비특권 client 사이의 합성 UDS 프로토콜(`source-artifact-owner@1`: `PUT`, `READ`, `OUTCOME`), caller intent 저널(`source-artifact-intent@1`), owner outcome 저널(`source-artifact-outcome@1`)을 확정한다.
+
+- 새 owner vault(`0700` 디렉터리, `0600` 파일)에 대한 business `DELETE`는 닫혀 있으며, `OwnerBackedSourceArtifactStore`는 DB 롤백 시 구 cleanup journal 요청을 발행하지 않는다. 기존 로컬 경로(`source-artifact-finalize@1`)와 기존 cleanup 계약은 보존한다.
+- owner가 `TERMINAL COMPLETE`를 durable 기록한 뒤 응답이 유실되면 owner `COMPLETE`는 불변으로 유지하고 caller만 `INDETERMINATE / CLIENT_TRANSPORT_UNKNOWN`을 기록한다. `PREPARED_LOCAL` 상태의 wire `OUTCOME` 호출과 사후 `OUTCOME COMPLETE`에 의한 DB 자동 재개·재시도는 금지한다.
+- `mfds_product_rematerialization`은 owner-backed reader 사용 시 배타적 `0700/0600` 일시 input spool로 검증된 바이트를 재구성하고 종료 시 정리하여, 어떤 소비자도 owner vault 경로를 직접 열지 않는다.
+- 새 DB schema/migration·외부 패키지·실제 Source 호출·운영 배포·공개 게이트(`PUBLIC_TRACK_F`) 및 Current 승격은 포함하지 않는다.

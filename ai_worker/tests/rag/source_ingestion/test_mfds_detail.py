@@ -145,7 +145,7 @@ def repository():
     repo.get_latest_snapshot.return_value = None
     repo.has_attempt_version_conflict.return_value = False
     repo.create_snapshot.return_value = uuid4()
-    repo.create_run.return_value = uuid4()
+    repo.persist_complete_attempt.return_value = uuid4()
     return repo
 
 
@@ -181,7 +181,7 @@ async def test_whole_pages_preserve_repeated_material_and_raw_bytes(tmp_path):
         repository_root=tmp_path,
     )
     assert result.snapshot_id == repo.create_snapshot.return_value
-    assert len(repo.create_artifacts.call_args.kwargs["artifacts"]) == 2
+    assert len(repo.persist_complete_attempt.call_args.args[1]) == 2
 
 
 # 빈 주성분 행은 #525로 통과 판정에서 분리됐으므로 여기의 부적격 사례가 아니다.
@@ -215,7 +215,7 @@ async def test_ineligible_rows_kept_without_partial_snapshot(tmp_path, records, 
     )
     assert result.failure_code
     repo.create_snapshot.assert_not_awaited()
-    assert len(repo.create_artifacts.call_args.kwargs["artifacts"]) == 1
+    assert len(repo.persist_complete_attempt.call_args.args[1]) == 1
 
 
 async def test_blank_rows_pass_the_gate_without_hiding_source_statistics(tmp_path):
@@ -340,6 +340,8 @@ async def test_failed_acquisition_never_produces_snapshot(tmp_path, pages):
         repository_root=tmp_path,
     )
     repo.create_snapshot.assert_not_awaited()
+    assert len(repo.persist_complete_attempt.call_args.args[1]) == len(acquisition.artifacts)
+    assert repo.persist_complete_attempt.call_args.args[0].run_status == "FAILED"
 
 
 async def test_lock_conflict_makes_no_http_call(tmp_path):
@@ -357,7 +359,7 @@ async def test_storage_error_propagates_for_caller_rollback(tmp_path):
         acquisition=acquisition, receipt_path=evidence, repository_root=tmp_path
     )
     repo = repository()
-    repo.create_artifacts.side_effect = RuntimeError("synthetic storage failure")
+    repo.persist_complete_attempt.side_effect = RuntimeError("synthetic storage failure")
     with pytest.raises(RuntimeError, match="synthetic storage failure"):
         await ingest_and_persist_mfds_detail(
             acquisition=acquisition,
@@ -389,7 +391,30 @@ async def test_version_checksum_mismatch_is_failed_audit_not_snapshot(tmp_path):
     )
     assert result.failure_code == "SOURCE_VERSION_BINDING_MISMATCH"
     repo.create_snapshot.assert_not_awaited()
-    assert len(repo.create_artifacts.call_args.kwargs["artifacts"]) == 1
+    assert len(repo.persist_complete_attempt.call_args.args[1]) == 1
+
+
+async def test_raw_publication_lock_precedes_permanent_put(tmp_path):
+    acquisition, _ = await acquire(tmp_path, [envelope([row()])])
+    repo = repository()
+    backing_store = store(tmp_path)
+
+    class LockCheckingStore:
+        def put_verified(self, **kwargs):
+            repo.lock_artifact_publication.assert_awaited()
+            repo.lock_operation.assert_not_awaited()
+            return backing_store.put_verified(**kwargs)
+
+    await ingest_and_persist_mfds_detail(
+        acquisition=acquisition,
+        repository=repo,
+        artifact_store=LockCheckingStore(),
+        metadata=metadata(),
+        receipt_path=receipt_file(tmp_path),
+        repository_root=tmp_path,
+    )
+    repo.lock_artifact_publication.assert_awaited()
+    repo.lock_operation.assert_awaited()
 
 
 async def test_page_limit_preserves_observed_raw_but_no_canonical_candidate(tmp_path, monkeypatch):

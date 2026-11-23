@@ -1,5 +1,7 @@
 # 공통 데이터 계약
 
+- [Dosey Candidate Runtime 결속 v2 Decision](../governance/decisions/2026-10-23-candidate-runtime-bundle-binding.md): Human Owner의 내부 구현 진행 지시에 따른 Search Bundle/hash·환경 revision 고정과 legacy 성공 키 재현. 정본은 기존 [멱등 Target](targets/post-mvp-1/idempotency-v1.md), [Candidate Target](targets/post-mvp-1/medication-identification-v1.md), [Runtime Target](targets/post-mvp-1/rag-runtime-v1.md)에 반영한다. 기존 로컬 DB의 read-only 관측은 Candidate 키·Search 각 0건(revision `180a1b2c3d4e`), 다른 배포는 미확인. 생산자·Candidate Source Guard·Index artifact 대응·공개 gate 완료나 Current 승격을 의미하지 않는다.
+
 - [#591 XML 제한 수집 Receipt](targets/post-mvp-1/mfds-label-xml-receipts-591.md): 승인된 필드·hash·단방향 결속 및 private 발급 도구. 구현 리뷰/서버 적용 대기, DB 등록·READY·공개 게이트 별도.
 
 - [OCR LLM 동의·전송 후속 (#458)](proposed/ocr-llm-transfer-458.md): #505에서 OCR 목적 Backend API·접수 Gate, Worker 재검사, Frontend 연결과 안전한 LLM 생략을 구현. 최종 안내 문구·policy version, 검증된 최소 전송 selector와 실제 사용자 대상 LLM 활성화는 미완료.
@@ -93,6 +95,7 @@ Frontend, Backend, OCR과 RAG·LLM이 공유하는 의미와 상태를 관리합
 - [Track B UNCONFIRMED backlog v1](./proposed/unconfirmed-backlog-v1.md): PD-418 URL·cursor·DTO·오류. #426 후보와 #462 실제 등록·PUT 보완·페이지 이동·날짜별 revision 검증 병합 완료; #462 남한솔 APPROVED·최종 CI 7/7 확인. 문서는 Proposed 유지, Current 승격 별도 검토. [승인 범위·상태 근거](../governance/decisions/2026-09-10-unconfirmed-backlog-418.md#승인-증빙과-등록-변경의-병합-조건).
 
 - [Source Artifact·REJECTS 보존·삭제 정책 초안 (#335)](./proposed/post-mvp-1/source-artifact-retention-cleanup.md): PM 30일 유예·참조 보존·수동 배치 승인 반영, 통합 검토 대상, 후속 구현 [#347](https://github.com/AI-HealthCare-05/AH_05_04/issues/347)·김지혜 담당. Local 합성 #347의 승인 순서·revision·경합 잠금·DB 감사 근거·참조 범위 보완 연결 포함. 운영 삭제·활성화 승인 아님.
+- [Source Artifact Finalizer Owner 경계 v1 (`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)](./proposed/post-mvp-1/source-artifact-finalizer-owner-boundary-v1.md): 별도 non-root owner의 합성 UDS `source-artifact-owner@1` (`PUT`·verified `READ`·`OUTCOME`), private intent/outcome 저널, rematerialization 일시 input spool, 새 owner vault의 business `DELETE` 차단 계약. 합성 내부 동결·구현 완료이며 운영 배포·실제 Source·Current 승격은 별도.
 
 - [Protected HOLDOUT Dataset 폐기 감사 계약 (#425)](./proposed/post-mvp-1/protected-holdout-disposal-audit.md): PD-368 §8이 분리를 지시한 폐기 감사 계약. 기존 audit chain에 `DISPOSAL` variant를 두고 `INTENT`→`SUCCEEDED`/`UNKNOWN`→재조정을 규정한다. 운영 종료는 기존 `DatasetStatus.RETIRED`를 재사용하며 새 상태를 만들지 않는다. 폐기 후 재현 범위 정책 결정 전까지 **실제 폐기는 차단 유지**. 실행 승인 아님.
 
@@ -143,18 +146,18 @@ Proposed 계약은 문서별 구현 상태를 별도로 표시합니다. 부분 
 
 RAG Source·Runtime·Evaluation·Medication Candidate·Safety/Citation v2는 외부 Manifest `post-mvp-rag-evaluation-contract@2026-08-29.11`의 Local P0 투영본이며 저장소 상태는 `Approved Target · Not implemented`다. 문서 승인만으로 Current Runtime 또는 사용자 공개 완료로 해석하지 않는다. 외부 논리 계약 `medication-candidate-identification-v1`은 별도 파일을 만들지 않고 기존 `medication-identification-v1.md`에 통합했다.
 
-| RAG-00 문서 영역 | 작성·변경 담당 | 책임 리뷰 |
+| RAG-00 문서 영역 | Integrator의 작업 배정 | 독립 검토 범위 |
 | --- | --- | --- |
-| RAG·Candidate·Citation·Evaluation | 정현우 | 권가빈 — 제품·Safety·평가 승인 |
-| Backend·DB·소유권·Transaction 경계 | 정현우 | 송은영 — 공유 API·DB 계약 |
-| OCR 확정 입력 경계 | 정현우 | 김지혜 — PR #96 입력 재사용·회귀 |
-| Frontend 확인·상태·오류 UX 경계 | 정현우 | 남한솔 — 공유 DTO·`no-store` 소비 경계 |
+| RAG·Candidate·Citation·Evaluation | `dosey_rag`·`dosey_llm` 또는 지정 writer | 제품·Safety·평가 조건, 필요한 전문 검토·외부 승인 증거 |
+| Backend·DB·소유권·Transaction 경계 | `dosey_backend` 또는 지정 writer | 공유 API·DB 계약·transaction |
+| OCR 확정 입력 경계 | `dosey_ocr` 또는 지정 writer | PR #96 입력 재사용·회귀 |
+| Frontend 확인·상태·오류 UX 경계 | `dosey_frontend` 또는 지정 writer | 공유 DTO·`no-store` 소비 경계 |
 
-실제 Issue와 PR은 구현 작성자와 책임 리뷰어를 별도로 적고 작성자의 자기 승인을 책임 리뷰로 계산하지 않는다.
+실제 Issue와 PR은 구현 Agent·TASK_ID와 독립 검토 범위·snapshot·결과를 기록한다. 구현자의 자기 검토를 독립 검토로 계산하지 않는다. Human Owner가 계약 변경·승격·merge를 최종 결정하며 Agent 검토는 외부 승인과 해당 결정을 대체하지 않는다. 과거 문서의 실명·리뷰 기록은 당시 provenance로 보존한다.
 
 ### Current 승격 조건
 
-목표 계약은 관련 코드·migration·OpenAPI/DTO, 계약·통합 테스트와 실행 증빙이 같은 구현 PR에 포함되고 관련 영역의 지정 리뷰어 승인을 받은 뒤에만 `targets/post-mvp-1/`에서 `current/`로 이동하고 Current로 표시한다. 외부 승인이나 공개 flag가 필요한 기능은 이 승격과 별도로 [외부 승인 게이트](../release-gates/post-mvp-1-external-approvals.md)를 충족해야 한다.
+목표 계약은 관련 코드·migration·OpenAPI/DTO, 계약·통합 테스트와 실행 증빙이 같은 구현 PR에 포함되고 관련 영역의 독립 검토와 Human Owner 결정을 거친 뒤에만 `targets/post-mvp-1/`에서 `current/`로 이동하고 Current로 표시한다. 외부 승인이나 공개 flag가 필요한 기능은 이 승격과 별도로 [외부 승인 게이트](../release-gates/post-mvp-1-external-approvals.md)를 충족해야 한다.
 
 ### Approved Contract Freeze v4에서 확정한 목표
 
@@ -271,3 +274,42 @@ PR #639의 두 계약은 구현 PR 내 이동이며 #629 병합·최종 책임 �
 
 
 #809 OCR 정규화 이미지의 API·DB 변경은 [정규화 이미지 계약](current/ocr-normalized-image.md)을 참조합니다.
+
+## 합성 Candidate 내부 연결 상태 (2026-10-23)
+
+[합성 내부 연결 v1 결정](../governance/decisions/2026-10-23-candidate-search-synthetic-connection.md): 기존 식별·Runtime·멱등 Target에 대한 합성 TEST 범위의 연결이다. 실제 Source 기간/threshold·공개 승인은 미확정이며 Current로 승격하지 않는다. 영속 감사의 합성 내부 승인 범위는 아래 후속 결정으로 구분한다.
+
+## Candidate 초기 stage 실행과 영속 감사 내부 계약 (2026-11-04)
+
+- [초기 Exact·승인 Alias 결정](../governance/decisions/2026-11-04-candidate-exact-alias-validation.md): Owner가 선택한 초기 검증 범위. 기존 식별 Target에 반영하며 Source 활성화·공개·운영 수치 승인은 포함하지 않는다.
+- [Candidate 정책·원천 재확인·영속 감사 v1](./targets/post-mvp-1/candidate-request-guard-audit-v1.md): 합성 내부 Contract Freeze v1. Owner가 두 저장 구조·분리된 발행 역할·FAIL 감사 transaction의 격리 구현을 승인했다. 실제 Source·운영 수치·운영 DB·공개는 미승인이다.
+
+## Guide Runtime Authority·Bootstrap 변경 요청 (2026-11-04)
+
+- [Guide Sync REQUEST Authority v1](./targets/post-mvp-1/guide-sync-request-authority-v1.md): 2026-11-04 Human Owner의 [CR-A 결정](../governance/decisions/2026-11-04-guide-sync-request-authority.md)에 따른 **Approved Target · CR-A 연결·합성 검증 완료; 실제 정책 연결 및 Current 승격 미수행**. 요청별 issuer·snapshot, 동기 201의 A 접수 commit → B transaction 없는 실행 → C 잠금 재검증/commit을 고정한다. Current·공개 승인은 아니다.
+- [요청별 권한·bootstrap 변경 요청 v1](./proposed/post-mvp-1/guide-runtime-authority-bootstrap-v1.md): CR-A 승인 전 검토 이력과 미승인 CR-B 공식 Identification identity 공급·CR-C 승인 verifier 제안을 보존한다. CR-A 정본은 위 Target이며 CR-B/C는 계속 Proposed다.
+
+
+## Source run·artifact 원자 발행 — 합성 내부 (2026-11-04)
+
+[Owner Decision](../governance/decisions/2026-11-04-source-run-artifact-close.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)·[capture Target](targets/post-mvp-1/candidate-request-guard-audit-v1.md)의 새 run/전체 artifact 원자 저장·기존 run append 제거·잠금/실패 보존·합성 v2 admission을 확정한다. 보장은 Python Writer 경로이며 직접 SQL 차단·운영 수치·실제 Source·운영 DB·Current 승격·공개는 제외한다. 구현·테스트는 계약 확정과 구분해 evidence에 기록한다.
+
+[Source 원자 발행 합성 검증](../testing/source-run-artifact-close-20261104.md): 지원 Python Writer 경로의 원자 저장·잠금/원본 경합·기존 재시도 검사와 실제 Source/SQL/공개 보장 한계를 기록한다.
+
+## Source Writer run 최소 권한 — 합성 내부 (2026-11-05)
+
+[Owner A 단계 Decision](../governance/decisions/2026-11-05-source-writer-run-privileges.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)의 run UPDATE를 기존 잠금용 zero marker로 제한하고 업무 열 6개의 수정 권한을 제거했다. 기존 atomic 발행·행 잠금·재시도·안전 규칙을 유지한다. A 당시 Writer artifact INSERT의 직접 SQL append는 남았으며 아래 B1에서 credential을 분리한다. [A 단계 합성 권한 경계 검증](../testing/source-writer-role-boundary-20261105.md)은 당시 실행 증거와 한계다.
+
+## Source aggregate publisher B1 — 합성 내부 (2026-11-05)
+
+[Owner B1 Decision](../governance/decisions/2026-11-05-source-trusted-publisher-b1.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)·[Capture Target](targets/post-mvp-1/candidate-request-guard-audit-v1.md)의 기존 Writer run/artifact/snapshot/member INSERT를 회수하고 별도 `SOURCE_PUBLISHER_*` login으로 전체 발행 transaction을 이관한다. Writer 선택·기존 governance, 별도 capture issuer, 기존 재시도·안전·공개 차단을 유지한다. T1 거부 barrier/T2 최소 grant·합성 smoke를 순서대로 검증하며 구 Writer INSERT 복원 fallback은 없다. Publisher 자체 SQL은 신뢰 경계로 남는다. 새 schema/migration·B2/C·실제 Source·운영 DB/credential·공개/Current 승격은 제외한다. 구현 증거와 실제 운영 격리 검증 여부는 별도 testing 기록으로 구분한다.
+
+[B1 합성 구현·검증](../testing/source-publisher-b1-20261105.md): 실제 Writer/Publisher login·전체 명령/transaction·fresh-session 권한 재조회·기존 재시도·RET-H Stage1 명시 차단을 검증했다. container/실제 OS·secret/외부 finalizer 실행 격리와 운영 배포는 미실행이다.
+
+[후속 Docker·credential 검증](../testing/source-publisher-docker-readiness-20261105.md): Docker 3건·별도 권한 4건 PASS 및 실제 Worker 이미지 빌드·publisher 컨테이너 격리 probe(`scripts/ci/source_publisher_container_check.py`) 전체 PASS(2026-11-18 재검증 완료). 원본 owner 연결은 아래 Proposed(`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)로 구분한다.
+
+## Source artifact owner 연결 — Proposed (2026-11-12 합성 내부 동결·구현 완료)
+
+[Finalizer owner 경계 변경 요청](proposed/post-mvp-1/source-artifact-finalizer-owner-boundary-v1.md)은 [프로토콜 v1 동결 결정](../governance/decisions/2026-11-12-source-artifact-owner-protocol-v1.md)(`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)에 따라 별도 non-root owner의 합성 UDS `source-artifact-owner@1`(`PUT`·verified `READ`·`OUTCOME`), private intent/outcome 저널, rematerialization 일시 input spool을 구현·검증([검증 근거](../testing/source-artifact-owner-v1-20261112.md))했다. 원본 0700/0600·B1 전체 transaction·기존 재시도·공개 차단을 유지하며, 새 owner root의 business `DELETE`는 닫고 별도 삭제 capability와 gate/fencing 계약은 후속 검토로 남긴다. 기존 로컬 cleanup 계약을 대체하지 않으며 Current/운영 준비 완료를 뜻하지 않는다.
+
+[Owner 저장·읽기 우선 방향 결정](../governance/decisions/2026-11-05-source-artifact-owner-read-direction.md): 합성 PUT/verified READ/결과 관측과 새 vault 삭제 차단 방향을 채택했으며, 세부 wire/intent 계약 동결과 합성 구현은 위 `PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`에서 완료했다. 운영/공개 승인은 포함하지 않는다.

@@ -6,8 +6,13 @@ import stat
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
+from ai_worker.adapters.source_artifact_owner_protocol import (
+    OwnerBackedSourceArtifactReader,
+    OwnerBackedSourceArtifactStore,
+    OwnerClientConfig,
+)
 from ai_worker.tasks.rag.source_ingestion.artifacts import (
     IngestionArtifactKind,
     RawArtifactMetadata,
@@ -16,6 +21,21 @@ from ai_worker.tasks.rag.source_ingestion.artifacts import (
     validate_artifact_binding,
     verify_raw_artifact,
 )
+
+__all__ = [
+    "ArtifactObjectKeyError",
+    "FinalizingLocalPrivateSourceArtifactStore",
+    "LocalPrivateSourceArtifactReader",
+    "OwnerBackedSourceArtifactReader",
+    "OwnerBackedSourceArtifactStore",
+    "OwnerClientConfig",
+    "SourceArtifactReader",
+]
+
+
+class SourceArtifactReader(Protocol):
+    def read_verified(self, *, object_key: str, metadata: RawArtifactMetadata) -> bytes: ...
+
 
 _STORAGE_BACKEND = "LOCAL_PRIVATE"
 _RESPONSE_SCHEMA = "source-artifact-finalize@1"
@@ -72,6 +92,8 @@ FinalizerRunner = Callable[..., subprocess.CompletedProcess[bytes]]
 
 class FinalizingLocalPrivateSourceArtifactStore:
     """고정 명령에 원문을 stdin으로 전달하고 최종 mount는 읽기만 합니다."""
+
+    supports_transaction_cleanup: bool = True
 
     def __init__(
         self,

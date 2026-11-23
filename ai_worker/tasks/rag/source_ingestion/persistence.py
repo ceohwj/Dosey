@@ -168,6 +168,7 @@ async def preserve_and_persist_product_ingestion_result(
     if len(set(artifact_keys)) != len(artifact_keys):
         raise ValueError("Artifact key는 수집 실행 안에서 중복될 수 없습니다.")
 
+    await repository.lock_artifact_publication()
     stored_artifacts = preserve_raw_artifacts(
         artifacts=entries,
         store=artifact_store,
@@ -330,6 +331,7 @@ async def ingest_and_persist_product_run(
             raw_artifacts=entries,
         )
     try:
+        await repository.lock_artifact_publication()
         stored_raw = preserve_raw_artifacts(artifacts=entries, store=artifact_store)
         stored_rejects = _preserve_product_rejections(
             result=result,

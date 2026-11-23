@@ -25,9 +25,17 @@ from infra.python.source_management_role_policy import validate_management_conne
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not os.environ.get("SOURCE_MANAGEMENT_USER") or config.DB_USER != os.environ["SOURCE_MANAGEMENT_USER"]:
         raise RuntimeError("Use the isolated management database role")
+    if config.DB_USER == os.environ.get("SOURCE_PUBLISHER_USER"):
+        raise RuntimeError("Management and Source Publisher require distinct database roles")
     if any(
         os.environ.get(key)
-        for key in ("SOURCE_WRITER_PASSWORD", "DB_APP_PASSWORD", "DB_ADMIN_PASSWORD", "DB_MIGRATION_PASSWORD")
+        for key in (
+            "SOURCE_WRITER_PASSWORD",
+            "SOURCE_PUBLISHER_PASSWORD",
+            "DB_APP_PASSWORD",
+            "DB_ADMIN_PASSWORD",
+            "DB_MIGRATION_PASSWORD",
+        )
     ):
         raise RuntimeError("Management process must have only its own database credential")
     async with engine.connect() as connection:
