@@ -5,7 +5,7 @@
 기존 Schema Set `1.0.0`을 byte 단위로 보존하면서 `1.1.0` authoring 계약, version-aware registry와
 export, manifest-driven loader dispatch, `FROZEN` Gold approval closure를 구현한다.
 
-설계 정본은 `docs/designs/ceohwj/issue-216-rag-evaluation-schema-compatibility-design.md`다.
+설계 정본은 `docs/designs/evaluation/issue-216-rag-evaluation-schema-compatibility-design.md`다.
 
 ## 전역 제약
 

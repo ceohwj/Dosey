@@ -76,8 +76,8 @@ Catalog manifest 전용 Runtime 컬럼은 별도 hash 계약 전환 조건을 �
 기준 develop에서는 아래 문서의 상단/공개 입력 절에 이 정정이 이미 반영되어 있음을 확인했다.
 새 버전으로 되돌리거나 같은 정정을 중복 수행하지 않고 후속 변경 시 회귀 기준으로 유지한다.
 
-- [#167 설계](../ceohwj/issue-167-rag-candidate-index-design.md)
-- [#167 구현 계획](../ceohwj/issue-167-rag-candidate-index-implementation-plan.md)
+- [#167 설계](issue-167-rag-candidate-index-design.md)
+- [#167 구현 계획](issue-167-rag-candidate-index-implementation-plan.md)
 - [#166 검증 기록](../../testing/catalog-build-166.md)
 
 ## 선행 가능한 구현 추가: 기존 데이터 집계

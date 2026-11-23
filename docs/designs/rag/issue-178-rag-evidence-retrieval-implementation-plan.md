@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.13, frozen dataclass, `StrEnum`, `Protocol`, SHA-256, canonical JSON, pytest, Ruff, mypy
 
-**Spec:** `docs/designs/ceohwj/issue-178-rag-evidence-retrieval-design.md`
+**Spec:** `docs/designs/rag/issue-178-rag-evidence-retrieval-design.md`
 
 **Production Decision:** `docs/governance/decisions/2026-09-08-production-evidence-retrieval-contract-divergence.md`
 (`PD-315-20260908` — Approved, PR #361 책임 리뷰 `APPROVED` event 및 Issue #680 Path B 재판정으로 승인 조건 해소)

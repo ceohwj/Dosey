@@ -5,7 +5,7 @@
 `DRAFT`에 허위 reviewer를 요구하지 않고 실제 review event를 추적할 수 있는 불변 Schema Set
 `1.2.0`을 추가한다. 기존 1.0·1.1의 동작과 byte는 유지한다.
 
-설계 정본은 `docs/designs/ceohwj/issue-241-rag-evaluation-review-provenance-1-2-design.md`다.
+설계 정본은 `docs/designs/evaluation/issue-241-rag-evaluation-review-provenance-1-2-design.md`다.
 
 ## 전역 제약
 

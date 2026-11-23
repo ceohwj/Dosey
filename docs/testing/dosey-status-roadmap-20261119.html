@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Dosey 프로젝트 현재 완료 현황(1~6단계), 로컬 커밋 계보, 검증 범위, 남은 작업 및 GitHub 저장소 정리 로드맵.">
+<title>Dosey — 작업 현황 및 후속 로드맵 (2026-11-19)</title>
+<style>
+:root{
+  --paper:#f3f5f9;
+  --card:#ffffff;
+  --ink:#17243c;
+  --muted:#56647a;
+  --line:#dde4ed;
+  --blue:#284bd2;
+  --blue-soft:#edf1ff;
+  --green:#16644d;
+  --green-soft:#e8f4ed;
+  --amber:#815313;
+  --amber-soft:#fff4df;
+  --red:#a73b41;
+  --red-soft:#fff0f0;
+  --slate-soft:#f4f6fa;
+  --radius:22px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:auto}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Apple SD Gothic Neo","Malgun Gothic","Pretendard",system-ui,-apple-system,sans-serif;
+  line-height:1.65;
+  letter-spacing:-.025em;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+a{color:var(--blue);text-underline-offset:4px}
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.86em;
+  letter-spacing:0;
+  background:#f1f4fa;
+  padding:2px 6px;
+  border-radius:6px;
+  color:#1f3258;
+}
+.page{max-width:1240px;margin:auto;padding:30px 28px 44px}
+.mast{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;font-weight:850;font-size:22px;letter-spacing:-.05em}
+.mark{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:var(--blue);color:#fff;font-size:19px;font-weight:900}
+.meta{font-size:12px;color:var(--muted);text-align:right;line-height:1.5}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+.hero{
+  display:grid;
+  grid-template-columns:1.35fr 1fr;
+  gap:34px;
+  padding:34px 36px;
+  background:linear-gradient(118deg,#ffffff 62%,#f2f6ff 100%);
+  box-shadow:0 12px 36px rgba(24,40,76,.05);
+}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:5px 12px;
+  border-radius:100px;
+  font-size:12px;
+  font-weight:750;
+  background:var(--green-soft);
+  color:var(--green);
+}
+.pill.blue{background:var(--blue-soft);color:var(--blue)}
+.pill.amber{background:var(--amber-soft);color:var(--amber)}
+.dot{height:7px;width:7px;background:currentColor;border-radius:50%;flex-shrink:0}
+h1{font-size:clamp(30px,3.4vw,44px);line-height:1.24;letter-spacing:-.055em;margin:16px 0 14px;font-weight:850}
+h1 span{color:var(--blue)}
+.lead{font-size:15px;color:var(--muted);max-width:560px;margin:0}
+.verdict{border-left:1px solid var(--line);padding-left:28px;display:flex;flex-direction:column;justify-content:center}
+.verdict h2{font-size:22px;line-height:1.38;margin:10px 0 10px;letter-spacing:-.045em}
+.verdict p{font-size:13.5px;color:var(--muted);margin:0}
+.ownership{padding-top:14px;margin-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.ownership b{color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.stat{padding:20px 22px;display:flex;flex-direction:column;gap:4px}
+.number{font-size:32px;font-weight:850;letter-spacing:-.05em;line-height:1.15;color:var(--blue);font-variant-numeric:tabular-nums}
+.number.green{color:var(--green)}
+.number.amber{color:var(--amber)}
+.stat strong{font-size:13.5px}
+.stat small{font-size:12px;color:var(--muted)}
+section{margin-top:30px}
+.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:13px;flex-wrap:wrap}
+.section-head h2{margin:0;font-size:20px;line-height:1.45;letter-spacing:-.045em}
+.section-head h2 span{color:var(--blue);font-size:12px;margin-right:9px;letter-spacing:.04em;font-weight:800}
+.note{margin:0;font-size:12px;color:var(--muted)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.panel{padding:24px 26px}
+.step-list{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.step{padding:20px 22px;display:flex;flex-direction:column;gap:8px}
+.step-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.step h3{margin:0;font-size:15.5px;letter-spacing:-.035em;line-height:1.4}
+.step p{margin:0;font-size:13px;color:var(--muted)}
+.step .foot{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.badge{
+  display:inline-block;
+  font-size:11px;
+  border-radius:6px;
+  padding:3px 8px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.b-green{background:var(--green-soft);color:var(--green)}
+.b-blue{background:var(--blue-soft);color:var(--blue)}
+.b-amber{background:var(--amber-soft);color:var(--amber)}
+.b-red{background:var(--red-soft);color:var(--red)}
+.b-slate{background:var(--slate-soft);color:var(--muted)}
+.roadmap-card{padding:24px 26px;display:flex;flex-direction:column;gap:12px}
+.roadmap-card h3{margin:0;font-size:17px;letter-spacing:-.04em}
+.roadmap-card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--ink)}
+.roadmap-card li span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.matrix{overflow:hidden}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;text-align:left;width:100%;font-size:13px;min-width:740px}
+th,td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f8f9fc;color:var(--muted);font-size:12px;font-weight:750}
+tr:last-child td{border-bottom:0}
+.sha{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:700;color:var(--blue)}
+.callout{
+  margin-top:16px;
+  padding:18px 22px;
+  border-radius:16px;
+  border:1px solid #cdd9ff;
+  background:#f5f8ff;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.callout strong{font-size:14.5px;display:block;color:var(--ink);margin-bottom:3px}
+.callout p{margin:0;font-size:13px;color:var(--muted)}
+footer{
+  margin-top:28px;
+  padding-top:16px;
+  border-top:1px solid var(--line);
+  font-size:12px;
+  color:var(--muted);
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+@media (max-width:960px){
+  .hero,.grid-2,.grid-3,.step-list,.stats{grid-template-columns:1fr}
+  .verdict{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:20px}
+  .meta{text-align:left}
+}
+@media print{
+  body{background:#fff}
+  .page{padding:0}
+  .card{box-shadow:none}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="mast">
+    <div class="brand">
+      <div class="mark">D</div>
+      <div>Dosey (다섯알) 프로젝트 현황판</div>
+    </div>
+    <div class="meta">
+      기준 시점: 2026-11-19 KST · 로컬 브랜치 <code>develop</code> (<code>871eeb5</code>)<br>
+      원격 기준: <code>origin/develop</code> (<code>cf509d7</code>) 대비 <b>ahead 9 / behind 0</b>
+    </div>
+  </header>
+
+  <section class="card hero" style="margin-top:0">
+    <div>
+      <span class="pill"><span class="dot"></span>1~6단계 로컬 구현 · 검증 · 커밋 정렬 완료</span>
+      <h1>어디까지 끝났고,<br><span>이제 무엇을 하면 되는가</span></h1>
+      <p class="lead">
+        Codex 이전 세션에서 쌓여 있던 미커밋 작업과 보류 중이던 컨테이너 검증, Finalizer Owner 프로토콜, 에이전트 연속성 도구를 모두 검증하고
+        <code>origin/develop</code> + <code>#3</code> 위로 <b>7개의 깔끔한 주제별 로컬 커밋</b>으로 정렬했습니다.
+      </p>
+    </div>
+    <div class="verdict">
+      <div class="eyebrow">NEXT ACTION</div>
+      <h2>지금 바로 할 일은<br>GitHub 저장소 정리(P0)</h2>
+      <p>
+        로컬 워킹트리는 추적 파일 변경 <b>0건</b>으로 정리되었습니다. 이제 PR <code>#3</code> 처리, 로컬 7개 커밋의 원격 반영 방식(직접 push vs 주제별 PR),
+        로컬 전용 설정(<code>.codex/</code> 등) 공개 여부, 완료된 worktree 2개 정리를 결정해 반영하면 됩니다.
+      </p>
+      <div class="ownership">
+        <b>원칙:</b> 원격 push, PR 머지, 공개 게이트(<code>PUBLIC_TRACK_C</code>/<code>F</code>) 해제는 모두 Human Owner 승인 범위입니다.
+      </div>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="card stat">
+      <div class="number green">6 / 6</div>
+      <strong>계획된 1~6단계 전체 완료</strong>
+      <small>보류됐던 1단계 컨테이너 probe까지 PASS</small>
+    </div>
+    <div class="card stat">
+      <div class="number">9 commits</div>
+      <strong>origin/develop 대비 선형 정렬</strong>
+      <small><code>#3</code> 2커밋 + 주제별 7커밋 (behind 0)</small>
+    </div>
+    <div class="card stat">
+      <div class="number green">1,783+</div>
+      <strong>로컬 검증 통과 테스트</strong>
+      <small>Python 1,344 + Frontend 439 + Probe exit 0</small>
+    </div>
+    <div class="card stat">
+      <div class="number amber">3단계</div>
+      <strong>남은 후속 작업 축</strong>
+      <small>P0 GitHub 정리 · P1 CI/DB · P2 운영/게이트</small>
+    </div>
+  </div>
+
+  <!-- SECTION 01 -->
+  <section>
+    <div class="section-head">
+      <h2><span>01</span>어디까지 작업했는가 — 1~6단계 완료 내역</h2>
+      <p class="note">모든 변경은 <code>AGENTS.md</code> 및 <code>docs/ai/github-writing.md</code> 기준 검증 후 커밋</p>
+    </div>
+
+    <div class="step-list">
+      <article class="card step">
+        <div class="step-top">
+          <span class="eyebrow">STEP 1</span>
+          <span class="badge b-green">PASS (2026-11-18)</span>
+        </div>
+        <h3>Source Publisher 실제 컨테이너 Probe 재검증</h3>
+        <p>호스트 여유 공간 8.81 GiB 확보 후 실제 Worker 이미지를 빌드하고, UID 10001 격리·자격증명 혼입 거부·RO/RW 마운트·helper 불변성·CLI 음성 검사·자원 정리까지 끝까지 통과했습니다.</p>
+        <div class="foot"><code>scripts/ci/source_publisher_container_check.py</code> · exit 0</div>
+      </article>
+
+      <article class="card step">
+        <div class="step-top">
+          <span class="eyebrow">STEP 2</span>
+          <span class="badge b-green">완료 · 166 PASS</span>
+        </div>
+        <h3>Finalizer Owner 프로토콜 v1 (S1~S5)</h3>
+        <p><code>source-artifact-owner@1</code> UDS 서버·클라이언트·개인 intent/outcome 저널, <code>0700</code> 일시 입력 스풀, 소비자 Reader 경계를 구현하고 독립 리뷰 지적 8건을 모두 수리했습니다.</p>
+        <div class="foot">Decision <code>PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1</code></div>
+      </article>
+
+      <article class="card step">
+        <div class="step-top">
+          <span class="eyebrow">STEP 3</span>
+          <span class="badge b-green">완료 · 107 PASS</span>
+        </div>
+        <h3>에이전트 연속성 하네스 선별 통합</h3>
+        <p>분리 worktree의 <code>agent_workflow.py</code>(56건), <code>check_agent_hygiene.py</code>(27건), <code>claude_review.py</code>(24건), 지식 인덱스·실패 기록·CI job을 메인에 충돌 없이 통합했습니다.</p>
+        <div class="foot"><code>check_agent_hygiene.py --check</code> findings 0건</div>
+      </article>
+
+      <article class="card step">
+        <div class="step-top">
+          <span class="eyebrow">STEP 4</span>
+          <span class="badge b-green">완료 · 1,344 PASS</span>
+        </div>
+        <h3>워킹트리 6개 주제(A~F) 전수 분류 및 감사</h3>
+        <p>382개 변경 파일을 6개 주제로 분류해 공유 파일 접점(<code>models/__init__.py</code>, <code>services.py</code>, <code>contracts/README.md</code>)과 일괄 CI 가드·테스트 결과를 보고서로 정리했습니다.</p>
+        <div class="foot"><code>docs/testing/working-tree-topic-inventory-20261112.md</code></div>
+      </article>
+
+      <article class="card step">
+        <div class="step-top">
+          <span class="eyebrow">STEP 5</span>
+          <span class="badge b-green">완료 · 7 commits</span>
+        </div>
+        <h3>의존성 순서별 7개 로컬 커밋 분리</h3>
+        <p>Alembic 체인(<code>924a→925a</code>)과 모델·DI 의존성을 깨지 않도록 <code>E → F → D → B → C → A-1 → A-2</code> 순서로 분리 커밋했습니다. Frontend 10개 스위트(439건)·oxlint·tsc도 확인했습니다.</p>
+        <div class="foot">로컬 계획 초안(<code>.omc/</code>, <code>.superpowers/</code>)은 제외 보존</div>
+      </article>
+
+      <article class="card step">
+        <div class="step-top">
+          <span class="eyebrow">STEP 6</span>
+          <span class="badge b-green">완료 · behind 0</span>
+        </div>
+        <h3>origin/develop + #3 기준 선형 브랜치 정렬</h3>
+        <p>원격 <code>origin/develop</code>(<code>da4de67</code>, <code>cf509d7</code>)과 <code>codex/3-readable-work-history</code>(<code>344c368</code>, <code>7e8df7b</code>)의 원본 SHA를 보존한 채 7개 커밋을 그 위에 충돌 없이 정렬했습니다.</p>
+        <div class="foot"><code>develop...origin/develop [ahead 9]</code> · 미커밋 0건</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- SECTION 02: COMMIT STACK -->
+  <section>
+    <div class="section-head">
+      <h2><span>02</span>현재 <code>develop</code> 브랜치 커밋 계보 (총 11개, 원격 대비 ahead 9)</h2>
+      <p class="note">아래에서 위로 시간·의존성 순 적재 (<code>bcac783..871eeb5</code>)</p>
+    </div>
+    <div class="card matrix">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:92px">SHA</th>
+              <th style="width:128px">구분</th>
+              <th style="width:70px">파일</th>
+              <th>커밋 제목 및 핵심 내용</th>
+              <th style="width:126px">원격 상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="sha">871eeb5</td>
+              <td><b>Topic A-2</b></td>
+              <td>28</td>
+              <td><code>feat: Source 원본 보관소 소유자 프로토콜과 일시 입력 스풀 및 소비자 읽기 경계를 구현한다</code></td>
+              <td><span class="badge b-blue">로컬 커밋 대기</span></td>
+            </tr>
+            <tr>
+              <td class="sha">d56e520</td>
+              <td><b>Topic A-1</b></td>
+              <td>57</td>
+              <td><code>feat: Source Writer 최소 권한 경계와 별도 Publisher 발행 트랜잭션을 분리한다</code> (1단계 컨테이너 probe PASS 반영)</td>
+              <td><span class="badge b-blue">로컬 커밋 대기</span></td>
+            </tr>
+            <tr>
+              <td class="sha">cf69106</td>
+              <td><b>Topic C</b></td>
+              <td>24</td>
+              <td><code>feat: 복약 가이드 동기 실행의 요청별 권한 검증과 트랜잭션 분리 수명주기를 구현한다</code></td>
+              <td><span class="badge b-blue">로컬 커밋 대기</span></td>
+            </tr>
+            <tr>
+              <td class="sha">5f62e39</td>
+              <td><b>Topic B</b></td>
+              <td>63</td>
+              <td><code>feat: 약품 후보 검색의 런타임 번들 결속과 영속 감사 및 수집 관측 스키마를 추가한다</code> (<code>924a→925a</code>)</td>
+              <td><span class="badge b-blue">로컬 커밋 대기</span></td>
+            </tr>
+            <tr>
+              <td class="sha">c6b8afa</td>
+              <td><b>Topic D</b></td>
+              <td>38</td>
+              <td><code>feat: 복약관리 주요 화면과 상담 챗 UI 및 외부 검토 지적을 개선한다</code> (40~60대 UX · 439 vitest PASS)</td>
+              <td><span class="badge b-blue">로컬 커밋 대기</span></td>
+            </tr>
+            <tr>
+              <td class="sha">a35b606</td>
+              <td><b>Topic F</b></td>
+              <td>18</td>
+              <td><code>feat: 역할별 에이전트 라우팅 설정과 Claude 선택 검토 브리지를 추가한다</code> (<code>.codex/</code>, <code>claude_review.py</code>)</td>
+              <td><span class="badge b-amber">공개 여부 확인</span></td>
+            </tr>
+            <tr>
+              <td class="sha">962c3f8</td>
+              <td><b>Topic E</b></td>
+              <td>144</td>
+              <td><code>docs: 설계 문서를 기능 영역별로 재구성하고 개인 프로젝트 기준을 정리한다</code> (<code>docs/designs/</code>, <code>PRD.md</code>)</td>
+              <td><span class="badge b-blue">로컬 커밋 대기</span></td>
+            </tr>
+            <tr>
+              <td class="sha">7e8df7b</td>
+              <td><b>PR #3 (2/2)</b></td>
+              <td>6</td>
+              <td><code>docs: 작업별 커밋 기록과 GitHub 작성 기준을 추가한다 (#3)</code> (<code>docs/ai/github-writing.md</code>)</td>
+              <td><span class="badge b-amber">원격 브랜치 존재</span></td>
+            </tr>
+            <tr>
+              <td class="sha">344c368</td>
+              <td><b>PR #3 (1/2)</b></td>
+              <td>2</td>
+              <td><code>docs: 실제 작업 적용과 종료 결과 기록 (#3)</code></td>
+              <td><span class="badge b-amber">원격 브랜치 존재</span></td>
+            </tr>
+            <tr>
+              <td class="sha">cf509d7</td>
+              <td><b>origin/develop</b></td>
+              <td>16</td>
+              <td><code>feat: 작업 진행 복원과 검토 후 수정 절차 추가 (#2)</code></td>
+              <td><span class="badge b-green">원격 반영됨</span></td>
+            </tr>
+            <tr>
+              <td class="sha">da4de67</td>
+              <td><b>origin/develop~1</b></td>
+              <td>1</td>
+              <td><code>docs: align hiring overview, ownership and evidence links</code></td>
+              <td><span class="badge b-green">원격 반영됨</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 03: ROADMAP -->
+  <section>
+    <div class="section-head">
+      <h2><span>03</span>앞으로 해야 할 작업 — 우선순위별 로드맵 (P0 · P1 · P2)</h2>
+      <p class="note">P0(GitHub 저장소 정리)부터 바로 이어서 진행 가능</p>
+    </div>
+
+    <div class="grid-3">
+      <article class="card roadmap-card">
+        <div class="step-top">
+          <span class="badge b-blue">P0 · 지금 바로</span>
+          <span class="eyebrow">GITHUB CLEANUP</span>
+        </div>
+        <h3>GitHub 저장소 · 브랜치 · PR 정리</h3>
+        <ul>
+          <li>
+            <b>열린 PR / 이슈 및 원격 브랜치 점검</b>
+            <span><code>origin/codex/3-readable-work-history</code>(PR #3) 상태 확인 및 <code>develop</code> 반영 정리</span>
+          </li>
+          <li>
+            <b>로컬 7개 커밋 원격 반영 방식 결정</b>
+            <span>① 주제별 PR(문서·UI·Candidate/Guide·Source)로 나눠 CI 검증 후 머지하거나 ② <code>develop</code>에 직접 push</span>
+          </li>
+          <li>
+            <b>로컬 전용 설정(<code>a35b606</code>) 공개 범위 확정</b>
+            <span><code>.codex/</code>, <code>CLAUDE.md</code>, <code>scripts/claude_review.py</code>를 공개 저장소에 포함할지 결정</span>
+          </li>
+          <li>
+            <b>완료된 로컬 worktree 2개 정리</b>
+            <span>이미 통합된 <code>dosey-agent-continuity</code>, <code>dosey-commit-history</code> worktree 및 불필요한 원격 브랜치 정리</span>
+          </li>
+        </ul>
+      </article>
+
+      <article class="card roadmap-card">
+        <div class="step-top">
+          <span class="badge b-amber">P1 · 단기 검증</span>
+          <span class="eyebrow">CI &amp; POSTGRESQL</span>
+        </div>
+        <h3>전체 의존성 · DB 통합 · E2E CI 검증</h3>
+        <ul>
+          <li>
+            <b>GitHub Actions 전체 CI 파이프라인 통과 확인</b>
+            <span>로컬에 없던 <code>cryptography</code>, <code>pgvector</code>, <code>greenlet</code>, <code>mypy</code> 포함 <code>test-migration</code> · <code>test-backend</code> · <code>test-rag</code> · <code>lint</code> 실행</span>
+          </li>
+          <li>
+            <b>Alembic <code>924a → 925a</code> 실 DB 마이그레이션 검증</b>
+            <span>Candidate Runtime 결속, Guard Audit, Capture Observation 테이블 생성 및 제약 조건 확인</span>
+          </li>
+          <li>
+            <b>Frontend 전체 빌드 &amp; Playwright E2E 확인</b>
+            <span><code>pnpm build</code>, <code>verify:track-c-gate</code>, <code>test:e2e:requirements</code> CI 통과 확인</span>
+          </li>
+        </ul>
+      </article>
+
+      <article class="card roadmap-card">
+        <div class="step-top">
+          <span class="badge b-slate">P2 · 중기 고도화</span>
+          <span class="eyebrow">PRODUCT &amp; GATES</span>
+        </div>
+        <h3>런타임 조립 · 후속 계약 · 공개 게이트</h3>
+        <ul>
+          <li>
+            <b>Owner UDS 데몬 컨테이너 다중 계정 조립</b>
+            <span><code>source_artifact_owner</code>(10010), <code>publisher</code>(10001), <code>reader</code>(10002), <code>cleanup</code>(10003) 실 컨테이너 런타임 연결</span>
+          </li>
+          <li>
+            <b>Guide Sync CR-B / CR-C 및 Target → Current 승격</b>
+            <span>공식 Identification identity 공급(CR-B) · 승인 verifier(CR-C) 결정 및 구현 완료 계약 승격</span>
+          </li>
+          <li>
+            <b>외부 승인 게이트 및 포트폴리오 다음 기능 선정</b>
+            <span><code>docs/release-gates/post-mvp-1-external-approvals.md</code> 조건 충족 전까지 <code>PUBLIC_TRACK_C</code>/<code>F</code> 차단 유지</span>
+          </li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="callout">
+      <div>
+        <strong>GitHub 저장소 정리를 바로 시작할 준비가 되어 있습니다.</strong>
+        <p>다음 단계에서 GitHub 원격 저장소(<code>ceohwj/Dosey</code>)의 열린 PR · Issue · 브랜치 상태를 조회하고, 정리 계획을 세운 뒤 승인하신 범위만 실행합니다.</p>
+      </div>
+      <span class="pill blue"><span class="dot"></span>다음 단계: GitHub 저장소 현황 조회</span>
+    </div>
+  </section>
+
+  <!-- SECTION 04: VERIFICATION MATRIX -->
+  <section>
+    <div class="section-head">
+      <h2><span>04</span>검증 완료 vs 미실행 경계 요약</h2>
+      <p class="note">실행하지 않은 검사는 PASS로 표시하지 않고 원인과 예정 환경을 명시</p>
+    </div>
+    <div class="card matrix">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:240px">검증 항목</th>
+              <th style="width:130px">상태</th>
+              <th>실제 확인된 근거 또는 미실행 사유</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>Source Publisher 컨테이너 Probe</b></td>
+              <td><span class="badge b-green">PASS</span></td>
+              <td>2026-11-18 호스트 8.81 GiB · Docker 28.4.0에서 실제 Worker 이미지 빌드, UID 10001 격리, CLI 음성 검사 및 자원 정리 통과 (<code>exit 0</code>)</td>
+            </tr>
+            <tr>
+              <td><b>Finalizer Owner 프로토콜 (S1~S4)</b></td>
+              <td><span class="badge b-green">PASS</span></td>
+              <td>단위·경계·재물질화 스풀·소비자 Reader·별도 UID E2E 테스트 <b>166 passed</b>, 독립 리뷰 지적 8건 수리 완료</td>
+            </tr>
+            <tr>
+              <td><b>에이전트 연속성 · 검토 브리지</b></td>
+              <td><span class="badge b-green">PASS</span></td>
+              <td><code>test_agent_workflow.py</code>(56) + <code>test_agent_hygiene.py</code>(27) + <code>test_claude_review.py</code>(24) = <b>107 passed</b>, 문서 위생 findings 0건</td>
+            </tr>
+            <tr>
+              <td><b>저장소 가드 · 정적 분석</b></td>
+              <td><span class="badge b-green">PASS</span></td>
+              <td><code>check_python_test_inventory.py</code>, <code>check_database_logic.py</code>, <code>check_protected_table_writes.py</code>, <code>ruff check</code>, <code>git diff --check</code> 전체 통과</td>
+            </tr>
+            <tr>
+              <td><b>Frontend 40~60대 UI 변경</b></td>
+              <td><span class="badge b-green">PASS</span></td>
+              <td><code>oxlint</code>(74파일 0오류), <code>tsc -b</code> 통과, 수정된 10개 화면 Vitest 단위 테스트 <b>439 passed</b></td>
+            </tr>
+            <tr>
+              <td><b>Backend DB 통합 · Alembic · Mypy</b></td>
+              <td><span class="badge b-amber">NOT_RUN (CI 예정)</span></td>
+              <td>로컬 Python에 <code>cryptography</code>, <code>pgvector</code>, <code>greenlet</code>, <code>mypy</code> 미설치 → P0/P1 GitHub Actions CI에서 검증 필요</td>
+            </tr>
+            <tr>
+              <td><b>운영 배포 · 외부 공개 게이트</b></td>
+              <td><span class="badge b-red">CLOSED (보류)</span></td>
+              <td>실제 MFDS 호출, 운영 DB 적용, <code>PUBLIC_TRACK_C</code>/<code>PUBLIC_TRACK_F</code> 해제는 외부 법무·의료 안전 승인 전까지 차단 유지</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>Dosey (다섯알) · 기준 커밋 <code>871eeb5</code> (<code>develop</code>) · 오프라인 단독 실행 가능한 정적 HTML</div>
+    <div>근거 문서: <code>docs/testing/source-publisher-docker-readiness-20261105.md</code> · <code>source-artifact-owner-v1-20261112.md</code> · <code>working-tree-topic-inventory-20261112.md</code></div>
+  </footer>
+
+</div>
+</body>
+</html>

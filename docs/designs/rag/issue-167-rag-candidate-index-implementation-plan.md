@@ -13,7 +13,7 @@ repository와 Candidate Resolver 판정은 구현하지 않고 protocol 뒤에 �
 **기술 스택:** Python 3.13, 표준 라이브러리 `dataclasses`·`enum`·`hashlib`·`json`·`math`·
 `unicodedata`, `typing.Protocol`, pytest, Ruff, Mypy
 
-**설계 문서:** `docs/designs/ceohwj/issue-167-rag-candidate-index-design.md`
+**설계 문서:** `docs/designs/rag/issue-167-rag-candidate-index-design.md`
 
 ## PR #329 반영 기준
 
@@ -43,8 +43,8 @@ repository와 Candidate Resolver 판정은 구현하지 않고 protocol 뒤에 �
 | --- | --- |
 | `ai_worker/tasks/rag/candidate_index.py` | RAG-07A 공개 타입, Catalog 검증, 결정적 build, embedding 검증, 검색 port와 orchestration |
 | `ai_worker/tests/rag/test_candidate_index.py` | 비식별 합성 Catalog, fake embedding/search port, 결정성·실패·검색 순서 회귀 테스트 |
-| `docs/designs/ceohwj/issue-167-rag-candidate-index-design.md` | 승인된 설계 정본. 구현 중 의미를 바꾸지 않는다. |
-| `docs/designs/ceohwj/issue-167-rag-candidate-index-implementation-plan.md` | 구현·검증 순서와 차단 상태 기록 |
+| `docs/designs/rag/issue-167-rag-candidate-index-design.md` | 승인된 설계 정본. 구현 중 의미를 바꾸지 않는다. |
+| `docs/designs/rag/issue-167-rag-candidate-index-implementation-plan.md` | 구현·검증 순서와 차단 상태 기록 |
 
 ## Task 1: 공개 타입과 Catalog·설정 fail-closed 경계
 

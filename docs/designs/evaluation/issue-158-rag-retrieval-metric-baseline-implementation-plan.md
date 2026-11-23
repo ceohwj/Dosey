@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.13, Pydantic v2, `Decimal`/`random.Random`, pytest, Ruff, mypy, 기존 canonical JSON·Schema Set 1.2 authoring·Artifact Schema 1.0.0·atomic publisher.
 
-**Spec:** `docs/designs/ceohwj/issue-158-rag-retrieval-metric-baseline-design.md`
+**Spec:** `docs/designs/evaluation/issue-158-rag-retrieval-metric-baseline-design.md`
 
 ## Global Constraints
 

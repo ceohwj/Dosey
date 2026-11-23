@@ -125,6 +125,6 @@ Plan과 암호화된 응답 snapshot을 같은 transaction에 저장하고 오�
 
 ## 상황별 연결 후속 — PD-194-3
 
-[상황 선택 계약](track-c-travel-situation-194.md)은 일정 변경·외출의 선택적 입력으로 후보를 제한한다.
-[계획별 자료 계약](track-c-plan-resources-194.md)은 원래 약·기록과 저장 당시 안내의 SELF 조회를 추가한다.
+[상황 선택 계약](../current/track-c-travel-situation-194.md)은 일정 변경·외출의 선택적 입력으로 후보를 제한한다.
+[계획별 자료 계약](../current/track-c-plan-resources-194.md)은 원래 약·기록과 저장 당시 안내의 SELF 조회를 추가한다.
 둘 다 이번 구현·리뷰 대상이며 약별 Citation·임상 Safety 정책의 완료를 뜻하지 않는다.

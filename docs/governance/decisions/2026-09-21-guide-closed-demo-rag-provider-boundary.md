@@ -8,8 +8,8 @@
 | 책임 리뷰 | 송은영 (`@phina-io`) — Backend·Data Boundary / 권가빈 (`@hazelnutflavoured`) — PM·Product Acceptance·Privacy Gate |
 | 필요 교차 리뷰 | 남한솔 (`@sol-nam`) — Frontend Integration / 김지혜 (`@Jye-rookie`) — Source Provenance |
 | 추적 PR | [#927](https://github.com/AI-HealthCare-05/AH_05_04/pull/927) |
-| 상위 결정 | [`PD-179-20260917`](./2026-09-17-rag15-guideline-approval-pack.md), [`PD-362-20260909`](./2026-09-09-source-snapshot-approval-boundary.md), [`PD-207`](../contracts/proposed/consent-gate-207.md) |
-| 관련 계약 | [`guide-closed-demo-rag-v1.md`](../contracts/proposed/guide-closed-demo-rag-v1.md) |
+| 상위 결정 | [`PD-179-20260917`](./2026-09-17-rag15-guideline-approval-pack.md), [`PD-362-20260909`](./2026-09-09-source-snapshot-approval-boundary.md), [`PD-207`](../../contracts/proposed/consent-gate-207.md) |
+| 관련 계약 | [`guide-closed-demo-rag-v1.md`](../../contracts/proposed/guide-closed-demo-rag-v1.md) |
 
 ---
 
