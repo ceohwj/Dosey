@@ -451,7 +451,10 @@ function MedicationCard({
           </span>
           <small>{summary || '복용 정보를 확인해 주세요'}</small>
         </span>
-        <span className="guide-page__chevron" aria-hidden="true" />
+        <span className="guide-page__medication-action">
+          <span>{isExpanded ? '접기' : '자세히 보기'}</span>
+          <span className="guide-page__chevron" aria-hidden="true" />
+        </span>
       </button>
       {isExpanded && (
         <div className="guide-page__medication-body" id={medicationPanelId}>

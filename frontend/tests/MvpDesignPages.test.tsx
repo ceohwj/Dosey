@@ -56,7 +56,13 @@ const REPORT_RESPONSE = {
   },
 }
 
+const TODAY_HOME_SERVICES = {
+  getMedicationDay: async () => ({ data: { schedule_status: 'READY' as const, schedule_items: [], occurrences: [] } }),
+  getOccurrenceMedication: async () => { throw new Error('No occurrence in this fixture') },
+}
+
 const EMPTY_HOME_SERVICES = {
+  ...TODAY_HOME_SERVICES,
   getLatestPrescription: async () => {
     throw new ApiError(404, '처방 없음', 'PRESCRIPTION_NOT_FOUND')
   },
@@ -64,11 +70,13 @@ const EMPTY_HOME_SERVICES = {
 }
 
 const ACTIVE_HOME_SERVICES = {
+  ...TODAY_HOME_SERVICES,
   getLatestPrescription: async () => PRESCRIPTION_RESPONSE,
   getMedicationReport: async () => REPORT_RESPONSE,
 }
 
 const ERROR_HOME_SERVICES = {
+  ...TODAY_HOME_SERVICES,
   getLatestPrescription: async () => {
     throw new ApiError(500, '조회 실패', 'INTERNAL_SERVER_ERROR')
   },
@@ -76,6 +84,7 @@ const ERROR_HOME_SERVICES = {
 }
 
 const NON_ABSENCE_404_HOME_SERVICES = {
+  ...TODAY_HOME_SERVICES,
   getLatestPrescription: async () => {
     throw new ApiError(404, '다른 리소스를 찾을 수 없음', 'RESOURCE_NOT_FOUND')
   },
@@ -306,7 +315,7 @@ describe('Dosey MVP design pages', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: '오늘도 건강한 하루 되세요',
+        name: '오늘 약, 함께 확인해요',
       }),
     ).toBeTruthy()
     expect(screen.getByText('테스트 사용자님!')).toBeTruthy()
@@ -322,14 +331,14 @@ describe('Dosey MVP design pages', () => {
       ),
     ).toBeTruthy()
     expect(screen.getByText('도지 사용자님!')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: '오늘도 건강한 하루 되세요' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '오늘 약, 함께 확인해요' })).toBeTruthy()
     expect(await screen.findByRole('button', { name: /내 처방전 등록하기/ })).toBeTruthy()
   })
 
   it('HOME 처방 완료 상태는 실제 7일 리포트의 복약 달성도를 표시한다', async () => {
     const { container } = renderHome(CURRENT_USER, false, ACTIVE_HOME_SERVICES)
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     expect(screen.getByRole('heading', { name: '이번 주 복약 달성도' })).toBeTruthy()
     expect(await screen.findByText('86%')).toBeTruthy()
     expect(screen.getByRole('progressbar', { name: '이번 주 복약 달성도 86%' })).toBeTruthy()
@@ -343,7 +352,7 @@ describe('Dosey MVP design pages', () => {
 
   it('미처방 HOME의 등록 카드를 새 처방 등록 intent와 함께 업로드 route에 연결한다', async () => {
     renderHome()
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     fireEvent.click(screen.getByRole('button', { name: /내 처방전 등록하기/ }))
     expect(screen.getByText('처방전 업로드 화면')).toBeTruthy()
     expect(screen.getByTestId('upload-intent').textContent).toBe('new-prescription')
@@ -352,7 +361,7 @@ describe('Dosey MVP design pages', () => {
   it('처방 완료 HOME에서도 새 처방전 등록 CTA를 새 처방 등록 intent로 연결한다', async () => {
     renderHome(CURRENT_USER, false, ACTIVE_HOME_SERVICES)
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -384,7 +393,7 @@ describe('Dosey MVP design pages', () => {
   it('처방 완료 HOME은 제거된 OTC와 기존 구 hub를 다시 표시하지 않는다', async () => {
     renderHome(CURRENT_USER, false, ACTIVE_HOME_SERVICES)
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     expect(screen.queryByRole('heading', { name: '미확인 기록' })).toBeNull()
     expect(screen.queryByRole('button', { name: /일반의약품 안내/ })).toBeNull()
     expect(await screen.findByRole('button', { name: '상세 보기 >' })).toHaveProperty('disabled', false)
@@ -397,7 +406,7 @@ describe('Dosey MVP design pages', () => {
   it('모든 HOME 마스코트 이미지는 브라우저 기본 드래그를 비활성화한다', async () => {
     const { container } = renderHome(CURRENT_USER, false, ACTIVE_HOME_SERVICES)
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     const mascotImages = container.querySelectorAll<HTMLImageElement>('.dosey-mascot img')
     expect(mascotImages.length).toBeGreaterThan(0)
     mascotImages.forEach((image) => {
@@ -422,7 +431,7 @@ describe('Dosey MVP design pages', () => {
   it('가이드 Bottom Navigation은 API 호출 없이 기존 /guides empty route로 이동한다', async () => {
     renderHome()
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     fireEvent.click(screen.getByRole('button', { name: '가이드' }))
     expect(screen.getByText('가이드 empty 화면')).toBeTruthy()
   })
@@ -430,7 +439,7 @@ describe('Dosey MVP design pages', () => {
   it('도지 Bottom Navigation은 prescription_id를 추측하지 않고 /chat으로 이동한다', async () => {
     renderHome()
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     fireEvent.click(screen.getByRole('button', { name: '도지' }))
     expect(screen.getByText('처방전 ID 없는 챗봇 진입 화면')).toBeTruthy()
   })
@@ -438,7 +447,7 @@ describe('Dosey MVP design pages', () => {
   it('HOME-01 Bottom Navigation은 최신 5-tab과 Menu 경로를 유지한다', async () => {
     renderHome()
 
-    await screen.findByText('오늘도 건강한 하루 되세요')
+    await screen.findByText('오늘 약, 함께 확인해요')
     expect(screen.getByRole('button', { name: '홈' }).getAttribute('aria-current')).toBe(
       'page',
     )

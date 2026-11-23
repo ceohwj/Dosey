@@ -1,0 +1,28 @@
+.home-today-section { display: grid; gap: 20px; }
+.home-today { padding: 24px; border: 1px solid #d7dfe4; border-radius: 24px; background: #fff; box-shadow: 0 3px 12px rgb(34 52 58 / 4%); }
+.home-today h2 { margin: 0; color: #22343a; font-size: 24px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.home-today h2:has(time) { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.home-today h2 time { font-size: 34px; line-height: 1.25; }
+.home-today h2 > span { padding: 6px 12px; border-radius: 12px; background: #eaf2f9; color: #285d91; font-size: 18px; }
+.home-today p { margin: 12px 0 0; color: #52616b; font-size: 18px; line-height: 1.65; }
+.home-today .home-today__eyebrow { margin: 0 0 12px; color: #285d91; font-size: 18px; font-weight: 700; }
+.home-today__medications { display: grid; gap: 12px; margin: 24px 0; padding: 0; list-style: none; }
+.home-today__medications li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; color: #22343a; font-size: 18px; line-height: 1.6; overflow-wrap: anywhere; }
+.home-today__medications li > span { min-width: 0; flex: 1 1 160px; }
+.home-today__medications small { color: #52616b; font-size: 16px; }
+.home-today .ds-button { min-height: 64px; margin-top: 12px; padding: 16px; border-radius: 16px; background: #285d91; color: #fff; font-size: 18px; line-height: 1.5; }
+.home-today .ds-button.secondary { border-color: #aebfcd; background: #fff; color: #285d91; }
+.home-today .ds-button:active { background: #1e4770; color: #fff; }
+.home-today .home-today__help, .home-today__help { color: #52616b; font-size: 16px; line-height: 1.65; }
+.home-today__help button { min-height: 48px; padding: 8px; border: 0; border-radius: 10px; background: transparent; color: #285d91; font: inherit; text-decoration: underline; }
+.home-today__progress { padding: 22px 24px; border: 1px solid #d7dfe4; border-radius: 24px; background: #fff; }
+.home-today__progress h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; color: #22343a; font-size: 18px; line-height: 1.6; }
+.home-today__progress strong { font-size: 20px; }
+.home-today__track { height: 8px; margin: 14px 0; overflow: hidden; border-radius: 8px; background: #e8edee; }
+.home-today__track > span { display: block; height: 100%; border-radius: inherit; background: #285d91; }
+.home-today__progress p { margin: 0; color: #52616b; font-size: 16px; line-height: 1.65; }
+.home-today__next { padding: 20px 24px; border-radius: 20px; background: #eaf2f9; }
+.home-today__next h2 { margin: 0; color: #52616b; font-size: 16px; line-height: 1.6; }
+.home-today__next p { margin: 6px 0; color: #22343a; font-size: 20px; font-weight: 700; line-height: 1.5; }
+.home-today__next > span { color: #52616b; font-size: 16px; line-height: 1.6; }
+@media (max-width: 359px) { .home-today, .home-today__progress { padding: 20px; } }

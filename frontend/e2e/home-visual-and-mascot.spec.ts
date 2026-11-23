@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import type { Locator } from '@playwright/test'
 import { installRequirementsApi, syntheticToken } from './fixtures/requirementsApi'
 
 test.beforeEach(async ({ page }) => {
@@ -11,70 +10,34 @@ test.beforeEach(async ({ page }) => {
   }, syntheticToken)
 })
 
-async function expectBox(
-  locator: Locator,
-  expected: { x: number; y: number; width: number; height: number },
-) {
-  const box = await locator.boundingBox()
-  expect(box).not.toBeNull()
-  expect(box?.x).toBeCloseTo(expected.x, 0)
-  expect(box?.y).toBeCloseTo(expected.y, 0)
-  expect(box?.width).toBeCloseTo(expected.width, 0)
-  expect(box?.height).toBeCloseTo(expected.height, 0)
-}
-
-test('390px 미처방 HOME은 승인 시안의 Hero와 등록 카드 밀도를 유지한다', async ({ page }) => {
+test('390px 미처방 HOME은 등록 진입과 읽기 쉬운 간격을 유지한다', async ({ page }) => {
   await installRequirementsApi(page)
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: '오늘도 건강한 하루 되세요' })).toBeVisible()
-  await expectBox(page.locator('.mvp-home__hero'), {
-    x: 12,
-    y: 88,
-    width: 366,
-    height: 190,
-  })
-  await expectBox(page.locator('.mvp-home__hub-card--prescription'), {
-    x: 20,
-    y: 356,
-    width: 350,
-    height: 176,
-  })
+  await expect(page.getByRole('heading', { name: '오늘 약, 함께 확인해요' })).toBeVisible()
+  const registration = page.locator('.mvp-home__hub-card--prescription')
+  await expect(registration).toBeInViewport()
+  const heroBox = await page.locator('.mvp-home__hero').boundingBox()
+  const registrationBox = await registration.boundingBox()
+  expect(registrationBox!.y).toBeGreaterThan(heroBox!.y + heroBox!.height)
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
   await expect(page.getByRole('button', { name: /일반의약품 안내/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /도지에게 질문하기/ })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/requirements/home-empty-390x1180.png' })
 })
 
-test('390px 처방 HOME은 승인 시안의 카드 간격과 마스코트 drag 방지를 유지한다', async ({ page }) => {
+test('390px 처방 HOME은 오늘 일정을 먼저 보여주고 기존 카드와 마스코트 기능을 유지한다', async ({ page }) => {
   await installRequirementsApi(page, { existingPrescription: true })
   await page.goto('/')
 
   await expect(page.getByRole('heading', { name: '이번 주 복약 달성도' })).toBeVisible()
-  await expectBox(page.locator('.mvp-home__hero'), {
-    x: 12,
-    y: 88,
-    width: 366,
-    height: 190,
-  })
-  await expectBox(page.locator('.mvp-home__adherence-card'), {
-    x: 20,
-    y: 326,
-    width: 350,
-    height: 240,
-  })
-  await expectBox(page.locator('.mvp-home__hub-card--report'), {
-    x: 20,
-    y: 626,
-    width: 350,
-    height: 128,
-  })
-  await expectBox(page.locator('.mvp-home__hub-card--new-prescription'), {
-    x: 20,
-    y: 768,
-    width: 350,
-    height: 128,
-  })
+  const today = page.getByRole('region', { name: '오늘 복약 확인' })
+  await expect(today).toBeVisible()
+  const todayBox = await today.boundingBox()
+  const adherenceBox = await page.locator('.mvp-home__adherence-card').boundingBox()
+  expect(adherenceBox!.y).toBeGreaterThan(todayBox!.y + todayBox!.height)
+  await expect(page.locator('.mvp-home__hub-card--report')).toBeVisible()
+  await page.locator('.mvp-home__hub-card--new-prescription').scrollIntoViewIfNeeded()
   const nav = page.getByRole('navigation', { name: '주요 메뉴' })
   const newPrescriptionCard = page.locator(
     '.mvp-home__hub-card--new-prescription',
@@ -102,7 +65,7 @@ test('390px 처방 HOME은 승인 시안의 카드 간격과 마스코트 drag �
   })
 
   const mascotImages = page.locator('.dosey-mascot img')
-  expect(await mascotImages.count()).toBeGreaterThanOrEqual(4)
+  expect(await mascotImages.count()).toBeGreaterThanOrEqual(3)
   for (let index = 0; index < await mascotImages.count(); index += 1) {
     const image = mascotImages.nth(index)
     await expect(image).toHaveAttribute('draggable', 'false')

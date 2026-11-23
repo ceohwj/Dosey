@@ -128,9 +128,11 @@ function useNow(intervalMs = 30_000) {
 function CheckinShell({
   children,
   onBack,
+  isSaving = false,
 }: {
   children: React.ReactNode
   onBack?: () => void
+  isSaving?: boolean
 }) {
   const navigate = useNavigate()
   return (
@@ -138,6 +140,7 @@ function CheckinShell({
       title="Dosey 도지"
       activeNavigation="일정"
       onBack={onBack}
+      disabledNavigation={isSaving ? ['홈', '일정', '도지', '가이드', '메뉴'] : []}
     onNavigate={(item) => {
         if (item === '홈') navigate('/')
         if (item === '일정') navigate('/schedule')
@@ -390,6 +393,7 @@ export function CheckinDetailPage({
   const [saveMessage, setSaveMessage] = useState('')
   const [isComplete, setIsComplete] = useState(false)
   const [showSuccessFeedback, setShowSuccessFeedback] = useState(false)
+  const [step, setStep] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const successConfirmRef = useRef<HTMLButtonElement>(null)
   // occurrence별 논리적 저장 시도. 재시도 시 멱등성 키를 보존한다.
@@ -397,6 +401,7 @@ export function CheckinDetailPage({
     Record<string, LogicalMutationAttempt<'CHECKIN_PUT', PutMedicationCheckinInput>>
   >({})
   const conflictSavedCheckinsRef = useRef<Record<string, MedicationCheckinSnapshot>>({})
+  const conflictReloadRef = useRef(false)
   const now = useNow()
 
   const backRoute = isValidLocalDate(date)
@@ -483,8 +488,15 @@ export function CheckinDetailPage({
         conflictSavedCheckinsRef.current = {}
         setIsComplete(false)
         setShowSuccessFeedback(false)
-        setSaveFailure(null)
-        setSaveMessage('')
+        setStep(0)
+        if (conflictReloadRef.current) {
+          setSaveFailure('CONFLICT')
+          setSaveMessage('기록이 다른 곳에서 변경됐어요. 최신 상태를 확인한 뒤 다시 선택해 주세요.')
+          conflictReloadRef.current = false
+        } else {
+          setSaveFailure(null)
+          setSaveMessage('')
+        }
         attemptsRef.current = {}
       } catch (error) {
         if (!controller.signal.aborted && active) {
@@ -518,8 +530,8 @@ export function CheckinDetailPage({
   }, [date, occurrenceId, reloadVersion, services, validRoute])
 
   useEffect(() => {
-    if (group) headingRef.current?.focus()
-  }, [group])
+    if (group && !isComplete) headingRef.current?.focus()
+  }, [group, step, isComplete])
 
   useEffect(() => {
     if (showSuccessFeedback) {
@@ -547,6 +559,11 @@ export function CheckinDetailPage({
   const canSubmit = allSelected && !isBeforeScheduled && !isSaving
 
   const savedCount = Object.keys(savedCheckins).length
+  const currentOccurrence = targets[step]
+  const isLastStep = step === targets.length - 1
+  const currentSelection = currentOccurrence
+    ? selections[currentOccurrence.occurrence_id]
+    : undefined
 
   const submit = async () => {
     if (!group || !canSubmit) return
@@ -618,6 +635,7 @@ export function CheckinDetailPage({
       if (failure === 'CONFLICT') {
         // 이미 성공한 occurrence는 reload 뒤에도 다시 PUT하지 않는다.
         conflictSavedCheckinsRef.current = succeeded
+        conflictReloadRef.current = true
         // 최신 상태를 다시 조회한다. 이전 선택을 자동 재제출하지 않는다.
         attemptsRef.current = {}
         setSaveMessage(
@@ -649,7 +667,7 @@ export function CheckinDetailPage({
 
   return (
     <div className="mvp-page checkin-page">
-      <CheckinShell onBack={() => navigate(backRoute)}>
+      <CheckinShell onBack={isSaving ? undefined : () => navigate(backRoute)} isSaving={isSaving}>
         <main className="app-scroll checkin checkin--detail">
           {isLoading && (
             <Card className="checkin__state">
@@ -691,12 +709,12 @@ export function CheckinDetailPage({
                 <h1 ref={headingRef} tabIndex={-1}>
                   {formatKstTime(group.scheduledAt)} 약을 확인해 주세요
                 </h1>
-                <p>복용 시간이 같은 약 {targets.length}개</p>
+                <p aria-live="polite">약 {step + 1} / {targets.length}개 확인</p>
               </header>
 
               <Card className="checkin__guide">
                 <strong>약을 하나씩 확인해 주세요.</strong>
-                <span>선택이 끝나면 아래 기록하기 버튼으로 저장해요.</span>
+                <span>{isBeforeScheduled ? '다음 약도 확인할 수 있어요. 기록은 설정한 시간부터 가능해요.' : '선택은 마지막에 한 번 더 확인하고 저장해요.'}</span>
               </Card>
 
               {isBeforeScheduled && (
@@ -710,10 +728,10 @@ export function CheckinDetailPage({
                 aria-labelledby="checkin-medications-title"
               >
                 <h2 id="checkin-medications-title">
-                  {formatKstTime(group.scheduledAt)}에 확인할 약 {targets.length}개
+                  {isBeforeScheduled ? '예정된 약을 확인해 주세요' : '이 약을 드셨나요?'}
                 </h2>
 
-                {targets.map((occurrence) => {
+                {targets.slice(step, step + 1).map((occurrence) => {
                   const medication = medications[occurrence.occurrence_id]
                   const selection = selections[occurrence.occurrence_id] ?? null
                   const isSaved = Boolean(savedCheckins[occurrence.occurrence_id])
@@ -814,33 +832,55 @@ export function CheckinDetailPage({
                 })}
               </section>
 
+              {isLastStep && allSelected && (
+                <section className="checkin__selection-summary" aria-labelledby="checkin-summary-title">
+                  <h2 id="checkin-summary-title">{savedCount > 0 ? '선택한 내용 · 저장 상태' : '선택한 내용 · 저장 전'}</h2>
+                  <ul>
+                    {targets.map((occurrence) => {
+                      const medication = medications[occurrence.occurrence_id]
+                      return (
+                        <li key={occurrence.occurrence_id}>
+                          <span>{[medication?.medication_name, medication?.strength_text].filter(Boolean).join(' ') || '약 정보'}</span>
+                          <strong>{selections[occurrence.occurrence_id] === 'TAKEN' ? '복용했어요' : '복용하지 않았어요'}{savedCount > 0 && <small> · {savedCheckins[occurrence.occurrence_id] ? '저장됨' : '저장 대기'}</small>}</strong>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              )}
+
               {saveFailure && (
                 <Card className="checkin__error">
                   <strong>기록을 저장하지 못했어요</strong>
                   <p role="alert">{saveMessage}</p>
+                  {savedCount > 0 && (
+                    <p>{savedCount}개 저장됨 · {targets.length - savedCount}개 남음</p>
+                  )}
                 </Card>
               )}
 
-
-
               <p className="checkin__bottom-helper">
-                {allSelected
-                  ? '두 약의 복용 여부를 모두 선택했어요.'
-                  : '모든 약의 복용 여부를 선택하면 기록할 수 있어요.'}
+                {isBeforeScheduled ? '예정된 약은 미리 읽어볼 수 있어요.' : savedCount > 0 ? '저장 대기 중인 약만 다시 저장해요.' : isLastStep && allSelected
+                  ? '저장하기 전 선택한 내용을 확인해 주세요.'
+                  : '복용 여부를 선택한 뒤 다음 약을 확인해요.'}
               </p>
 
-              <Button
-                fullWidth
-                className="checkin__submit"
-                disabled={!canSubmit}
-                onClick={() => void submit()}
-              >
-                {isSaving
-                  ? '저장 중…'
-                  : saveFailure === 'RETRYABLE' || saveFailure === 'VALIDATION'
-                    ? '저장 다시 시도'
-                    : '기록하기'}
-              </Button>
+              <div className="checkin__step-actions">
+                {isLastStep ? (
+                  <Button fullWidth className="checkin__submit" disabled={!canSubmit} onClick={() => void submit()}>
+                    {isSaving ? '저장 중…' : saveFailure === 'RETRYABLE' || saveFailure === 'VALIDATION' ? '저장 다시 시도' : '기록하기'}
+                  </Button>
+                ) : (
+                  <Button fullWidth className="checkin__submit" disabled={isSaving || (!isBeforeScheduled && !currentSelection)} onClick={() => setStep((current) => current + 1)}>
+                    다음 약 확인하기
+                  </Button>
+                )}
+                {step > 0 && (
+                  <Button variant="secondary" fullWidth className="checkin__previous" disabled={isSaving} onClick={() => setStep((current) => current - 1)}>
+                    이전 약으로
+                  </Button>
+                )}
+              </div>
             </>
           )}
 
@@ -862,6 +902,22 @@ export function CheckinDetailPage({
                 </strong>
                 <span>약 {savedCount}개의 복용 여부가 저장됐어요.</span>
               </Card>
+
+              <section className="checkin__selection-summary" aria-labelledby="checkin-saved-summary-title">
+                <h2 id="checkin-saved-summary-title">저장한 복용 기록</h2>
+                <ul>
+                  {targets.map((occurrence) => {
+                    const medication = medications[occurrence.occurrence_id]
+                    const saved = savedCheckins[occurrence.occurrence_id]
+                    return (
+                      <li key={occurrence.occurrence_id}>
+                        <span>{[medication?.medication_name, medication?.strength_text].filter(Boolean).join(' ') || '약 정보'}</span>
+                        <strong>{saved?.status === 'TAKEN' ? '복용했어요' : saved?.status === 'NOT_TAKEN' ? '복용하지 않았어요' : '확인 필요'}</strong>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
 
               <button
                 className="checkin__link-row"
