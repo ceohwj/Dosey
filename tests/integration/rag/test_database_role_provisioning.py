@@ -926,23 +926,34 @@ _NORMALIZED_IMAGE_FIXTURE_COLUMNS = {
     "normalized_width": "integer",
     "normalized_height": "integer",
 }
+_CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS = {
+    "runtime_release_bundle_manifest_hash": "varchar(64)",
+    "runtime_environment_id": "char(36)",
+    "runtime_environment_revision": "integer",
+}
 
 
 async def _add_normalized_image_fixture_columns(connection):
     """#809 컬럼을 고정 revision 스키마에 잠시 보충합니다.
 
     이 테스트는 `398b2c3d4e5f`에 고정해 그 시점의 권한 전이를 검증하는데, 공용 ORM 헬퍼에는
-    이후 추가된 medical_document 컬럼이 들어 있습니다. 검증 대상 revision을 올리지 않으려고
-    부족한 컬럼만 채우고, 뒤따르는 head 업그레이드가 같은 컬럼을 정상적으로 추가할 수 있도록
-    사용이 끝나면 즉시 되돌립니다.
+    이후 추가된 medical_document/medication_candidate_search 컬럼이 들어 있습니다. 검증 대상
+    revision을 올리지 않으려고 부족한 컬럼만 채우고, 뒤따르는 head 업그레이드가 같은 컬럼을
+    정상적으로 추가할 수 있도록 사용이 끝나면 즉시 되돌립니다.
     """
     for name, column_type in _NORMALIZED_IMAGE_FIXTURE_COLUMNS.items():
         await connection.execute(text(f"ALTER TABLE medical_document ADD COLUMN IF NOT EXISTS {name} {column_type}"))
+    for name, column_type in _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS.items():
+        await connection.execute(
+            text(f"ALTER TABLE medication_candidate_search ADD COLUMN IF NOT EXISTS {name} {column_type}")
+        )
 
 
 async def _drop_normalized_image_fixture_columns(connection):
     for name in _NORMALIZED_IMAGE_FIXTURE_COLUMNS:
         await connection.execute(text(f"ALTER TABLE medical_document DROP COLUMN IF EXISTS {name}"))
+    for name in _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS:
+        await connection.execute(text(f"ALTER TABLE medication_candidate_search DROP COLUMN IF EXISTS {name}"))
 
 
 async def _exercise_prescription_candidate_cutover(admin, reader, environment):

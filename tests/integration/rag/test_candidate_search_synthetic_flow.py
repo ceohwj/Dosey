@@ -7,6 +7,7 @@ production Source policy, and every fixture Source is synthetic and local.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -137,11 +138,11 @@ def _tables() -> list[Table]:
 
 @pytest_asyncio.fixture
 async def sessions() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    is_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
     if (
         config.DB_NAME != "test"
         or config.DB_HOST not in {"127.0.0.1", "localhost"}
-        or config.DB_PORT != 55439
-        or config.DB_EXPOSE_PORT != 55439
+        or (not is_ci and (config.DB_PORT != 55439 or config.DB_EXPOSE_PORT != 55439))
     ):
         pytest.fail("synthetic flow requires the dedicated port-55439 test database")
     schema = "candidate_synthetic_" + uuid4().hex

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -62,7 +63,7 @@ async def test_existing_success_replays_before_current_context_guard_and_fresh_m
         ),
         result=SimpleNamespace(id=result_id),
     )
-    idempotency = service._idempotency_service
+    execute_mock = cast(AsyncMock, service._idempotency_service.execute)
     response = {
         "identification_id": str(uuid4()),
         "prescription_version_medication_id": str(medication_id),
@@ -71,7 +72,7 @@ async def test_existing_success_replays_before_current_context_guard_and_fresh_m
         "product_id": str(uuid4()),
         "confirmed_at": datetime.now(config.TIMEZONE).isoformat(),
     }
-    idempotency.execute.return_value = SyncMutationResult(200, response, is_replay=True)
+    execute_mock.return_value = SyncMutationResult(200, response, is_replay=True)
     request = ConfirmMedicationCandidateRequest(
         prescription_version_medication_id=medication_id,
         candidate_search_result_id=result_id,
@@ -82,14 +83,15 @@ async def test_existing_success_replays_before_current_context_guard_and_fresh_m
         idempotency_key="synthetic-replay-key-0001",
     )
     assert str(replay.identification_id) == response["identification_id"]
-    assert idempotency.execute.await_args.kwargs["mutate"] is not None
+    assert execute_mock.await_args is not None
+    assert execute_mock.await_args.kwargs["mutate"] is not None
     repository.get_result_selection_for_update_owned.assert_not_awaited()
 
     async def execute_mutation(**kwargs: object) -> object:
         await kwargs["mutate"]()  # type: ignore[operator]
         raise AssertionError("fresh mutation must fail closed before a success response")
 
-    idempotency.execute.side_effect = execute_mutation
+    execute_mock.side_effect = execute_mutation
     with pytest.raises(ApiError) as raised:
         await service.confirm_candidate(
             user=SimpleNamespace(id=user_id),  # type: ignore[arg-type]
