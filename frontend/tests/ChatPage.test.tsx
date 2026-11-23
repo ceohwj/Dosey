@@ -500,7 +500,7 @@ describe('ChatPage', () => {
     await screen.findByText('A 완료 답변')
 
     fireEvent.click(screen.getByRole('button', { name: '👍 도움이 됐어요' }))
-    fireEvent.click(screen.getByRole('button', { name: '피드백 보내기' }))
+    fireEvent.click(await screen.findByRole('button', { name: '피드백 보내기' }))
     await screen.findByText('저장된 평가: 도움이 됐어요')
 
     fireEvent.change(input, { target: { value: 'B 질문' } })

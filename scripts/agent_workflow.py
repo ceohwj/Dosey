@@ -470,11 +470,36 @@ def _validate_review_report(report):
     return normalized
 
 
-def _merge_review_ranges(findings):
+def _file_line_count(root, relative_path):
+    candidate = _safe_components(_root(root) / relative_path)
+    if not candidate.is_file():
+        return None
+    try:
+        return max(1, len(candidate.read_bytes().splitlines()))
+    except OSError:
+        return None
+
+
+def _read_review_report_input(path, root):
+    path = _safe_components(path)
+    repository = _root(root)
+    parts = path.relative_to(repository).parts if path.is_relative_to(repository) else path.parts[1:]
+    if len(parts) >= 3 and parts[0] == "outputs" and parts[1] == "claude-reviews":
+        parts = parts[2:]
+    for part in parts:
+        _relative(part)
+    return _read_json(path)
+
+
+def _merge_review_ranges(root, findings):
     per_file = {}
     for item in findings:
         start = max(1, item["line"] - REVIEW_RANGE_PADDING)
         end = item["line"] + REVIEW_RANGE_PADDING
+        line_count = _file_line_count(root, item["file"])
+        if line_count is not None:
+            end = min(end, line_count)
+            start = min(start, end)
         per_file.setdefault(item["file"], []).append((start, end))
     ranges = []
     for file_path in sorted(per_file):
@@ -493,7 +518,7 @@ def prepare_repair(root, task_id, review_report_path):
     _task_id(task_id)
     restored = restore_task(root, task_id)
     task = restored["task"]
-    findings = _validate_review_report(_read_record_input(review_report_path, root))
+    findings = _validate_review_report(_read_review_report_input(review_report_path, root))
     allowed = set(task["allowed_files"])
 
     repair_findings = []
@@ -536,12 +561,12 @@ def prepare_repair(root, task_id, review_report_path):
             "next_action": "ready_for_integrator_verification",
         }
 
-    status = "repair_required" if repair_findings else "scope_escalation_required"
-    next_action = (
-        "dispatch_owner_agent_red_green_repair_then_re_review"
-        if repair_findings
-        else "escalate_out_of_scope_findings_to_integrator"
-    )
+    if scope_violations:
+        status = "scope_escalation_required"
+        next_action = "escalate_out_of_scope_findings_to_integrator"
+    else:
+        status = "repair_required"
+        next_action = "dispatch_owner_agent_red_green_repair_then_re_review"
     return {
         "task_id": task_id,
         "status": status,
@@ -551,7 +576,7 @@ def prepare_repair(root, task_id, review_report_path):
         "repair_findings": repair_findings,
         "scope_violations": scope_violations,
         "deferred_findings": deferred_findings,
-        "re_review_ranges": _merge_review_ranges(repair_findings),
+        "re_review_ranges": _merge_review_ranges(root, repair_findings),
         "next_action": next_action,
     }
 

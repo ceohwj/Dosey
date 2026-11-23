@@ -101,7 +101,7 @@ python3 scripts/agent_workflow.py prepare-repair --task ID --review-report FILE 
 | checkpoint | `{"task_id":"ID","revision":2,"verification":"MATCHED_SNAPSHOT"}` |
 | release | `{"task_id":"ID","released":true}` |
 | validate | `{"task_id":"ID","valid":true,"verification":"MATCHED_SNAPSHOT/STALE/UNKNOWN","reconciliation_required":false}` |
-| prepare-repair | `{"task_id":"ID","status":"repair_required/clean/scope_escalation_required/blocked","repair_findings":[...],"scope_violations":[...],"deferred_findings":[...],"re_review_ranges":["FILE:START:END"],"next_action":"..."}` |
+| prepare-repair | `{"task_id":"ID","status":"repair_required/clean/scope_escalation_required/blocked","reason":"...","allowed_files":[...],"required_tests":[...],"repair_findings":[...],"scope_violations":[...],"deferred_findings":[...],"re_review_ranges":["FILE:START:END"],"next_action":"..."}` |
 
 표의 `canonical_record`는 [task JSON](task-template.md#canonical-task-json) 객체 자리표시자이며 slash로 나눈 verification은 셋 중 한 문자열이다. restore의 진행·budget·knowledge refs는 `task` 아래 canonical 값만 사용한다. `reconciliation_required=true`이면 새 admission/dispatch를 멈추고 위 복구 경계를 따른다. 이 값은 CLI가 해당 복구를 지원한다는 뜻이 아니며 자동 reset하지 않는다. 오류 stderr는 `{"error":"message","code":"stable_code"}`이고 traceback을 내보내지 않는다.
 
