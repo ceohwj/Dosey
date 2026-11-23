@@ -54,7 +54,7 @@ Human Owner가 제품·계약·migration·안전·merge·배포·공개를 최�
 ### 종료와 수리 loop
 
 1. 구현자는 변경 파일·검증 명령/exit/증거·미실행 사유·gap을 반환하고 main은 canonical 진행과 다음 행동을 갱신한다. 예시 budget 3 cycles/1200 active seconds는 작업별 명시 변경할 수 있다. provider token 비용 추정으로 대체하지 않는다.
-2. 모든 writer를 멈추고 검토 revision 또는 working snapshot/hash·파일 범위를 고정한다. 독립 reviewer의 실제 위반·누락은 파일/줄과 근거를 붙여 원래 지정 구현자에게 돌린다. 재현 가능한 코드 결함은 RED → 수정 → GREEN과 해당 범위 재검토로 확인한다. 문장은 내용·참조 검사와 소비자 복구 pilot으로 검증하며 문구 grep 테스트를 만들지 않는다.
+2. 모든 writer를 멈추고 검토 revision 또는 working snapshot/hash·파일 범위를 고정한다. 독립 reviewer(`dosey_reviewer`) 또는 외부 `scripts/claude_review.py`의 구조화 보고서 JSON을 `scripts/agent_workflow.py prepare-repair --task ID --review-report PATH`에 전달해 `BLOCKING`/`HIGH` 항목과 `re_review_ranges`를 추출한다. `allowed_files` 밖 지적(`scope_violations`)이나 budget/in-flight 차단(`status=blocked`)이 있으면 자동 수리를 멈추고 Integrator/Human Owner에게 에스컬레이션한다. 허용 범위 내 지적은 원래 지정 구현자에게 돌려 재현 테스트(RED) → 최소 수정 → 통과(GREEN)와 수정 줄 범위 반환을 확인한 뒤 `--review-range`로 해당 구간만 재검토한다. 문장은 내용·참조 검사와 소비자 복구 pilot으로 검증하며 문구 grep 테스트를 만들지 않는다.
 3. 재dispatch 전에 [실패 기록](../failures/README.md)과 재검토 조건을 확인한다. cycle/active time 상한, unknown 사용량, 미해결 in-flight이면 멈추고 evidence·gap·`next_action`을 보존한다. 재시도를 위해 counter를 초기화하지 않는다.
 4. 위 복구 경계 안에서 checkpoint가 가능하면 종료 상태·남은 작업·증거를 canonical에 저장하고 정확한 holder가 claim을 release한다. 검증된 완료는 `phase=complete`, 차단은 `blocked`와 gap으로 기록하며, 저장할 수 없으면 canonical 밖에 보고한다. 결과 STATUS와 JSON phase는 템플릿처럼 구분한다. 완료/검토 기록은 Human Owner의 merge·공개 결정이 아니다.
 
@@ -88,6 +88,7 @@ python3 scripts/agent_workflow.py claim --task ID --root PATH
 python3 scripts/agent_workflow.py checkpoint --task ID --claim TOKEN --expected-revision N --record FILE --root PATH
 python3 scripts/agent_workflow.py validate --task ID --root PATH
 python3 scripts/agent_workflow.py release --task ID --claim TOKEN --root PATH
+python3 scripts/agent_workflow.py prepare-repair --task ID --review-report FILE --root PATH
 ```
 
 성공은 JSON stdout/exit 0, invalid/conflict는 JSON stderr/nonzero다. claim은 opaque unique token과 task ID를 반환한다. 읽기는 저장소를 생성하지 않고 쓰기는 전용 task store에 한정한다. 정규 bounded JSON 파일만 허용하고 symlink component·path escape를 거부한다. 제한된 argv 기반 Git HEAD 조회 외 명령 실행은 하지 않는다. 아래는 Integrator가 고정한 JSON 결과 형식이다. `verification`은 snapshot 판정이며 테스트 통과가 아니다. cache가 없다는 이유로 task를 발견 결과에서 숨기지 않는다. restore는 ID가 필요하므로 ID가 없으면 discover를 먼저 사용한다.
@@ -100,10 +101,11 @@ python3 scripts/agent_workflow.py release --task ID --claim TOKEN --root PATH
 | checkpoint | `{"task_id":"ID","revision":2,"verification":"MATCHED_SNAPSHOT"}` |
 | release | `{"task_id":"ID","released":true}` |
 | validate | `{"task_id":"ID","valid":true,"verification":"MATCHED_SNAPSHOT/STALE/UNKNOWN","reconciliation_required":false}` |
+| prepare-repair | `{"task_id":"ID","status":"repair_required/clean/scope_escalation_required/blocked","repair_findings":[...],"scope_violations":[...],"deferred_findings":[...],"re_review_ranges":["FILE:START:END"],"next_action":"..."}` |
 
 표의 `canonical_record`는 [task JSON](task-template.md#canonical-task-json) 객체 자리표시자이며 slash로 나눈 verification은 셋 중 한 문자열이다. restore의 진행·budget·knowledge refs는 `task` 아래 canonical 값만 사용한다. `reconciliation_required=true`이면 새 admission/dispatch를 멈추고 위 복구 경계를 따른다. 이 값은 CLI가 해당 복구를 지원한다는 뜻이 아니며 자동 reset하지 않는다. 오류 stderr는 `{"error":"message","code":"stable_code"}`이고 traceback을 내보내지 않는다.
 
-Python 공개 API는 `WorkflowError`, `discover_tasks(root)`, `restore_task(root, task_id)`, `claim_writer(root, task_id)`, `checkpoint_task(root, task_id, claim, expected_revision, record)`, `release_writer(root, task_id, claim)`, `validate_record(record)`다. discover API는 CLI의 tasks 배열에 해당하는 summary list를 반환하고, 나머지 동작 API는 위 CLI와 같은 JSON-serializable 객체를 반환한다. `validate_record`는 성공 시 None, 실패 시 WorkflowError다.
+Python 공개 API는 `WorkflowError`, `discover_tasks(root)`, `restore_task(root, task_id)`, `claim_writer(root, task_id)`, `checkpoint_task(root, task_id, claim, expected_revision, record)`, `release_writer(root, task_id, claim)`, `prepare_repair(root, task_id, review_report_path)`, `validate_record(record)`다. discover API는 CLI의 tasks 배열에 해당하는 summary list를 반환하고, 나머지 동작 API는 위 CLI와 같은 JSON-serializable 객체를 반환한다. `validate_record`는 성공 시 None, 실패 시 WorkflowError다.
 
 report-only hygiene helper는 `python3 scripts/ci/check_agent_hygiene.py --root PATH`이며 반복 `--document`와 `--check`를 지원한다. 기본 문서는 AGENTS·workflow·task-template·knowledge-index·failures README다. fenced 예제·외부 URL을 제외한 local Markdown link/anchor, 안전한 상대 경로, 제한된 source root의 임시 파일명 후보를 검사한다. 명시적인 역사 참조를 구분하고 역사 문서를 기본 순회하지 않는다. JSON findings는 `path`, `line`, `code`, `message`; exit 0 clean, 1 findings, 2 invocation error다. delete/apply 옵션은 없다.
 
