@@ -292,6 +292,10 @@ jobs:
       - classify-test-scope
     if: ${{ needs.classify-test-scope.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       DB_HOST: 127.0.0.1
       DB_PORT: "5432"
@@ -299,7 +303,7 @@ jobs:
       DB_USER: postgres
       DB_PASSWORD: ci_test_password
       DB_NAME: test
-      COVERAGE_FILE: .coverage.rag
+      COVERAGE_FILE: .coverage.rag.${{ matrix.shard }}
     services:
       postgres:
         image: pgvector/pgvector:0.8.6-pg17-bookworm
@@ -354,10 +358,11 @@ jobs:
           ISSUE398_TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
           PROTECTED_TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@127.0.0.1:5432/protected368_test
-        run: uv run coverage run -m pytest tests/integration/rag
+        run: uv run python scripts/ci/select_rag_test_shard.py --root tests/integration/rag --shard "${{ matrix.shard }}" --total-shards 3 --run-coverage
 
       # #347은 앱 기본 test DB로 fallback하지 않고 전용 migrated DB에서 권한·삭제를 검증합니다.
       - name: Verify isolated Source cleanup workflow
+        if: ${{ matrix.shard == 1 }}
         env:
           PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
           DB_NAME: source_cleanup347_test
@@ -381,8 +386,8 @@ jobs:
       - name: Upload RAG Coverage Data
         uses: actions/upload-artifact@v4
         with:
-          name: python-coverage-rag
-          path: .coverage.rag
+          name: python-coverage-rag-${{ matrix.shard }}
+          path: .coverage.rag.${{ matrix.shard }}
           include-hidden-files: true
           if-no-files-found: error
 
@@ -542,8 +547,9 @@ jobs:
         if: ${{ needs.classify-test-scope.outputs.full == 'true' }}
         uses: actions/download-artifact@v4
         with:
-          name: python-coverage-rag
+          pattern: python-coverage-rag-*
           path: coverage-data/rag
+          merge-multiple: true
 
       - name: Download Contract Coverage Data
         if: ${{ needs.classify-test-scope.outputs.full == 'true' }}
