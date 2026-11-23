@@ -447,6 +447,19 @@ describe('PrescriptionUploadPage OCR polling', () => {
     expect(sessionStorage.getItem('dosey_chat_session:fixture-prescription')).toBeNull()
   })
 
+  it('파일 선택 안내 영역을 유지하고 파일이 바뀌면 알림 내용도 갱신한다', () => {
+    const { container } = renderPage()
+    const status = container.querySelector('.mvp-upload__selection-status')
+    expect(status?.getAttribute('role')).toBe('status')
+    expect(status?.textContent).toBe('')
+    selectPrescriptionFile(container, 'first.png')
+    expect(status?.textContent).toContain('first.png')
+    selectPrescriptionFile(container, 'second.png')
+    expect(container.querySelector('.mvp-upload__selection-status')).toBe(status)
+    expect(status?.textContent).toContain('second.png')
+    expect(status?.textContent).not.toContain('first.png')
+  })
+
   it('최신 DOC-01의 카메라/저장 파일 선택과 실제 입력 형식을 제공한다', () => {
     const { container } = renderPage()
 
@@ -617,7 +630,7 @@ describe('PrescriptionUploadPage OCR polling', () => {
       )
 
       expect(
-        screen.getByText(/prescription-\d+\.jpg/),
+        screen.getByText(/prescription-\d+\.jpg/, { selector: '.mvp-upload__filename' }),
       ).toBeTruthy()
 
       expect(stop).toHaveBeenCalled()

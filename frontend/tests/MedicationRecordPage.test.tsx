@@ -188,6 +188,34 @@ describe('RECORD-01 복약 기록', () => {
     ).toBeTruthy()
   })
 
+  it('복용·미복용 기록을 각각 구분하고 수정 경로를 제공한다', async () => {
+    const recorded = (id: string, status: 'TAKEN' | 'NOT_TAKEN') =>
+      makeOccurrence(id, '2026-09-16T04:00:00Z', {
+        checkin: {
+          checkin_id: `check-${id}`,
+          occurrence_id: id,
+          status,
+          taken_at: status === 'TAKEN' ? '2026-09-16T04:00:00Z' : null,
+          revision: 1,
+          corrected: false,
+        },
+      })
+    renderPage(makeServices({
+      getMedicationDay: vi.fn(async () => makeDay([
+        recorded('occ-taken', 'TAKEN'),
+        recorded('occ-not-taken', 'NOT_TAKEN'),
+      ])),
+    }))
+
+    expect(await screen.findByText('복용 완료')).toBeTruthy()
+    expect(screen.getByText('복용하지 않음')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: '복약 기록 수정하기' })).toHaveLength(2)
+    fireEvent.click(screen.getAllByRole('button', { name: '복약 기록 수정하기' })[1])
+    expect(screen.getByTestId('location').textContent).toBe(
+      `/schedule/occurrences/occ-not-taken?date=${TODAY}`,
+    )
+  })
+
   // 기존 Check-in 화면(CHECKIN-01)으로 진입한다. RECORD-02는 이번 범위가 아니다.
   it('기록 가능한 PENDING은 기존 Check-in 화면으로 이동한다', async () => {
     renderPage()

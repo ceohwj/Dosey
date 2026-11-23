@@ -143,6 +143,7 @@ function renderSchedule(services: SchedulePageServices, entry = '/schedule?date=
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/schedule" element={<><SchedulePage services={services} /><LocationProbe /></>} />
+        <Route path="/records" element={<><div>기록 목록 route</div><LocationProbe /></>} />
         <Route
           path="/schedule/occurrences/:occurrenceId"
           element={<><div>복약 기록 route</div><LocationProbe /></>}
@@ -300,24 +301,41 @@ describe('production 복약 일정', () => {
       expect.any(AbortSignal),
     )
   })
-  it('READY 기본 화면을 오늘의 복약 Source 위계로 표시한다', async () => {
+  it('READY 기본 화면을 선택한 날짜의 복약 위계로 표시한다', async () => {
     renderSchedule(makeServices())
 
     expect(await screen.findByRole('heading', { name: '복약 일정' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: '오늘의 복약' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '선택한 날짜의 복약' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '복용 여부 기록하기' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '복약 일정 설정·수정' })).toBeTruthy()
-    expect(screen.queryByText('선택한 날짜의 복약')).toBeNull()
     expect(screen.queryByText('확인하지 못한 복약 기록')).toBeNull()
   })
 
-  it('READY인 선택 날짜에 occurrence가 없으면 오늘의 복약 빈 상태를 유지한다', async () => {
+  it('기록 목록으로 이동할 때 선택 날짜를 유지하고 mutation을 보내지 않는다', async () => {
+    const services = makeServices()
+    renderSchedule(services)
+    fireEvent.click(await screen.findByRole('button', { name: '복약 기록 보기' }))
+    expect(await screen.findByText('기록 목록 route')).toBeTruthy()
+    expect(screen.getByTestId('location').textContent).toBe('/records?date=2026-09-14')
+    expect(services.putMedicationCheckin).not.toHaveBeenCalled()
+    expect(services.putMedicationSchedule).not.toHaveBeenCalled()
+  })
+
+  it('미래 날짜의 일정에서는 기록 목록 링크를 표시하지 않는다', async () => {
+    const services = makeServices()
+    renderSchedule(services, '/schedule?date=2099-01-01')
+    await screen.findByRole('heading', { name: '선택한 날짜의 복약' })
+    expect(screen.queryByRole('button', { name: '복약 기록 보기' })).toBeNull()
+    expect(services.putMedicationCheckin).not.toHaveBeenCalled()
+  })
+
+  it('READY인 선택 날짜에 occurrence가 없으면 선택한 날짜의 복약 빈 상태를 유지한다', async () => {
     const services = makeServices({
       getMedicationDay: vi.fn().mockResolvedValue(makeDay({ occurrences: [] })),
     })
     renderSchedule(services)
 
-    expect(await screen.findByRole('heading', { name: '오늘의 복약' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: '선택한 날짜의 복약' })).toBeTruthy()
     expect(screen.getByText('이 날짜에 표시할 복약 일정이 없어요.')).toBeTruthy()
   })
 
@@ -376,7 +394,7 @@ describe('production 복약 일정', () => {
 
     expect(screen.getByText('복약 일정 설정')).toBeTruthy()
     expect(screen.getByRole('heading', { name: '복용할 날짜와 시간을 확인해 주세요' })).toBeTruthy()
-    expect(screen.queryByRole('heading', { name: '오늘의 복약' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: '선택한 날짜의 복약' })).toBeNull()
   })
 
   it.each([
@@ -404,7 +422,7 @@ describe('production 복약 일정', () => {
       })
       renderSchedule(services)
 
-      expect(await screen.findByRole('heading', { name: '오늘의 복약' })).toBeTruthy()
+      expect(await screen.findByRole('heading', { name: '선택한 날짜의 복약' })).toBeTruthy()
       expect(screen.getByRole('button', { name: '복용 여부 기록하기' })).toBeTruthy()
     },
   )
@@ -1217,10 +1235,12 @@ describe('production 복약 기록 handoff', () => {
     expect((taken as HTMLButtonElement).disabled).toBe(true)
     expect((notTaken as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText(/부터 복약 기록을 남길 수 있어요/)).toBeTruthy()
+    expect(screen.queryByText('아래 버튼을 누르면 바로 저장돼요.')).toBeNull()
     expect(services.putMedicationCheckin).not.toHaveBeenCalled()
 
     await waitFor(() => expect((taken as HTMLButtonElement).disabled).toBe(false), { timeout: 2_000 })
     expect((notTaken as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.getByText('아래 버튼을 누르면 바로 저장돼요.')).toBeTruthy()
   })
 
   it('예정 시각 전 서버 응답 race는 저장 실패 대신 가능한 시각을 안내한다', async () => {

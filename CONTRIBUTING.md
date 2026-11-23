@@ -1,11 +1,11 @@
 # 기여 가이드
 
-이 문서는 저장소의 Git 협업 기준입니다. 다른 문서와 충돌하면 이 문서와 GitHub Ruleset을 우선하고, 변경이 필요하면 Issue와 Pull Request로 함께 갱신합니다.
+이 문서는 저장소의 로컬 Git 협업 기준입니다. 보안·개인정보·의료 안전은 `SECURITY.md`와 `docs/privacy-safety.md`, 구현 계약은 해당 계약 문서를 따릅니다. 원격 GitHub Ruleset 설정은 별도이며 최신 상태를 여기서 보증하지 않습니다.
 
 ## 브랜치
 
 - `main`: 발표·배포 가능한 안정 버전
-- `develop`: 팀 통합 브랜치
+- `develop`: 통합 브랜치
 - `feat/<issue>-<name>`: 기능 개발
 - `fix/<issue>-<name>`: 버그 수정
 - `docs/<issue>-<name>`: 문서 변경
@@ -21,12 +21,12 @@ git switch -c feature/12-prescription-upload
 
 ## 작업 흐름
 
-1. GitHub Issue를 만들고 담당자를 지정합니다.
+1. 작업 범위와 완료 조건을 Issue 또는 [작업 명세](docs/ai/task-template.md)에 기록하고, Integrator가 구현 Agent와 허용 파일을 배정합니다.
 2. Issue 번호를 포함한 작업 브랜치를 만듭니다.
 3. 코드와 관련 테스트·문서를 함께 수정합니다.
 4. Ruff, Mypy와 관련 테스트를 실행합니다.
-5. 구현 담당자와 별도의 담당 리뷰어를 Issue와 PR에 지정하고 리뷰를 요청합니다.
-6. 지정된 담당 리뷰어의 승인과 blocking comment 해소를 확인합니다.
+5. 통합한 변경 범위를 고정하고 [Agent workflow](docs/ai/workflow.md)에 따라 필요한 독립 검토를 요청합니다.
+6. 검토 결과와 blocking comment 해소를 확인합니다. Human Owner가 최종 merge 결정을 합니다.
 7. Squash merge 후 작업 브랜치를 삭제합니다.
 
 ## Issue와 Pull Request 작성
@@ -77,26 +77,26 @@ git switch -c feature/12-prescription-upload
 - 트랜잭션, 멱등성, 장애 복구 또는 비동기 처리가 실제 요구사항입니다.
 - 같은 조건에서 측정한 성능 결과로 병목이 확인되었습니다.
 
-이 원칙은 추상화나 책임 분리 자체를 금지하지 않습니다. API·DTO·DB·메시지 스키마 같은 공유 계약, 보안·Privacy·의료 안전 통제와 책임 경계는 단순화를 이유로 약화하거나 생략하지 않습니다. 복잡성이 필요하다는 설명도 기존 계약 변경, 담당자 조율, 문서화와 검증 요건을 대신하지 않습니다.
+이 원칙은 추상화나 책임 분리 자체를 금지하지 않습니다. API·DTO·DB·메시지 스키마 같은 공유 계약, 보안·Privacy·의료 안전 통제와 책임 경계는 단순화를 이유로 약화하거나 생략하지 않습니다. 복잡성이 필요하다는 설명도 기존 계약 변경 조율, 문서화와 검증 요건을 대신하지 않습니다.
 
 ## 리뷰와 머지
 
 - CODEOWNERS는 사용하지 않으며 변경 경로나 과거 작성자만으로 리뷰어를 자동 확정하지 않습니다.
-- 담당 리뷰어는 실제 변경 영역을 검토할 수 있는 팀원으로 지정하며 PR 작성자의 self-approval은 승인으로 인정하지 않습니다.
-- 여러 영역을 함께 변경해도 PR의 최종 승인 책임자는 1명만 지정합니다. 담당 리뷰어 검토 범위에는
-  Backend·Frontend·Worker/OCR·AI/RAG·Security·Privacy 등 모든 영향 영역을 기록하고, 담당 리뷰어가 직접
-  검토할 수 없는 전문 영역은 관련 팀원의 의견이나 승인 근거를 첨부합니다. 이 근거 제공자는 추가 필수
-  PR 리뷰어로 지정하지 않습니다.
+- Human Owner는 실제 변경에 맞는 독립 검토를 요청하고 결과를 판단합니다. Agent 검토는 증거이며 Human Owner 결정을 대신하지 않습니다.
+- 여러 영역을 함께 변경하면 검토 범위에
+  Backend·Frontend·Worker/OCR·AI/RAG·Security·Privacy 등 모든 영향 영역을 기록하고, 주 검토자가 직접
+  검토할 수 없는 전문 영역은 독립 도메인 검토 의견이나 필요한 외부 승인 근거를 첨부합니다. 이 증거는
+  별도 승인 요건을 대체하지 않습니다.
 - 공유 계약 변경은 Decision, 계약 문서, OpenAPI/DTO, migration, 구현과 계약·통합 테스트를 같은 변경 흐름에서 정렬합니다.
 - 의료 안전·Privacy·외부 Source 공개 승인은 코드 리뷰와 별도 게이트이며 필요한 증빙이 없으면 `PUBLIC_TRACK_C` 또는 `PUBLIC_TRACK_F`를 해제하지 않습니다.
 
 ### 머지 게이트
 
-- `develop` PR은 GitHub Ruleset의 required status check `test`·`lint`·`frontend`가 통과해야 머지할 수 있습니다.
+- 로컬 프로젝트 workflow 기준으로 `develop` PR은 required status check `test`·`lint`·`frontend`가 통과해야 머지할 수 있습니다. 원격 Ruleset·merge queue 적용 여부는 GitHub에서 확인합니다.
   Pull Request에서는 `classify-test-scope`가 변경 경로를 분류하고 `test`는 항상 실행되는
   `test-inventory`와 선택된 `test-migration`·`test-backend`·`test-rag`·`test-contract`·`test-worker`를 집계합니다.
   Merge queue와 보호 브랜치 push에서는 다섯 test lane을 모두 실행하고 전체 Python coverage를 검증합니다.
-- 담당 리뷰어 승인과 required status check 통과 후 PR을 직접 머지하지 않고 merge queue에 추가합니다. Queue는 최신
+- 원격에서 merge queue가 구성된 경우 required check 통과 후 queue를 사용합니다. Queue는 최신
   `develop`과 PR 변경을 합친 임시 merge group에서 같은 required check를 다시 실행하고, 모두 통과한 경우에만 squash
   merge합니다. 작성자가 base 변경 때마다 수동으로 rebase할 필요는 없습니다.
 - Queue는 PR을 한 건씩 병합하며, 동시에 최대 두 merge group을 검사합니다. 각 merge group은 모든 required check가

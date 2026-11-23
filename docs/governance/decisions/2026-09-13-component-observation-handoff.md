@@ -39,5 +39,5 @@ Migration `166f30415263`의 downgrade는 출처·관찰 버전·원문 정보가
 Source Receipt 검증, 승인 포트 및 Candidate builder를 재사용하며 새 실행 모델을 만들지 않는다.
 
 [계약과 필드](../../contracts/proposed/post-mvp-1/catalog-db-integration-v2.md),
-[구현 범위·실입력 조건](../../designs/jye-rookie/issue-166-d04-loader-handoff.md),
+[구현 범위·실입력 조건](../../designs/rag/issue-166-d04-loader-handoff.md),
 [검증 결과](../../testing/mfds-loader-handoff-166.md)를 함께 리뷰한다.

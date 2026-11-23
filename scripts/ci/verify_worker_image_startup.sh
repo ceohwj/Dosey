@@ -9,7 +9,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
-docker build --file ai_worker/Dockerfile --tag "${image_tag}" .
+if [[ -n "${WORKER_IMAGE_CACHE_FROM:-}" ]]; then
+  build_args=(
+    buildx build
+    --load
+    --cache-from "${WORKER_IMAGE_CACHE_FROM}"
+    --file ai_worker/Dockerfile
+    --tag "${image_tag}"
+  )
+  if [[ -n "${WORKER_IMAGE_CACHE_TO:-}" ]]; then
+    build_args+=(--cache-to "${WORKER_IMAGE_CACHE_TO}")
+  fi
+  docker "${build_args[@]}" .
+else
+  docker build --file ai_worker/Dockerfile --tag "${image_tag}" .
+fi
 docker run --rm \
   --env PROTECTED_RETRIEVAL_ENABLED=false \
   "${image_tag}" \

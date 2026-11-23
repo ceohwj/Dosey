@@ -155,12 +155,25 @@ test('RECORD-01 · Menu 진입과 320/390/412px 날짜 selector 레이아웃', a
       expect(
         await days.evaluate((element) => element.scrollWidth - element.clientWidth),
       ).toBe(0)
+      for (const day of await days.getByRole('button').all()) {
+        const box = await day.boundingBox()
+        expect(box).not.toBeNull()
+        expect(box!.width).toBeGreaterThanOrEqual(44)
+        expect(box!.height).toBeGreaterThanOrEqual(44)
+      }
 
       // 9) Bottom Navigation "일정" active (복약 일정과 같은 복약 관리 영역)
       const nav = page.getByRole('navigation', { name: '주요 메뉴' })
       await expect(
         nav.locator('button[aria-current="page"]'),
       ).toHaveText(/일정/)
+      await expect(page.locator('.medication-record-card')).toHaveCount(3)
+      await content.evaluate((element) => element.scrollTo(0, element.scrollHeight))
+      const lastCard = await page.locator('.medication-record-card').last().boundingBox()
+      const navBox = await nav.boundingBox()
+      expect(lastCard).not.toBeNull()
+      expect(navBox).not.toBeNull()
+      expect(lastCard!.y + lastCard!.height).toBeLessThanOrEqual(navBox!.y)
     })
   }
 })

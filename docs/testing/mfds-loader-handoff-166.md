@@ -3,7 +3,7 @@
 - 날짜: 2026-09-13
 - 작업 브랜치: `feat/166-d04-mfds-loader`, 기준 develop `f56a632`
 - 상태: 로컬 합성 검사와 원격 CI·담당 리뷰 증빙을 별도 기록. 실제 MFDS 수집·운영 적용 증빙은 아니다.
-- 설계: [D-04 Loader 인계](../designs/jye-rookie/issue-166-d04-loader-handoff.md)
+- 설계: [D-04 Loader 인계](../designs/rag/issue-166-d04-loader-handoff.md)
 - 계약: [관찰 출처·v2/v3](../contracts/proposed/post-mvp-1/catalog-db-integration-v2.md)
 
 ## 환경과 경계

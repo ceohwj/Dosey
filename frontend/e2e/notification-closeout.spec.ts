@@ -176,7 +176,7 @@ test('[Notification closeout][#551] leaving a pending handoff blocks late naviga
   await api.waitForOccurrenceDayRelease()
 
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByText('오늘도 건강한 하루 되세요')).toBeVisible()
+  await expect(page.getByText('오늘 약, 함께 확인해요')).toBeVisible()
   expect(api.occurrenceMedicationIds).toEqual([])
   expect(api.checkinMutationCount).toBe(0)
   expect(requirements.unexpectedRequests).toEqual([])

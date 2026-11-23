@@ -1,10 +1,10 @@
 .prescription-review-page {
-  --ds-action: #526b78;
-  --ds-action-pressed: #526b78;
+  --ds-action: #285d91;
+  --ds-action-pressed: #1e4770;
   width: min(100%, 390px);
   min-height: 100dvh;
   margin: 0 auto;
-  background: #f6f8fb;
+  background: #f7f8f6;
   color: var(--ds-text);
   font-family: var(--ds-font);
 }
@@ -17,7 +17,7 @@
 .prescription-review-page .app-topbar {
   min-height: 68px;
   padding-inline: 20px;
-  border-bottom-color: #d8dee8;
+  border-bottom-color: #d7dfe4;
   background: #fff;
 }
 
@@ -30,7 +30,7 @@
 .prescription-review-page .app-back-row {
   min-height: 44px;
   padding-inline: 14px;
-  background: #f6f8fb;
+  background: #f7f8f6;
 }
 
 .prescription-review {
@@ -48,7 +48,7 @@
   display: grid;
   justify-items: start;
   padding: 24px 20px;
-  border: 1px solid #d8dee8;
+  border: 1px solid #d7dfe4;
   border-radius: 20px;
   background: #fff;
   box-shadow: 0 10px 30px rgb(41 65 92 / 7%);
@@ -65,14 +65,14 @@
 .prescription-review__state-card > p:last-child {
   margin: 0;
   color: var(--ds-text-muted);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
 .prescription-review__state-eyebrow {
   margin: 16px 0 0;
   color: var(--ds-action);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -134,7 +134,7 @@
 .prescription-review__intro p {
   margin: 0 0 4px;
   color: var(--ds-action);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -152,7 +152,7 @@
   border-radius: 18px;
   background: #fff9e9;
   color: #252931;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.65;
 }
@@ -160,7 +160,7 @@
 /* Figma 최신 기준: 안내 notice는 노랑이 아니라 연한 회청색이다. */
 .prescription-review__notice {
   border-color: #d3dde6;
-  background: #f4f7fa;
+  background: #eaf2f9;
   color: #2b3a47;
 }
 
@@ -211,10 +211,10 @@
 }
 
 .prescription-review__error .ds-button {
-  min-height: 44px;
+  min-height: 56px;
   margin-top: 8px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .prescription-review__source {
@@ -260,16 +260,16 @@
 
 .prescription-review__source-heading strong {
   color: var(--ds-text);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .prescription-review__source-heading small {
-  overflow: hidden;
+  overflow: visible;
   color: var(--ds-text-muted);
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .prescription-review__document-mark {
@@ -305,7 +305,7 @@
 .prescription-review__source-action {
   flex: 0 0 auto;
   color: var(--ds-text-muted);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -426,15 +426,15 @@
 
 .prescription-review__card-heading span {
   color: var(--ds-action);
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .prescription-review__card-heading strong {
   overflow: hidden;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .prescription-review__card-title .status-badge {
@@ -443,7 +443,7 @@
   outline: 0;
   background: transparent;
   color: var(--ds-action);
-  font-size: 11px;
+  font-size: 16px;
 }
 
 .prescription-review__card-title .status-badge.attention {
@@ -453,7 +453,7 @@
 .prescription-review__card h2 {
   margin: 14px 0 0;
   overflow-wrap: anywhere;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.4;
 }
 
@@ -464,7 +464,7 @@
 .prescription-review__card-summary {
   margin: 8px 0 0;
   color: #748094;
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .prescription-review__editor {
@@ -479,7 +479,7 @@
   gap: 12px;
   padding-top: 13px;
   color: var(--ds-action);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -521,13 +521,13 @@
 
 .prescription-review__field-heading label {
   color: #586273;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .prescription-review__field-heading span {
   color: var(--ds-attention);
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -552,7 +552,7 @@
   background: #fff;
   color: var(--ds-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .prescription-review__field-control input:focus {
@@ -569,13 +569,13 @@
   min-height: 46px;
   padding-inline: 13px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .prescription-review__field > p {
   margin: 6px 0 0;
   color: #748094;
-  font-size: 11px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -594,7 +594,7 @@
   border-radius: 18px;
   background: #fff;
   color: #252931;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.5;
 }
@@ -620,7 +620,7 @@
 .prescription-review__progress {
   margin: 8px 4px 0;
   color: var(--ds-attention);
-  font-size: 11px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -628,7 +628,7 @@
   min-height: 56px;
   margin-top: 12px;
   border-radius: 16px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .prescription-review__progress {
@@ -647,7 +647,7 @@
 
 .prescription-review__complete p {
   color: var(--ds-text-muted);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -660,7 +660,7 @@
 .prescription-review__complete > strong {
   margin-top: 6px;
   color: var(--ds-action);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .prescription-review__complete .prescription-review__guide-error {
@@ -672,14 +672,17 @@
   border-radius: 14px;
   background: #fff8ef;
   color: #915416;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.55;
 }
 
-.prescription-review-page .prescription-review__guide-action {
+.prescription-review-page .prescription-review__guide-action,
+.prescription-review__state-screen > .ds-button {
+  min-height: 64px;
   margin-top: 14px;
-  border-radius: 14px;
+  border-radius: 16px;
+  font-size: 18px;
 }
 
 @media (max-width: 374px) {
@@ -714,11 +717,14 @@
   }
 }
 
-/* DOC-03 Final · 705:48 / 상태 기준 634:6-9 */
+/* 40–60대용 화면 정리: 기존 DOC-03 구조와 상태 구분 유지. */
 .prescription-review-page {
-  --ds-action: #607d8b;
-  --ds-action-pressed: #526b78;
-  --ds-canvas: #f6f8fb;
+  --ds-action: #285d91;
+  --ds-action-pressed: #1e4770;
+  --ds-canvas: #f7f8f6;
+  --ds-text: #22343a;
+  --ds-text-muted: #52616b;
+  --ds-line: #d7dfe4;
   background: var(--ds-canvas);
 }
 
@@ -731,7 +737,7 @@
 }
 
 .prescription-review-page .app-topbar h1 {
-  font-size: 17px;
+  font-size: 18px;
 }
 
 .prescription-review-page .icon-button {
@@ -743,8 +749,8 @@
 .prescription-review__content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 20px 20px calc(34px + var(--ds-safe-bottom));
+  gap: 20px;
+  padding: 20px 20px calc(48px + var(--ds-safe-bottom));
 }
 
 .prescription-review__content .prescription-review__intro {
@@ -758,7 +764,7 @@
   height: 48px;
   flex-basis: 48px;
   border-radius: 24px;
-  background: #eceff1;
+  background: #eaf2f9;
   color: var(--ds-action);
   font-size: 20px;
   font-weight: 900;
@@ -771,12 +777,13 @@
 
 .prescription-review__content .prescription-review__intro p {
   margin-bottom: 3px;
-  font-size: 11px;
+  font-size: 16px;
 }
 
 .prescription-review__content .prescription-review__intro h1 {
-  font-size: 20px;
-  line-height: 1.2;
+  font-size: 26px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
   letter-spacing: -0.035em;
 }
 
@@ -786,10 +793,11 @@
   align-content: center;
   gap: 4px;
   box-sizing: border-box;
-  padding: 16px 16px;
+  padding: 20px;
+  border-radius: 20px;
   border-color: #d3dde6;
-  background: #f4f7fa;
-  font-size: 11px;
+  background: #eaf2f9;
+  font-size: 16px;
   line-height: 1.45;
   /* 340px에서도 잘리지 않도록 줄바꿈을 허용한다. */
   overflow-wrap: break-word;
@@ -798,11 +806,11 @@
 
 .prescription-review__content .prescription-review__notice strong {
   color: #2b3a47;
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .prescription-review__content .prescription-review__notice span {
-  color: #55687a;
+  color: #52616b;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -811,39 +819,36 @@
 .prescription-review__medication-card {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #d8dee8;
+  border: 1px solid #d7dfe4;
   background: #fff;
 }
 
 .prescription-review__prescription-card {
   display: grid;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 16px;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
 }
 
 .prescription-review__prescription-heading {
-  position: relative;
-  min-height: 48px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
 }
 
 .prescription-review__prescription-heading h2 {
-  min-height: 48px;
   display: flex;
   align-items: center;
   margin: 0;
-  padding-right: 184px;
-  color: #1a212e;
-  font-size: 14px;
+  color: #22343a;
+  font-size: 20px;
 }
 
 .prescription-review__prescription-heading > button,
 .prescription-review__source summary {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 176px;
-  min-height: 48px;
+  position: static;
+  width: 100%;
+  min-height: 56px;
   display: grid;
   place-items: center;
   box-sizing: border-box;
@@ -852,7 +857,7 @@
   border-radius: 12px;
   background: #fff;
   color: var(--ds-action);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -880,7 +885,7 @@
   height: 420px;
   display: block;
   margin: 8px 0 0;
-  border: 1px solid #d8dee8;
+  border: 1px solid #d7dfe4;
   border-radius: 12px;
 }
 
@@ -889,7 +894,7 @@
   max-height: 420px;
   display: block;
   margin: 8px 0 0;
-  border: 1px solid #d8dee8;
+  border: 1px solid #d7dfe4;
   border-radius: 12px;
 }
 
@@ -902,8 +907,8 @@
 }
 
 .prescription-review__section-status > strong {
-  color: #293345;
-  font-size: 13px;
+  color: #22343a;
+  font-size: 16px;
 }
 
 .prescription-review__badge {
@@ -915,7 +920,7 @@
   padding: 0 10px;
   border-radius: 14px;
   box-sizing: border-box;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -950,8 +955,8 @@
   border: 1px solid transparent;
   border-radius: 10px;
   background: #f7f9fc;
-  color: #293345;
-  font-size: 13px;
+  color: #22343a;
+  font-size: 16px;
 }
 
 .prescription-review__date-value.is-error {
@@ -961,7 +966,7 @@
 .prescription-review__date-value small,
 .prescription-review__medication-values small {
   color: #b51712;
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -976,10 +981,10 @@
 }
 
 .prescription-review__section-actions .ds-button {
-  min-height: 48px;
+  min-height: 64px;
   padding-inline: 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  border-radius: 16px;
+  font-size: 18px;
 }
 
 .prescription-review__medication-progress {
@@ -994,7 +999,8 @@
 }
 
 .prescription-review__manual-add > .ds-button {
-  min-height: 48px;
+  min-height: 64px;
+  font-size: 18px;
   border-style: dashed;
   border-radius: 14px;
 }
@@ -1022,21 +1028,21 @@
 }
 
 .prescription-review__manual-add-heading h2 {
-  color: #171a21;
-  font-size: 15px;
+  color: #22343a;
+  font-size: 16px;
 }
 
 .prescription-review__manual-add-heading p {
   margin-top: 4px;
-  color: #59667d;
-  font-size: 11px;
+  color: #52616b;
+  font-size: 16px;
   line-height: 1.45;
 }
 
 .prescription-review__manual-add-heading > span {
   flex: 0 0 auto;
-  color: #59667d;
-  font-size: 9px;
+  color: #52616b;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -1052,13 +1058,13 @@
 }
 
 .prescription-review__medication-progress strong {
-  color: #171a21;
-  font-size: 12px;
+  color: #22343a;
+  font-size: 16px;
 }
 
 .prescription-review__medication-progress > div span {
   color: var(--ds-action);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -1068,7 +1074,7 @@
   display: block;
   overflow: hidden;
   border-radius: 3px;
-  background: #d8dee8;
+  background: #d7dfe4;
 }
 
 .prescription-review__progress-track > span {
@@ -1081,9 +1087,9 @@
 
 .prescription-review__medication-card {
   display: grid;
-  gap: 10px;
-  padding: 16px;
-  border-radius: 20px;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
 }
 
 .prescription-review__medication-card.is-editing {
@@ -1096,7 +1102,14 @@
 }
 
 .prescription-review__medication-heading {
-  min-height: 36px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.prescription-review__medication-heading .prescription-review__badge {
+  grid-column: 2;
+  justify-self: start;
 }
 
 .prescription-review__medication-index {
@@ -1106,9 +1119,9 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: #eceff1;
+  background: #eaf2f9;
   color: var(--ds-action);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -1117,8 +1130,8 @@
   flex: 1 1 auto;
   margin: 0;
   overflow: visible;
-  color: #171a21;
-  font-size: 14px;
+  color: #22343a;
+  font-size: 20px;
   line-height: 1.4;
   overflow-wrap: anywhere;
   text-overflow: clip;
@@ -1128,7 +1141,7 @@
 .prescription-review__card-error,
 .prescription-review__editing-notice {
   margin: 0;
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.45;
 }
@@ -1149,9 +1162,10 @@
 
 .prescription-review__medication-values > div {
   display: grid;
-  grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr);
-  align-items: center;
-  min-height: 16px;
+  grid-template-columns: minmax(92px, 1fr) minmax(0, 2fr);
+  align-items: baseline;
+  gap: 8px;
+  min-height: 28px;
 }
 
 .prescription-review__medication-values dt,
@@ -1160,16 +1174,17 @@
 }
 
 .prescription-review__medication-values dt {
-  color: #475167;
-  font-size: 12px;
+  color: #52616b;
+  font-size: 16px;
   font-weight: 800;
-  line-height: 16px;
+  line-height: 1.5;
 }
 
 .prescription-review__medication-values dd {
   overflow-wrap: anywhere;
-  color: #171a21;
-  font-size: 13px;
+  color: #22343a;
+  font-size: 18px;
+  line-height: 1.6;
   text-align: right;
 }
 
@@ -1184,8 +1199,8 @@
 
 .prescription-review__edit-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 
 .prescription-review__edit-grid--date {
@@ -1196,8 +1211,8 @@
   min-width: 0;
   display: grid;
   gap: 3px;
-  color: #59667d;
-  font-size: 10px;
+  color: #52616b;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -1209,8 +1224,8 @@
 }
 
 .prescription-review__edit-field > span:first-child em {
-  color: #7a8597;
-  font-size: 9px;
+  color: var(--ds-text-muted);
+  font-size: 16px;
   font-style: normal;
   font-weight: 700;
 }
@@ -1226,15 +1241,15 @@
 .prescription-review__edit-field input {
   width: 100%;
   min-width: 0;
-  min-height: 42px;
+  min-height: 56px;
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--ds-action);
-  border-radius: 8px;
+  border-radius: 16px;
   background: #fff;
-  color: #1a212e;
+  color: #22343a;
   font: inherit;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 
@@ -1252,7 +1267,7 @@
 .prescription-review__edit-field small {
   min-height: 0;
   color: #b51712;
-  font-size: 9px;
+  font-size: 16px;
   line-height: 1.35;
 }
 
@@ -1263,7 +1278,7 @@
   margin: 0;
   padding: 14px;
   border-radius: 16px;
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
@@ -1272,9 +1287,10 @@
 }
 
 .prescription-review-page .prescription-review__confirm {
-  min-height: 52px;
+  min-height: 64px;
+  font-size: 18px;
   margin: 0;
-  border-radius: 14px;
+  border-radius: 16px;
 }
 
 .prescription-review-page .prescription-review__confirm:disabled {
@@ -1289,26 +1305,17 @@
   }
 
   .prescription-review__content .prescription-review__intro h1 {
-    font-size: 18px;
+    font-size: 24px;
   }
 
   .prescription-review__badge {
     min-width: 82px;
     padding-inline: 7px;
-    font-size: 10px;
-  }
-
-  .prescription-review__prescription-heading h2 {
-    padding-right: 164px;
-  }
-
-  .prescription-review__prescription-heading > button,
-  .prescription-review__source summary {
-    width: 156px;
+    font-size: 16px;
   }
 
   .prescription-review__medication-heading h2 {
-    font-size: 13px;
+    font-size: 20px;
   }
 }
 

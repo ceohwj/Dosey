@@ -59,7 +59,10 @@ def test_classify_paths_runs_contracts_that_consume_repository_documentation(pat
     assert scope.enabled_names() == {"contract"}
 
 
-@pytest.mark.parametrize("path", [".github/PULL_REQUEST_TEMPLATE.md", ".github/ISSUE_TEMPLATE/task.md"])
+@pytest.mark.parametrize(
+    "path",
+    [".github/PULL_REQUEST_TEMPLATE.md", ".github/commit_template.txt", ".github/ISSUE_TEMPLATE/task.md"],
+)
 def test_classify_paths_skips_runtime_suites_for_collaboration_templates(path: str) -> None:
     classifier = _load_classifier()
 

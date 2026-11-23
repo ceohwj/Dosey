@@ -1,15 +1,17 @@
 # 다섯알 — 본인 중심 만성질환 복약관리
 
+개인 프로젝트 목적과 다음 고도화 범위는 [PRD](PRD.md), Codex 도메인 Agent·Claude 검토·수동 Antigravity 운영은 [개발 workflow](docs/ai/workflow.md)를 참고하세요. 아래 날짜별 MVP 상태 설명은 과거 기록이 포함되어 있으므로 현재 구현 여부는 코드·현재 계약·테스트와 대조해야 합니다.
+
 다섯알은 고혈압·제2형 당뇨병·이상지질혈증 등 만성질환 사용자가 처방전을 이해하고 자신의 복약 상태와 어려움을 관리할 수 있도록 돕는 서비스입니다. 처방전을 안전하게 구조화하고, 사용자가 확인한 처방을 기준으로 복약 안내와 질문 응답을 제공하며, 처방 변경이나 임상 판단이 필요한 상황에서는 약사·의료진 확인으로 연결하는 것을 목표로 합니다.
 
 ## 포트폴리오 안내
 
-이 저장소는 [AI-HealthCare-05/AH_05_04](https://github.com/AI-HealthCare-05/AH_05_04) 팀 프로젝트의 코드 미러입니다. 팀 전체의 구현을 개인 단독 성과로 표현하지 않습니다.
+이 저장소는 [AI-HealthCare-05/AH_05_04](https://github.com/AI-HealthCare-05/AH_05_04) 팀 프로젝트의 코드 미러를 바탕으로 개인 프로젝트로 발전시키는 저장소입니다. 팀 전체의 구현을 개인 단독 성과로 표현하지 않습니다.
 
 **정현우의 담당 범위:** medication retrieval, evidence/citation/provenance 경계, canonical Guide runtime assembly와 Backend provider 연동.
 [개인 기여와 한계](https://hyunwoo-jung-portfolio.vercel.app/case-studies/healthcare-rag)는 원본 팀 저장소의 [PR #919](https://github.com/AI-HealthCare-05/AH_05_04/pull/919), [PR #924](https://github.com/AI-HealthCare-05/AH_05_04/pull/924), [PR #926](https://github.com/AI-HealthCare-05/AH_05_04/pull/926)에서 확인할 수 있습니다.
 
-아래 기존 구현 상태 설명의 **‘현재’는 2026-08-27 시점을 뜻합니다.** 이후 현황은 원본 팀 저장소와 PR 기록에서 확인하고, 당시 구현·목표 서술과 구분해서 읽어 주세요. End-to-End 제품 완료나 임상 유효성을 주장하지 않습니다.
+아래 기존 구현 상태 설명의 **‘현재’는 2026-08-27 시점을 뜻합니다.** 이후 현황은 원본 팀 저장소와 PR 기록 및 현재 계약 문서에서 확인하고, 당시 구현·목표 서술과 구분해서 읽어 주세요. End-to-End 제품 완료나 임상 유효성을 주장하지 않습니다.
 
 ## 해결하려는 문제
 
@@ -39,7 +41,7 @@
 
 Backend 기능 구현과 End-to-End 제품 MVP 완료를 구분합니다.
 
-| 구분 | 2026-08-27 상태 |
+| 구분 | 2026-08-27 당시 기록 — 현재 상태는 아래 정본 확인 |
 | --- | --- |
 | Backend MVP | 이메일 인증, 처방전 업로드, 같은 요청 안에서 완료되는 CLOVA OCR, 별도 OCR 필드 수정·처방 확정 API, OpenAI Guide·Chat 동기 API 구현 |
 | Frontend API 연결 | 회원가입·로그인, 처방전 업로드·OCR 조회, OCR 필드 검수·수정, 처방 확정, Guide 생성·조회, Chat 세션·이력·메시지까지 실제 API 연결 |
@@ -50,7 +52,7 @@ Backend 기능 구현과 End-to-End 제품 MVP 완료를 구분합니다.
 | 구현 상태 | PostgreSQL 전환은 완료됐지만 Post-MVP-1 OpenAPI, RAG/Eval schema, 기능·계약 테스트와 Evaluation Run은 아직 별도 구현·검증 필요 |
 | 공개 상태 | 현재 Guide·Chat Production 공개 차단. `PUBLIC_TRACK_C=false`, `PUBLIC_TRACK_F=false`이며 OTC는 F 게이트를 공유 |
 
-현재 OCR endpoint의 `202 Accepted`는 queue 접수를 뜻하지 않습니다. FastAPI 요청 안에서 CLOVA 호출과 저장을 완료합니다. Guide와 Chat도 각각 동기 one-cycle `201 Created` 계약을 사용합니다. Redis와 `ai-worker` 서비스는 준비되어 있지만 현재 AI 요청 경로에는 연결되지 않았고 Worker는 placeholder로 종료합니다.
+현재 OCR endpoint의 `202 Accepted`는 비동기 Job 접수입니다. FastAPI는 Job·Outbox를 저장하고 Redis Stream의 Worker가 CLOVA OCR·규칙 구조화와 결과 저장을 수행합니다. Guide와 Chat의 기본 생성 경로는 동기 one-cycle `201 Created` 계약입니다. 제한된 CLOSED_DEMO RAG 코드의 존재와 일반 사용자용 RAG·공개 승인 완료는 구분합니다.
 
 Approved Contract Freeze v4와 Post-MVP-1 계약 문서는 현재 **규범 목표 계약**이며 구현 완료 보고서가 아닙니다. 현재 runtime과 목표의 차이는 [시스템 아키텍처](docs/architecture.md), [AI 파이프라인](docs/ai-pipeline.md), [API 명세](docs/api.md), [데이터 구조](docs/data-schema.md), [테스트 전략](docs/testing.md)을 확인하세요.
 
@@ -66,23 +68,24 @@ Approved Contract Freeze v4와 Post-MVP-1 계약 문서는 현재 **규범 목�
 
 ## 기술 구성
 
+- **Frontend**: React, TypeScript, React Router, Vite, CSS·디자인 토큰
 - **Backend**: FastAPI, Pydantic, SQLAlchemy asyncio, Alembic
 - **Database**: PostgreSQL 17, `asyncpg`
 - **AI Provider**: CLOVA OCR, OpenAI Responses API
 - **Infrastructure**: Docker Compose, Nginx, Redis
 - **Quality**: Ruff, Mypy, Pytest, Oxlint, TypeScript build
 
-Redis와 `ai-worker` 서비스는 Compose에 준비되어 있지만 현재 MVP AI 요청 경로에는 연결되지 않습니다. AI Worker 컨테이너는 placeholder 진입점을 실행한 뒤 정상 종료합니다.
+정확한 잠금 버전·런타임/선택 의존성·현재 AI 구현 범위는 [기술 스택](docs/technology-stack.md)에 정리합니다. Agent 역할과 서비스에서 호출하는 AI 모델은 별도 사용처입니다.
 
 ## 프로젝트 구조
 
 ```text
 .
-├── backend/            # FastAPI API, SQLAlchemy 모델·저장소, 동기 OCR·가이드·챗봇, Alembic
+├── backend/            # FastAPI API, 모델·저장소, OCR 접수, 동기 Guide·Chat, Alembic
 │   ├── app/
 │   ├── alembic/
 │   └── alembic.ini
-├── ai_worker/          # Post-MVP 비동기 Worker 골격
+├── ai_worker/          # OCR Outbox·Redis Consumer·복구 및 RAG/평가 구성요소
 ├── frontend/           # 사용자 화면과 UX
 ├── docs/               # 아키텍처, API, 계약, AI 파이프라인, 테스트·배포 문서
 ├── evals/              # Post-MVP AI 평가 기준 준비 영역
@@ -106,7 +109,7 @@ Redis와 `ai-worker` 서비스는 Compose에 준비되어 있지만 현재 MVP A
 의존성을 설치합니다.
 
 ```bash
-uv sync --all-groups
+uv sync --group app --group worker --frozen
 ```
 
 로컬 Docker Compose는 `envs/.local.env`를 사용합니다. 로컬 예시를 복사한 뒤 모든 placeholder를 실제 로컬 값으로 교체하고, 실제 환경 파일은 커밋하지 않습니다. 운영 환경은 `envs/example.prod.env`를 참고해 별도의 `envs/.prod.env`를 준비합니다.
@@ -119,7 +122,7 @@ cp envs/example.local.env envs/.local.env
 
 ## 실행
 
-Backend와 지원 인프라를 빌드하고 실행합니다. 이 Compose 파일에는 Frontend 서비스가 포함되지 않습니다.
+Backend·OCR Worker·Frontend와 지원 인프라를 로컬 Compose로 빌드하고 실행합니다.
 
 ```bash
 docker compose \
@@ -128,7 +131,7 @@ docker compose \
   up -d --build
 ```
 
-Frontend는 별도 터미널에서 실행합니다.
+Frontend 개발 서버를 직접 실행할 때의 명령은 다음과 같습니다.
 
 ```bash
 cd frontend
@@ -143,8 +146,9 @@ pnpm dev
 | `fastapi` | API 서버 | `http://localhost:8000/api/docs` |
 | `postgres` | PostgreSQL 17 | 영속 데이터 저장 |
 | `migrate` | Alembic migration | 실행 완료 후 정상 종료 |
-| `redis` | Redis | 기동되지만 현재 MVP AI 경로에서는 미사용 |
-| `ai-worker` | Post-MVP Worker 골격 | placeholder 로그 후 정상 종료 |
+| `redis` | Redis Streams | OCR 메시지 전달·Consumer Group |
+| `ai-worker` | OCR Worker | Outbox Publisher·Consumer·복구 Scheduler 실행 |
+| `frontend` | Vite 개발 서버 | `http://localhost:5173` |
 | `nginx` | 리버스 프록시 | `http://localhost/api/docs` |
 
 필요한 서비스만 실행할 수도 있습니다.
@@ -206,6 +210,6 @@ Python 기본 테스트 명령은 `backend/app`, `tests/contract`, `ai_worker/te
 - API 경로와 오류 계약은 [API 명세](docs/api.md)를 따릅니다.
 - 공유 DTO·상태·오류 의미를 변경하면 관련 [계약 문서](docs/contracts/README.md), 구현과 계약·통합 테스트를 함께 갱신합니다.
 - DB 모델은 `backend/app/models/`에 SQLAlchemy 모델로 정의하고 Alembic migration을 추가합니다.
-- 현재 동기 AI 구현은 `backend/app/services/ocr.py`, `backend/app/services/guide_ai/`, `backend/app/services/chat_ai/`에 있습니다.
+- OCR 접수는 `backend/app/services/ocr.py`, 비동기 실행은 `ai_worker/tasks/ocr/`에 있습니다. 기본 동기 생성은 `backend/app/services/guide_ai/`, `backend/app/services/chat_ai/`에서 확인합니다.
 - Post-MVP 비동기 작업은 계약과 전환 조건을 승인한 뒤 `ai_worker/tasks/`에 구현합니다.
 - 비밀정보와 실제 환자 정보는 저장소에 포함하지 않습니다. [SECURITY.md](SECURITY.md)와 [개인정보 및 의료 안전](docs/privacy-safety.md)을 따릅니다.

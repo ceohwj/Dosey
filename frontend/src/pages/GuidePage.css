@@ -1,10 +1,11 @@
 .guide-page {
-  --ds-action: #526b78;
-  --ds-action-pressed: #526d79;
-  --ds-canvas: #f4f7fb;
-  --ds-text: #171a21;
-  --ds-text-muted: #526074;
-  --ds-line: #d8dee8;
+  --ds-action: #285d91;
+  --ds-action-pressed: #1e4770;
+  --ds-canvas: #f7f8f6;
+  --ds-text: #22343a;
+  --ds-text-muted: #52616b;
+  --ds-line: #d7dfe4;
+  --ds-focus: #285d91;
   width: min(100%, 390px);
   min-height: 100dvh;
   margin: 0 auto;
@@ -19,25 +20,26 @@
 }
 
 .guide-page__content {
-  padding: 36px 20px calc(108px + var(--ds-safe-bottom));
+  padding: 24px 20px calc(112px + var(--ds-safe-bottom));
+  scroll-padding-bottom: calc(112px + var(--ds-safe-bottom));
 }
 
 .guide-page .screen-title {
   margin: 0;
-  font-size: 25px;
-  line-height: 1.28;
+  font-size: 28px;
+  line-height: 1.3;
   letter-spacing: -.035em;
 }
 
 .guide-page .screen-description {
-  margin: 18px 0 28px;
+  margin: 12px 0 24px;
   color: var(--ds-text-muted);
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
 .guide-page__empty-state {
-  margin-top: 66px;
+  margin-top: 24px;
 }
 
 .guide-page__empty {
@@ -47,7 +49,7 @@
   justify-items: center;
   padding: 28px 18px;
   border-color: var(--ds-line);
-  border-radius: 22px;
+  border-radius: 24px;
   text-align: center;
 }
 
@@ -57,10 +59,10 @@
 }
 
 .guide-page__empty p {
-  max-width: 250px;
+  max-width: 100%;
   margin: 0;
   color: var(--ds-text-muted);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -68,9 +70,10 @@
 .guide-page__schedule-button,
 .guide-page__chat-button,
 .guide-page__status .ds-button {
-  min-height: 56px;
+  min-height: 64px;
   border-radius: 16px;
-  font-size: 14px;
+  font-size: 18px;
+  line-height: 1.5;
 }
 
 .guide-page__empty-action {
@@ -113,14 +116,14 @@
 
 .guide-page__medication-list {
   display: grid;
-  gap: 8px;
+  gap: 14px;
 }
 
 .guide-page__medication-card {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--ds-line);
-  border-radius: 20px;
+  border-radius: 24px;
   background: #fff;
 }
 
@@ -128,7 +131,7 @@
   width: 100%;
   min-height: 84px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 16px 20px;
@@ -158,17 +161,27 @@
 
 .guide-page__medication-name {
   margin: 0;
-  font-size: 18px;
-  line-height: 1.35;
+  font-size: 20px;
+  line-height: 1.5;
   letter-spacing: -.025em;
 }
 
 .guide-page__medication-toggle small {
   margin-top: 4px;
   color: var(--ds-text-muted);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.guide-page__medication-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #285d91;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .guide-page__chevron {
@@ -197,8 +210,8 @@
 .guide-page__medication-details > div {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(82px, auto) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
   align-items: baseline;
   padding: 11px 0;
   border-bottom: 1px solid #f0f2f5;
@@ -206,16 +219,17 @@
 
 .guide-page__medication-details dt {
   color: var(--ds-text);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .guide-page__medication-details dd {
   min-width: 0;
   margin: 0;
-  font-size: 12px;
-  font-weight: 800;
-  text-align: right;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.55;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 
@@ -228,14 +242,14 @@
 .guide-page__medication-notice {
   margin: 14px 0 0;
   color: #d7352d;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
 .guide-page__guidance {
-  padding: 16px;
+  padding: 18px;
   border: 1px solid #e3e8ef;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #f7f9fb;
 }
 
@@ -256,13 +270,13 @@
 
 .guide-page__guidance h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
 .guide-page__guidance p {
   margin: 7px 0 0;
-  font-size: 13px;
+  font-size: 18px;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -277,13 +291,13 @@
 
 .guide-page__source-guidance h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .guide-page__source-guidance p {
   margin: 6px 0 0;
   color: var(--ds-text-muted);
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -297,12 +311,12 @@
 }
 
 .guide-page__unclassified summary {
-  min-height: 48px;
+  min-height: 56px;
   display: flex;
   align-items: center;
-  padding: 0 14px;
+  padding: 10px 16px;
   color: var(--ds-text-muted);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -318,14 +332,14 @@
 }
 
 .guide-page__unclassified dt {
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
 }
 
 .guide-page__unclassified dd {
   margin: 5px 0 0;
   color: var(--ds-text-muted);
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
@@ -342,13 +356,13 @@
 .guide-page__common-notice h3,
 .guide-page__safety-notice h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .guide-page__common-notice p,
 .guide-page__safety-notice p {
   margin: 7px 0 0;
-  font-size: 13px;
+  font-size: 18px;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -366,7 +380,7 @@
 .guide-page__guide-card {
   margin-top: 22px;
   border-color: var(--ds-line);
-  border-radius: 20px;
+  border-radius: 24px;
 }
 
 .guide-page__guide-card h2 {
@@ -376,31 +390,31 @@
 
 .guide-page__guide-label {
   color: var(--ds-action);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .guide-page__guide-intro {
   margin: 0 0 14px;
   color: var(--ds-text-muted);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .guide-page__disclosure {
   overflow: hidden;
   border: 1px solid #e3e8ef;
-  border-radius: 14px;
-  background: #edf0f2;
+  border-radius: 16px;
+  background: #eaf2f9;
 }
 
 .guide-page__disclosure summary {
-  min-height: 52px;
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 14px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   list-style: none;
 }
@@ -423,7 +437,7 @@
   border-top: 1px solid #e3e8ef;
   background: #fff;
   color: #343b45;
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1.75;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -432,7 +446,7 @@
 .guide-page__completed-at {
   margin: 12px 2px 0;
   color: var(--ds-text-muted);
-  font-size: 11px;
+  font-size: 16px;
 }
 
 .guide-page__citations {
@@ -459,7 +473,7 @@
 .guide-page__citations li {
   min-width: 0;
   padding-left: 4px;
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
@@ -499,7 +513,7 @@
 .guide-page__release-fallback p {
   margin: 8px 0 0;
   color: var(--ds-text-muted);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
@@ -577,7 +591,7 @@
 .guide-page__status > p {
   margin: 12px 0 18px;
   color: var(--ds-text-muted);
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.6;
 }
 
@@ -587,7 +601,7 @@
   border-radius: 999px;
   background: #e8eef1;
   color: var(--ds-action);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 800;
 }
 
@@ -618,4 +632,19 @@
   .guide-page__status {
     min-height: 540px;
   }
+}
+
+.guide-page :is(button, summary):focus-visible {
+  outline: 3px solid #285d91;
+  outline-offset: 3px;
+}
+
+.guide-page .guide-page__medication-toggle:focus-visible,
+.guide-page .guide-page__disclosure summary:focus-visible,
+.guide-page .guide-page__unclassified summary:focus-visible {
+  outline-offset: -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-page__chevron { transition: none; }
 }

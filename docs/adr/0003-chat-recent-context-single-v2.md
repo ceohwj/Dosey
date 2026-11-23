@@ -61,7 +61,7 @@ history 자유 텍스트에는 사용자가 입력한 개인·의료정보가 �
 ## 관련 문서
 
 - [ADR 0001](./0001-synchronous-chat-generation-with-session-row-lock.md)
-- [복약 챗봇 최근 대화 3쌍 문맥 설계](../designs/ceohwj/chat-recent-context-design.md)
+- [복약 챗봇 최근 대화 3쌍 문맥 설계](../designs/guide-chat/chat-recent-context-design.md)
 - [복약 챗봇 Backend–AI Core 계약](../contracts/current/medication-chat-ai-backend.md)
 - [개인정보 및 의료 안전](../privacy-safety.md)
 - [배포 가이드](../deployment.md)

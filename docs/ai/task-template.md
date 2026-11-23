@@ -5,7 +5,7 @@ Issue 또는 하나의 작업별 문서에 작성한다. 작업 전체를 관리
 ```text
 TASK_ID:
 GOAL: 사용자 관점의 결과
-OWNER_AGENT: 실제 환경에서 사용 가능한 지정 구현 역할
+OWNER_AGENT: dosey_frontend | dosey_backend | dosey_llm | dosey_ocr | dosey_rag | dosey_executor
 BASE_REVISION: 실제 commit SHA
 EXISTING_CHANGES: 보존할 기존 변경
 SCOPE:
@@ -27,7 +27,7 @@ CHANGED_FILES:
 CHECKS: 명령 / exit / 결과 / 근거 위치
 NOT_RUN: 사유
 KNOWN_GAPS:
-REVIEW: 실제 검토 방식, 검토 대상 SHA/hash, 지적과 처리
+REVIEW: 내부/Claude, 검토 대상 SHA/hash, 지적과 처리
 CHANGE_COMMITS: 확인된 실제 SHA, 무엇을 왜 바꿨는지, 검사 결과와 근거. 없으면 미커밋
 NEXT_DEPENDENCIES:
 ```
@@ -47,12 +47,12 @@ NEXT_DEPENDENCIES:
   "goal": "지식 인덱스의 지정 로컬 링크를 확인하고 결과를 반환한다",
   "base_revision": "bcac7835420118e13ee235410c6b9fdd21224b14",
   "allowed_files": ["docs/ai/knowledge-index.md"],
-  "forbidden_files": ["README.md", "docs/architecture.md"],
+  "forbidden_files": ["PRD.md", "docs/architecture.md"],
   "dependencies": [],
   "authoritative_contract": ["AGENTS.md", "docs/ai/workflow.md"],
   "acceptance_criteria": ["지정 문서의 참조 확인 결과와 gap을 보고한다"],
   "required_tests": ["내용·로컬 참조·전체 diff와 git diff --check 확인"],
-  "non_goals": ["제품·API·DB·Source·Docker·모델 변경"],
+  "non_goals": ["제품·API·DB·Source·Docker·모델·Claude helper 변경"],
   "phase": "planned",
   "revision": 0,
   "completed": [],

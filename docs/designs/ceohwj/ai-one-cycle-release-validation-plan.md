@@ -4,7 +4,7 @@
 
 **Architecture:** 별도 배포 stack이나 image build 체계를 만들지 않는다. 기존 PostgreSQL·Alembic·FastAPI 배포를 사용하며 validation runner는 합성 fixture 준비, HTTP orchestration, 독립 DB 재조회와 정리만 담당한다. 로컬 FastAPI는 Git에서 제외된 `.env`, staging FastAPI는 배포 secret을 사용하고 runner는 둘 다 읽지 않는다. 실제 Provider SDK 호출은 FastAPI가 수행하며 runner·Frontend·Swagger는 Provider를 직접 호출하거나 credential을 출력하지 않는다.
 
-**Design:** `docs/designs/ceohwj/ai-one-cycle-release-validation-design.md`
+**Design:** `docs/designs/provider/ai-one-cycle-release-validation-design.md`
 
 **Issue:** [#61 staging 환경에서 합성 처방을 이용한 AI 전체 흐름 검증](https://github.com/AI-HealthCare-05/AH_05_04/issues/61)
 

@@ -266,7 +266,7 @@ upgrade/rollback 실행 검증이 아니다. 전체 Backend·PostgreSQL·Redis �
   adapter는 미완료이며 테스트 결과를 DB 통합 완료로 해석하지 않는다.
 
 4단계는 D-02 인계 및 합의된 선행 migration 병합 대기다.
-[상세 인계 점검](../designs/jye-rookie/issue-166-db-migration-readiness.md)을 따른다.
+[상세 인계 점검](../designs/rag/issue-166-db-migration-readiness.md)을 따른다.
 
 ## #166 DB 후속 5단계 선행 복원 검증 (2026-09-08)
 

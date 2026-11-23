@@ -12,7 +12,7 @@
 - [Backend #192 답변](https://github.com/AI-HealthCare-05/AH_05_04/issues/192#issuecomment-5566172552):
   Check-in 현재 row 정정과 audit 구조, 구조화 증상 배열, Safety/Barrier 이력 보존 검토,
   데이터가 있는 downgrade 차단 방향.
-- [기존 Draft 설계](../../designs/jye-rookie/issue-192-track-c-storage-implementation-plan.md)
+- [기존 Draft 설계](../../designs/medication-management/issue-192-track-c-storage-implementation-plan.md)
 - [승인 목표](../../contracts/targets/post-mvp-1/checkin-v1.md)
 
 #199~#201은 병합되어 Check-in 부모 미구현 차단은 해소됐다. 부모에는 profile_id 직접 컬럼이
