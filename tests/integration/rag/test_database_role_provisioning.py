@@ -933,6 +933,18 @@ _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS = {
 }
 
 
+async def _add_candidate_search_runtime_fixture_columns(connection):
+    for name, column_type in _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS.items():
+        await connection.execute(
+            text(f"ALTER TABLE medication_candidate_search ADD COLUMN IF NOT EXISTS {name} {column_type}")
+        )
+
+
+async def _drop_candidate_search_runtime_fixture_columns(connection):
+    for name in _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS:
+        await connection.execute(text(f"ALTER TABLE medication_candidate_search DROP COLUMN IF EXISTS {name}"))
+
+
 async def _add_normalized_image_fixture_columns(connection):
     """#809 컬럼을 고정 revision 스키마에 잠시 보충합니다.
 
@@ -943,17 +955,13 @@ async def _add_normalized_image_fixture_columns(connection):
     """
     for name, column_type in _NORMALIZED_IMAGE_FIXTURE_COLUMNS.items():
         await connection.execute(text(f"ALTER TABLE medical_document ADD COLUMN IF NOT EXISTS {name} {column_type}"))
-    for name, column_type in _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS.items():
-        await connection.execute(
-            text(f"ALTER TABLE medication_candidate_search ADD COLUMN IF NOT EXISTS {name} {column_type}")
-        )
+    await _add_candidate_search_runtime_fixture_columns(connection)
 
 
 async def _drop_normalized_image_fixture_columns(connection):
     for name in _NORMALIZED_IMAGE_FIXTURE_COLUMNS:
         await connection.execute(text(f"ALTER TABLE medical_document DROP COLUMN IF EXISTS {name}"))
-    for name in _CANDIDATE_SEARCH_RUNTIME_FIXTURE_COLUMNS:
-        await connection.execute(text(f"ALTER TABLE medication_candidate_search DROP COLUMN IF EXISTS {name}"))
+    await _drop_candidate_search_runtime_fixture_columns(connection)
 
 
 async def _exercise_prescription_candidate_cutover(admin, reader, environment):
@@ -1096,35 +1104,43 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
             )
         )
     await _grant_historical_test_permissions(admin, environment)
-    runtime_sessions = async_sessionmaker(reader, expire_on_commit=False)
-    async with runtime_sessions.begin() as session:
-        candidates = MedicationCandidateRepository(session)
-        assert (
-            await candidates.get_medication_for_candidate_search_owned(
-                prescription_version_medication_id=medication_id,
-                user_id=owner_id,
+    async with admin.begin() as connection:
+        await _add_candidate_search_runtime_fixture_columns(connection)
+    try:
+        runtime_sessions = async_sessionmaker(reader, expire_on_commit=False)
+        async with runtime_sessions.begin() as session:
+            candidates = MedicationCandidateRepository(session)
+            assert (
+                await candidates.get_medication_for_candidate_search_owned(
+                    prescription_version_medication_id=medication_id,
+                    user_id=owner_id,
+                )
+                is not None
             )
-            is not None
-        )
-        assert (
-            await candidates.get_result_selection_for_update_owned(
-                candidate_search_result_id=result_id,
-                user_id=owner_id,
+            assert (
+                await candidates.get_result_selection_for_update_owned(
+                    candidate_search_result_id=result_id,
+                    user_id=owner_id,
+                )
+                is not None
             )
-            is not None
-        )
-        prescriptions = PrescriptionRepository(session)
-        current = await prescriptions.get_owned_for_version_update(prescription_id=prescription_id, user_id=owner_id)
-        assert current is not None
-        version = await prescriptions.create_version(
-            prescription=current,
-            prescribed_date=current.prescribed_date,
-            confirmed_at=datetime.now(UTC),
-            medications=[{"medication_name": "합성정정약", "frequency_per_day": 1, "display_order": 1}],
-        )
-        loaded = await prescriptions.get_version_medications(prescription_version_id=version.id)
-        assert len(loaded) == version.medication_count == 1
-        assert loaded[0].medication_name == "합성정정약"
+            prescriptions = PrescriptionRepository(session)
+            current = await prescriptions.get_owned_for_version_update(
+                prescription_id=prescription_id, user_id=owner_id
+            )
+            assert current is not None
+            version = await prescriptions.create_version(
+                prescription=current,
+                prescribed_date=current.prescribed_date,
+                confirmed_at=datetime.now(UTC),
+                medications=[{"medication_name": "합성정정약", "frequency_per_day": 1, "display_order": 1}],
+            )
+            loaded = await prescriptions.get_version_medications(prescription_version_id=version.id)
+            assert len(loaded) == version.medication_count == 1
+            assert loaded[0].medication_name == "합성정정약"
+    finally:
+        async with admin.begin() as connection:
+            await _drop_candidate_search_runtime_fixture_columns(connection)
     for table in ("prescription_version", "prescription_version_medication", "medication_candidate_search_result"):
         for sql in (f"UPDATE {table} SET id=id", f"DELETE FROM {table}", f"TRUNCATE {table}"):
             with pytest.raises(DBAPIError) as error:
