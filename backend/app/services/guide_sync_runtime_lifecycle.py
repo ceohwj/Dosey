@@ -22,6 +22,7 @@ from app.repositories.rag_runtime_repository import (
     AiJobExecutionIdentificationCreate,
     RagRuntimeRepository,
 )
+from app.services.guide_intake import GuideRuntimeContextSnapshot
 from app.services.guide_retrieval_binding import load_verified_guide_retrieval_binding_manifest
 from app.services.guide_runtime_request import (
     GuideRuntimeRequestCarrier,
@@ -50,6 +51,10 @@ class GuideSyncRuntimeAuthority:
     guide_retrieval_binding_manifest_id: UUID
     guide_retrieval_binding_manifest_hash: str
     request_guard_runtime_binding_ref: RequestGuardRuntimeBindingRef
+
+    @classmethod
+    def from_snapshot(cls, snapshot: GuideRuntimeContextSnapshot) -> GuideSyncRuntimeAuthority:
+        return cls(**{name: getattr(snapshot, name) for name in cls.__dataclass_fields__})
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,9 +85,11 @@ class GuideSyncRuntimeLifecycleProducer:
         user: User,
         guide: Guide,
         authority: GuideSyncRuntimeAuthority,
+        snapshot: GuideRuntimeContextSnapshot | None = None,
     ) -> GuideSyncRuntimePreparation:
         if guide.ai_job_id is not None:
             raise GuideSyncRuntimePreparationError("Guide already has a runtime execution identity")
+        self._require_snapshot_match(authority, snapshot)
 
         environment = await self._runtime_repository.get_environment_by_id(authority.runtime_environment_id)
         if (
@@ -146,6 +153,7 @@ class GuideSyncRuntimeLifecycleProducer:
             environment=environment,
             bundle=bundle,
         )
+        self._require_snapshot_match(authority, snapshot, guard)
 
         preflight = await self._preflight_service.ensure_all_active_medications_matched(
             prescription_id=guide.prescription_id,
@@ -193,6 +201,7 @@ class GuideSyncRuntimeLifecycleProducer:
                     request_guard_runtime_binding_artifact_version=authority.request_guard_runtime_binding_ref.version,
                     request_guard_runtime_binding_content_sha256=authority.request_guard_runtime_binding_ref.content_sha256,
                     source_scope_manifest_hash=guard.scope_manifest_hash,
+                    patient_context_digest=snapshot.patient_context_digest if snapshot is not None else None,
                 )
             )
             for matched in preflight.matched_medications:
@@ -212,6 +221,22 @@ class GuideSyncRuntimeLifecycleProducer:
                 raise GuideSyncRuntimePreparationError("persisted Sync runtime carrier failed exact readback")
 
         return GuideSyncRuntimePreparation(job=job, carrier=carrier)
+
+    @staticmethod
+    def _require_snapshot_match(
+        authority: GuideSyncRuntimeAuthority,
+        snapshot: GuideRuntimeContextSnapshot | None,
+        guard: RequestGuardRuntimeBindingObservation | None = None,
+    ) -> None:
+        if snapshot is None:
+            return
+        if GuideSyncRuntimeAuthority.from_snapshot(snapshot) != authority:
+            raise GuideSyncRuntimePreparationError("runtime snapshot does not match authority")
+        if guard is not None and (
+            snapshot.runtime_guard_decision_ref != str(guard.request_guard_decision_id)
+            or snapshot.source_scope_manifest_hash != guard.scope_manifest_hash
+        ):
+            raise GuideSyncRuntimePreparationError("runtime snapshot does not match request guard")
 
     @staticmethod
     def _require_request_guard(

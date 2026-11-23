@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from inspect import iscoroutinefunction
 from typing import Annotated, TypedDict, cast
 
 from fastapi import Depends, Request
@@ -46,6 +47,7 @@ from app.repositories.track_c_storage_repository import TrackCStorageRepository
 from app.repositories.user_consent_repository import UserConsentRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth import AuthService
+from app.services.candidate_search import CandidateSearchService
 from app.services.chat import ChatService
 from app.services.chat_ai import ChatEngine
 from app.services.chat_ai import OpenAIResponsesClient as ChatOpenAIResponsesClient
@@ -76,7 +78,6 @@ from app.services.job_intake import JobIntakeService
 from app.services.job_status import JobStatusService
 from app.services.lifestyle_times import LifestyleTimesService
 from app.services.medical_documents import MedicalDocumentService
-from app.services.medication_candidates import MedicationCandidateService
 from app.services.medication_checkin_api import MedicationCheckinApiService
 from app.services.medication_checkins import MedicationCheckinService
 from app.services.medication_identification import MedicationIdentificationService
@@ -148,11 +149,16 @@ def get_guide_runtime_executor_factory(request: Request) -> GuideRuntimeExecutor
     return factory
 
 
-def get_guide_sync_runtime_authority_provider(request: Request) -> GuideSyncRuntimeAuthorityProvider:
+def get_guide_sync_runtime_authority_provider(
+    request: Request, session: AsyncSession
+) -> GuideSyncRuntimeAuthorityProvider:
     provider = getattr(request.app.state, "guide_sync_runtime_authority_provider", None)
     if provider is None:
         raise RuntimeError("Guide Sync runtime authority provider is not initialized")
-    return cast(GuideSyncRuntimeAuthorityProvider, provider)
+    bound = provider.for_session(session)
+    if not all(iscoroutinefunction(getattr(bound, method, None)) for method in ("resolve", "revalidate")):
+        raise RuntimeError("Guide Sync runtime request authority provider is invalid")
+    return cast(GuideSyncRuntimeAuthorityProvider, bound)
 
 
 def get_provider_call_context(request: Request) -> ProviderCallContext:
@@ -452,8 +458,8 @@ def get_medication_candidate_service(
         SyncMutationIdempotencyService,
         Depends(get_sync_mutation_idempotency_service),
     ],
-) -> MedicationCandidateService:
-    return MedicationCandidateService(repository, identification_service, idempotency_service)
+) -> CandidateSearchService:
+    return CandidateSearchService(repository, identification_service, idempotency_service, context=None)
 
 
 def get_medication_checkin_api_service(
@@ -665,7 +671,7 @@ def get_guide_sync_runtime_execution(
         repository=repository,
         lifecycle=lifecycle,
         executor_factory=get_guide_runtime_executor_factory(request),
-        authority_provider=get_guide_sync_runtime_authority_provider(request),
+        authority_provider=get_guide_sync_runtime_authority_provider(request, repository.session),
     )
 
 

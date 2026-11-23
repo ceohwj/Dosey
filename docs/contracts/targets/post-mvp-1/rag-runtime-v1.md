@@ -245,6 +245,8 @@ Chat은 접수 시점과 일반 RAG 실행 시점의 Snapshot을 분리한다.
 
 ## Runtime Release Bundle과 실행 Snapshot
 
+Candidate 내부 결속은 [PD-DOSEY-20261023-CANDIDATE-RUNTIME-1](../../../governance/decisions/2026-10-23-candidate-runtime-bundle-binding.md)에 따라 Search 생성 당시 Bundle ID/hash·환경 ID/revision을 고정한다. Bundle 또는 환경 revision 변경은 새 Search를 요구하며, 유효 성공 키 replay는 과거 snapshot을 재현한다. 환경 포인터 잠금·canonical hash 검증만으로 Candidate 전용 REQUEST/Source 승인·Index artifact 대응을 대체하지 않는다. 실제 Candidate 생산자와 해당 Guard 연결 및 공개 gate는 미완료다. 이 변경은 아래 비동기 `RETRY_WAIT`/Worker Bundle 전환 미결정을 확정하지 않는다.
+
 Runtime Release Bundle은 다음 version을 함께 고정한다.
 
 - Source Snapshot과 Candidate·Knowledge Index
@@ -331,3 +333,8 @@ Candidate Search·Identification·OTC 질문·Chat/Guide 접수·Job 상태·결
 ## 공개 게이트
 
 구현·계약·통합·RAG 평가와 `EXT-MED-002`, `EXT-PHARM-001`, `EXT-SOURCE-001`, `EXT-SOURCE-002`, `EXT-PRIV-001`, `EXT-PRIV-002`, `EXT-SAFETY-001`이 완료될 때까지 `PUBLIC_TRACK_F=false`를 유지한다. Development·Staging 서버를 만들지 않으며 실제 사용자 공개는 이번 Local 구현 범위가 아니다.
+
+
+## 2026-10-23 합성 Candidate 연결 범위
+
+[합성 내부 연결 v1 결정](../../../governance/decisions/2026-10-23-candidate-search-synthetic-connection.md)을 따른다. 기존 공개 DTO·멱등 replay·공개 차단은 유지하며, TEST 합성 context와 새 Index artifact 발급/검증만 연결한다. Production Source 정책·영속 Candidate REQUEST Guard·FAIL 감사 commit은 후속 결정이며 Current 승격 근거가 아니다.

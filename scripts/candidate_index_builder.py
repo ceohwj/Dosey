@@ -52,6 +52,7 @@ def builder_url(environment: Mapping[str, str]) -> URL:
             "DB_ADMIN_PASSWORD",
             "DB_MIGRATION_PASSWORD",
             "SOURCE_WRITER_PASSWORD",
+            "SOURCE_PUBLISHER_PASSWORD",
             "SOURCE_MANAGEMENT_PASSWORD",
             "CATALOG_WRITER_PASSWORD",
             "KNOWLEDGE_INDEX_BUILDER_PASSWORD",

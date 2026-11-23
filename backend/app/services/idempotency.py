@@ -128,6 +128,14 @@ def _canonical_json_bytes(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _accepted_request_hashes(request_hash: str, legacy_fingerprint: dict[str, Any] | None) -> set[str]:
+    """Legacy hashes are accepted for existing rows only; new rows use request_hash."""
+    hashes = {request_hash}
+    if legacy_fingerprint is not None:
+        hashes.add(compute_request_hash(legacy_fingerprint))
+    return hashes
+
+
 class SyncMutationIdempotencyService:
     """Track B·C·F 동기 상태 변경 API가 공통으로 재사용하는 `record_type=SYNC_MUTATION`
     멱등성 처리입니다(idempotency-v1.md "동기 상태 변경 처리 규칙").
@@ -154,6 +162,7 @@ class SyncMutationIdempotencyService:
         parent_resource_id: UUID,
         idempotency_key: str,
         fingerprint: dict[str, Any],
+        legacy_fingerprint: dict[str, Any] | None = None,
         success_status: int,
         mutate: Mutate,
     ) -> SyncMutationResult:
@@ -167,6 +176,7 @@ class SyncMutationIdempotencyService:
         )
         current_key_hmac = key_hmac_candidates[0]
         request_hash = compute_request_hash(fingerprint)
+        accepted_hashes = _accepted_request_hashes(request_hash, legacy_fingerprint)
 
         existing = await self._repository.find_sync_idempotency_record(
             user_id=user_id,
@@ -176,7 +186,7 @@ class SyncMutationIdempotencyService:
         )
         if existing is not None:
             if existing.expires_at > datetime.now(config.TIMEZONE):
-                return self._resolve_existing_record(existing, request_hash=request_hash)
+                return self._resolve_existing_record(existing, accepted_hashes=accepted_hashes)
             # 삭제 이후 다른 요청이 먼저 새 레코드를 만드는 경쟁은 아래 except IntegrityError
             # 블록의 재조회 경로로 흡수됩니다(AsyncJobRepository/JobIntakeService와 동일 패턴).
             await self._repository.delete_expired_idempotency_record(record_id=existing.id)
@@ -213,9 +223,9 @@ class SyncMutationIdempotencyService:
                 parent_resource_id=parent_resource_id,
                 key_hmac_candidates=key_hmac_candidates,
             )
-            if existing is None:
+            if existing is None or existing.expires_at <= datetime.now(config.TIMEZONE):
                 raise
-            return self._resolve_existing_record(existing, request_hash=request_hash)
+            return self._resolve_existing_record(existing, accepted_hashes=accepted_hashes)
         except Exception:
             # mutate()가 IntegrityError가 아닌 도메인 예외로 실패했을 수 있다(PR #346 리뷰).
             # 예: 동일 key의 두 요청이 동시에 여기 들어와 각자 mutate()를 실행하면, 그 안에서
@@ -231,9 +241,9 @@ class SyncMutationIdempotencyService:
                 parent_resource_id=parent_resource_id,
                 key_hmac_candidates=key_hmac_candidates,
             )
-            if existing is None:
+            if existing is None or existing.expires_at <= datetime.now(config.TIMEZONE):
                 raise
-            return self._resolve_existing_record(existing, request_hash=request_hash)
+            return self._resolve_existing_record(existing, accepted_hashes=accepted_hashes)
 
         return SyncMutationResult(response_status=success_status, response_body=response_body, is_replay=False)
 
@@ -241,9 +251,9 @@ class SyncMutationIdempotencyService:
         self,
         record: IdempotencyRecord,
         *,
-        request_hash: str,
+        accepted_hashes: set[str],
     ) -> SyncMutationResult:
-        if record.request_hash != request_hash:
+        if record.request_hash not in accepted_hashes:
             raise IdempotencyKeyConflictError("IDEMPOTENCY_KEY_CONFLICT")
 
         if (

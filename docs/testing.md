@@ -479,7 +479,7 @@ OCR 접수의 동기→비동기 전환 전후 접수 응답 시간을 Provider 
 Worker 이관 전후 OCR 비퇴행은 CI replay와 release smoke를 분리해 검증합니다.
 
 - **결정적 CI replay:** 승인된 비식별·합성 이미지와 고정 CLOVA 원본 응답 fixture를 Provider adapter에 재생합니다. 동일 입력의 Provider 상태, 필드 mapping, raw·rule-normalized·LLM-draft·user-corrected·confirmed 전이, 검수 필요 판정과 사용자 확정 흐름을 결정적으로 비교합니다.
-- **Release smoke:** 승인된 데모 이미지로 실제 CLOVA를 호출합니다. Provider 모델 변경에 따른 비결정적 출력 차이는 기록하고 OCR owner가 검토하되 모든 PR의 exact-equality 차단 조건으로 사용하지 않습니다. critical field 또는 확정 흐름 회귀는 release를 차단합니다.
+- **Release smoke:** 승인된 데모 이미지로 실제 CLOVA를 호출합니다. Provider 모델 변경에 따른 비결정적 출력 차이는 기록하고 Integrator가 지정한 OCR 검토자가 검토하되 모든 PR의 exact-equality 차단 조건으로 사용하지 않습니다. critical field 또는 확정 흐름 회귀는 release를 차단합니다.
 
 각 fixture manifest에는 다음을 기록합니다.
 
@@ -639,7 +639,7 @@ run_with_worker_test_environment pytest ai_worker/tests/rag/test_mfds_label_chun
 Task 2b~4의 materialization 커널(`ai_worker/tests/rag/test_knowledge_materialization.py`), mock Repository
 (`ai_worker/tests/rag/test_sqlalchemy_knowledge_materialization.py`), 격리 PostgreSQL RAG lane
 (`tests/integration/rag/test_knowledge_materialization_postgresql.py`)는 아직 존재하지 않는 **예정 검증**이다. 착수 승인 후
-추가되며, 그때 아래 명령으로 실행한다. 계획 상세는 [Phase 2A 계획서](designs/ceohwj/MFDS_RAG_Phase2A_Plan.md)를 따른다.
+추가되며, 그때 아래 명령으로 실행한다. 계획 상세는 [Phase 2A 계획서](designs/rag/MFDS_RAG_Phase2A_Plan.md)를 따른다.
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -664,8 +664,8 @@ runtime vs `knowledge_index_builder` role 권한 분리, Index 어댑터 binding
 
 기존 Knowledge Evidence Index와의 cross-flow row lock 순서는 **아직 확정된 계약이 아니다.** `FOR UPDATE OF`
 테이블 목록을 맞추더라도 Index는 `knowledge_chunk_id` 순, materialization은 section 순으로 member를 순회하므로
-실제 row 획득 순서가 같아지지 않는다. 공유 ordering key 또는 상위 serialization 방식은 Task 3 착수 전 책임
-리뷰어가 확정하며, 이 lane의 cross-flow 테스트는 확정된 전략을 검증하는 단계다.
+실제 row 획득 순서가 같아지지 않는다. 공유 ordering key 또는 상위 serialization 방식은 Task 3 착수 전 독립 검토와
+Human Owner 결정으로 확정하며, 이 lane의 cross-flow 테스트는 확정된 전략을 검증하는 단계다.
 
 ## #670 명시적 시간 후보 검증
 
@@ -676,3 +676,8 @@ Frontend ScheduleRecommendation/SchedulePage/MedicationSchedulesApi 테스트는
 늦은 응답 무효화·저장 실패 재시도·직접 입력 전환을 확인한다.
 [검증 기록](validation/track-b/issue-670-recommendation.md)을 참고한다. Provider 호출·RAG 변경은 없으며
 이 검증은 약학적 적절성이나 Production 승인을 대신하지 않는다.
+
+
+## Candidate Search 합성 내부 연결 (2026-10-23)
+
+[합성 연결 검증 기록](testing/candidate-search-synthetic-20261023.md)은 실제 격리 PostgreSQL의 Source·Index·Bundle·HTTP 생성/조회/선택/재시도·철회/동시성/취소와 [합성 DEV 판정 fixture](../evals/candidate/synthetic-search-v1.json)를 다룬다. 운영 Source freshness/threshold·영속 Candidate REQUEST Guard·공개 승인으로 해석하지 않는다. 수치 정책은 fixture에만 있으며 공개 flag와 일반 DI는 계속 차단한다.

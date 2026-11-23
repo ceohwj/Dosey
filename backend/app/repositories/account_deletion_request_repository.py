@@ -12,6 +12,7 @@ from app.core.logger import default_logger
 from app.models.account_deletion_request import AccountDeletionRequest, AccountDeletionRequestStatus
 from app.models.users import AccountStatus
 from app.repositories.medication_candidate_repository import MedicationCandidateRepository
+from app.repositories.rag_candidate_guard_audit_repository import RagCandidateGuardAuditRepository
 from app.repositories.user_repository import UserRepository
 
 FAILED_DEMO_DELETION_CODE = "DEMO_DELETION_FAILED"
@@ -218,6 +219,7 @@ class AccountDeletionRequestRepository:
         params = {"user_id": str(user_id)}
         for statement in USER_DATA_DELETE_STATEMENTS:
             if statement == CANDIDATE_CLEANUP_MARKER:
+                await RagCandidateGuardAuditRepository(session).delete_for_account_withdrawal(user_id=user_id)
                 await MedicationCandidateRepository(session).delete_for_account_withdrawal(user_id=user_id)
                 continue
             await self._execute_with_session(session, statement, **params)

@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -113,6 +114,28 @@ class MedicationCandidateSearch(Base):
             f"status_reason IS NULL OR status_reason IN ({_sql_in_list(_STATUS_REASON_VALUES)})",
             name="chk_medication_candidate_search_status_reason",
         ),
+        ForeignKeyConstraint(
+            ["runtime_release_bundle_id", "runtime_release_bundle_manifest_hash"],
+            ["rag_runtime_release_bundle.id", "rag_runtime_release_bundle.bundle_manifest_hash"],
+            name="fk_medication_candidate_search_runtime_bundle_manifest",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(runtime_release_bundle_manifest_hash IS NULL AND runtime_environment_id IS NULL "
+            "AND runtime_environment_revision IS NULL) OR "
+            "(runtime_release_bundle_manifest_hash IS NOT NULL AND runtime_environment_id IS NOT NULL "
+            "AND runtime_environment_revision IS NOT NULL AND runtime_release_bundle_id IS NOT NULL "
+            "AND candidate_index_version_id IS NOT NULL)",
+            name="chk_medication_candidate_search_runtime_binding_complete",
+        ),
+        CheckConstraint(
+            "runtime_release_bundle_manifest_hash IS NULL OR runtime_release_bundle_manifest_hash ~ '^[0-9a-f]{64}$'",
+            name="chk_medication_candidate_search_runtime_hash",
+        ),
+        CheckConstraint(
+            "runtime_environment_revision IS NULL OR runtime_environment_revision >= 1",
+            name="chk_medication_candidate_search_runtime_revision",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(UUIDChar(), primary_key=True, default=uuid4)
@@ -132,6 +155,15 @@ class MedicationCandidateSearch(Base):
     query_digest: Mapped[str] = mapped_column(String(128), nullable=False)
     # Runtime Bundle 테이블은 #175(RAG-12A)에서 생성된다. FK는 그 이후 별도 migration에서 추가한다.
     runtime_release_bundle_id: Mapped[UUID | None] = mapped_column(UUIDChar(), nullable=True)
+    runtime_release_bundle_manifest_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    runtime_environment_id: Mapped[UUID | None] = mapped_column(
+        UUIDChar(),
+        ForeignKey(
+            "rag_runtime_environment.id", name="fk_medication_candidate_search_runtime_environment", ondelete="RESTRICT"
+        ),
+        nullable=True,
+    )
+    runtime_environment_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Candidate Index 영속 테이블은 #168(RAG-07B)에서 생성된다. FK는 그 이후 별도 migration에서 추가한다.
     candidate_index_version_id: Mapped[UUID | None] = mapped_column(UUIDChar(), nullable=True)
     status: Mapped[MedicationCandidateSearchStatus] = mapped_column(

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import config
 from app.core.errors import ApiError
+from app.core.utils.idempotency import compute_request_hash
 from app.dtos.medication_candidates import (
     ConfirmMedicationCandidateRequest,
     RejectMedicationCandidateRequest,
@@ -28,6 +29,7 @@ from app.repositories.medication_candidate_repository import (
     MedicationCandidateResultCreate,
 )
 from app.services.idempotency import (
+    RUNTIME_RELEASE_BUNDLE_PLACEHOLDER,
     IdempotencyKeyConflictError,
     IdempotencyResponseTooLargeError,
     SyncMutationIdempotencyService,
@@ -92,10 +94,19 @@ async def db_session() -> AsyncIterator[AsyncSession]:
                 await transaction.rollback()
 
 
+class _SyntheticRuntimeIdentificationService(MedicationIdentificationService):
+    """Keep legacy adapter tests focused on selection/idempotency; runtime gates have separate tests."""
+
+    async def validate_candidate_runtime(self, *, candidate_search_result_id: UUID, user_id: UUID) -> None:
+        return None
+
+
 def _service(session: AsyncSession) -> MedicationCandidateService:
     repository = MedicationCandidateRepository(session)
     idempotency_service = SyncMutationIdempotencyService(IdempotencyRepository(session), _FakeCipher())
-    return MedicationCandidateService(repository, MedicationIdentificationService(repository), idempotency_service)
+    return MedicationCandidateService(
+        repository, _SyntheticRuntimeIdentificationService(repository), idempotency_service
+    )
 
 
 async def _create_user(session: AsyncSession, *, email: str) -> User:
@@ -188,7 +199,9 @@ async def _create_medication(
     return medication
 
 
-async def _create_ready_search(session: AsyncSession, *, medication: PrescriptionVersionMedication, user: User):
+async def _create_ready_search(
+    session: AsyncSession, *, medication: PrescriptionVersionMedication, user: User, include_alternate: bool = False
+):
     identification_service = MedicationIdentificationService(MedicationCandidateRepository(session))
     search = (
         await identification_service.record_candidate_search(
@@ -200,27 +213,44 @@ async def _create_ready_search(session: AsyncSession, *, medication: Prescriptio
             expires_at=datetime.now(config.TIMEZONE) + timedelta(minutes=10),
         )
     ).search
+    results = [
+        MedicationCandidateResultCreate(
+            product_id=uuid4(),
+            code_system="MFDS_ITEM_SEQ",
+            canonical_code="200012345",
+            product_name="테스트정",
+            strength_text="500mg",
+            dosage_form="정제",
+            manufacturer_name="테스트제약",
+            product_status="ACTIVE",
+            result_rank=1,
+            result_score=0.95,
+            result_method="PRODUCT_NAME",
+            is_displayed=True,
+            selection_eligible=True,
+        )
+    ]
+    if include_alternate:
+        results.append(
+            MedicationCandidateResultCreate(
+                product_id=None,
+                code_system=None,
+                canonical_code=None,
+                product_name=None,
+                strength_text=None,
+                dosage_form=None,
+                manufacturer_name=None,
+                product_status=None,
+                result_rank=2,
+                result_score=0.5,
+                result_method="PRODUCT_NAME",
+            )
+        )
     return await identification_service.finalize_candidate_search(
         search_id=search.id,
         user_id=user.id,
         status=ModelSearchStatus.READY,
-        results=[
-            MedicationCandidateResultCreate(
-                product_id=uuid4(),
-                code_system="MFDS_ITEM_SEQ",
-                canonical_code="200012345",
-                product_name="테스트정",
-                strength_text="500mg",
-                dosage_form="정제",
-                manufacturer_name="테스트제약",
-                product_status="ACTIVE",
-                result_rank=1,
-                result_score=0.95,
-                result_method="PRODUCT_NAME",
-                is_displayed=True,
-                selection_eligible=True,
-            )
-        ],
+        results=results,
     )
 
 
@@ -325,6 +355,44 @@ async def test_confirm_candidate_maps_identification_data(db_session: AsyncSessi
     assert result.confirmed_at is not None
 
 
+@pytest.mark.parametrize("action", ["confirm", "reject"])
+async def test_fresh_candidate_mutation_rejects_unbound_legacy_search(db_session: AsyncSession, action: str) -> None:
+    """The actual runtime validator must fail closed on a new key for an unbound Search."""
+    repository = MedicationCandidateRepository(db_session)
+    service = MedicationCandidateService(
+        repository,
+        MedicationIdentificationService(repository),
+        SyncMutationIdempotencyService(IdempotencyRepository(db_session), _FakeCipher()),
+    )
+    owner = await _create_user(db_session, email=f"unbound-{action}@example.com")
+    medication = await _create_medication(db_session, user=owner)
+    finalized = await _create_ready_search(db_session, medication=medication, user=owner)
+    with pytest.raises(ApiError) as error:
+        if action == "confirm":
+            await service.confirm_candidate(
+                user=owner,
+                request=ConfirmMedicationCandidateRequest(
+                    prescription_version_medication_id=medication.id,
+                    candidate_search_result_id=finalized.results[0].id,
+                ),
+                idempotency_key=f"unbound-{action}-key-0001",
+            )
+        else:
+            await service.reject_candidate(
+                user=owner,
+                request=RejectMedicationCandidateRequest(
+                    search_id=finalized.search.id,
+                    candidate_search_result_id=finalized.results[0].id,
+                ),
+                idempotency_key=f"unbound-{action}-key-0001",
+            )
+    assert error.value.status_code == 409
+    assert error.value.code == "IDENTIFICATION_CONTEXT_STALE"
+    assert error.value.details[0].reason == "RUNTIME_BINDING_MISSING"
+    assert await _count_idempotency_records(db_session) == 0
+    assert await _count_identifications_for_medication(db_session, medication_id=medication.id) == 0
+
+
 async def test_confirm_candidate_replays_stored_response_for_same_key_and_request(
     db_session: AsyncSession,
 ) -> None:
@@ -332,7 +400,7 @@ async def test_confirm_candidate_replays_stored_response_for_same_key_and_reques
     실행하지 않고 저장된 응답을 그대로 재현해야 한다(idempotency-v1.md). mock/spy로
     실제 도메인 로직(confirm_identification)이 두 번째 호출에서 재호출되지 않는지 확인한다."""
     repository = MedicationCandidateRepository(db_session)
-    identification_service = MedicationIdentificationService(repository)
+    identification_service = _SyntheticRuntimeIdentificationService(repository)
     idempotency_service = SyncMutationIdempotencyService(IdempotencyRepository(db_session), _FakeCipher())
     service = MedicationCandidateService(repository, identification_service, idempotency_service)
     owner = await _create_user(db_session, email="confirm2@example.com")
@@ -355,6 +423,70 @@ async def test_confirm_candidate_replays_stored_response_for_same_key_and_reques
     assert await _count_identifications_for_medication(db_session, medication_id=medication.id) == 1
 
 
+async def test_legacy_success_replays_after_active_prescription_version_changes(db_session: AsyncSession) -> None:
+    owner = await _create_user(db_session, email="legacy-replay@example.com")
+    medication = await _create_medication(db_session, user=owner)
+    finalized = await _create_ready_search(db_session, medication=medication, user=owner)
+    request = ConfirmMedicationCandidateRequest(
+        prescription_version_medication_id=medication.id,
+        candidate_search_result_id=finalized.results[0].id,
+    )
+    key = "legacy-success-replay-key-0001"
+    first = await _service(db_session).confirm_candidate(user=owner, request=request, idempotency_key=key)
+    record = await db_session.scalar(select(IdempotencyRecord))
+    assert record is not None
+    legacy_hash = compute_request_hash(
+        {
+            "action": "confirm",
+            "candidate_search_result_id": str(finalized.results[0].id),
+            "runtime_release_bundle": RUNTIME_RELEASE_BUNDLE_PLACEHOLDER,
+        }
+    )
+    record.request_hash = legacy_hash  # Simulate a successful row written by the previous Candidate writer.
+    prescription = await db_session.scalar(
+        select(Prescription).where(Prescription.active_version_id == medication.prescription_version_id)
+    )
+    assert prescription is not None
+    replacement_id = uuid4()
+    db_session.add(
+        PrescriptionVersion(
+            **fingerprint_values(
+                prescription.prescribed_date,
+                [{"medication_name": "새 버전 약", "strength_text": "100mg", "display_order": 1}],
+            ),
+            id=replacement_id,
+            prescription_id=prescription.id,
+            version_number=2,
+            prescribed_date=prescription.prescribed_date,
+            confirmed_at=datetime.now(config.TIMEZONE),
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        PrescriptionVersionMedication(
+            prescription_version_id=replacement_id,
+            medication_count=1,
+            medication_name="새 버전 약",
+            strength_text="100mg",
+            display_order=1,
+        )
+    )
+    prescription.active_version_id = replacement_id
+    await db_session.flush()
+
+    repository = MedicationCandidateRepository(db_session)
+    real_validator_service = MedicationCandidateService(
+        repository,
+        MedicationIdentificationService(repository),
+        SyncMutationIdempotencyService(IdempotencyRepository(db_session), _FakeCipher()),
+    )
+    second = await real_validator_service.confirm_candidate(user=owner, request=request, idempotency_key=key)
+    assert second == first
+    assert record.request_hash == legacy_hash
+    assert await _count_idempotency_records(db_session) == 1
+    assert await _count_identifications_for_medication(db_session, medication_id=medication.id) == 1
+
+
 async def test_confirm_candidate_rejects_same_key_with_different_candidate_as_conflict(
     db_session: AsyncSession,
 ) -> None:
@@ -363,7 +495,7 @@ async def test_confirm_candidate_rejects_same_key_with_different_candidate_as_co
     service = _service(db_session)
     owner = await _create_user(db_session, email="confirm3@example.com")
     medication = await _create_medication(db_session, user=owner)
-    finalized = await _create_ready_search(db_session, medication=medication, user=owner)
+    finalized = await _create_ready_search(db_session, medication=medication, user=owner, include_alternate=True)
     idempotency_key = "c" * 32
 
     await service.confirm_candidate(
@@ -380,7 +512,7 @@ async def test_confirm_candidate_rejects_same_key_with_different_candidate_as_co
             user=owner,
             request=ConfirmMedicationCandidateRequest(
                 prescription_version_medication_id=medication.id,
-                candidate_search_result_id=uuid4(),
+                candidate_search_result_id=finalized.results[1].id,
             ),
             idempotency_key=idempotency_key,
         )
@@ -431,7 +563,7 @@ async def test_confirm_candidate_rolls_back_confirmation_when_snapshot_exceeds_c
     """snapshot이 1MiB cap을 초과하면 503으로 끝나야 하고, 이미 실행된 confirm_identification의
     DB 변경(MATCHED identification 생성)도 같은 트랜잭션에서 함께 롤백돼야 한다."""
     repository = MedicationCandidateRepository(db_session)
-    identification_service = MedicationIdentificationService(repository)
+    identification_service = _SyntheticRuntimeIdentificationService(repository)
     idempotency_service = SyncMutationIdempotencyService(IdempotencyRepository(db_session), _OversizedCipher())
     service = MedicationCandidateService(repository, identification_service, idempotency_service)
     owner = await _create_user(db_session, email="confirm5@example.com")

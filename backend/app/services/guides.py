@@ -311,12 +311,6 @@ class GuideService:
         try:
             completed = await runtime_execution.execute(user=user, guide=guide)
         except GuideSyncRuntimeVersionConflictError:
-            await self._repo.mark_failed(
-                guide,
-                error_code="PRESCRIPTION_VERSION_STALE",
-                error_message="처방 정보가 변경되어 생성 결과를 현재 결과로 사용할 수 없습니다.",
-                completed_at=datetime.now(UTC),
-            )
             failure_error = ApiError(
                 status_code=409,
                 code="PRESCRIPTION_VERSION_CONFLICT",
@@ -325,12 +319,6 @@ class GuideService:
             )
         except (GuideSyncRuntimePreparationError, GuideRuntimeExecutionUnavailableError) as error:
             default_logger.warning("guide_runtime_unavailable error_type=%s", type(error).__name__)
-            await self._repo.mark_failed(
-                guide,
-                error_code="GUIDE_RUNTIME_UNAVAILABLE",
-                error_message=_RUNTIME_UNAVAILABLE_ERROR_MESSAGE,
-                completed_at=datetime.now(UTC),
-            )
             failure_error = ApiError(
                 status_code=503,
                 code="SERVICE_UNAVAILABLE",
@@ -339,12 +327,6 @@ class GuideService:
             )
         except Exception as error:
             default_logger.warning("guide_runtime_failed error_type=%s", type(error).__name__)
-            await self._repo.mark_failed(
-                guide,
-                error_code="GENERATION_REQUEST_FAILED",
-                error_message=_GENERATION_FAILED_ERROR_MESSAGE,
-                completed_at=datetime.now(UTC),
-            )
             failure_error = ApiError(
                 status_code=500,
                 code="GUIDE_GENERATION_FAILED",

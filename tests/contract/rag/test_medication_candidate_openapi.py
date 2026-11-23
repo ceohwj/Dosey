@@ -32,24 +32,29 @@ def _assert_required_fields(schema_name: str, expected: set[str]) -> None:
 def test_candidate_routes_match_approved_paths_and_methods() -> None:
     paths = _openapi()["paths"]
 
+    assert "/api/v1/medication-candidate-searches" in paths
     assert "/api/v1/medication-candidate-searches/{prescription_version_medication_id}" in paths
     assert "/api/v1/medication-candidates/confirm" in paths
     assert "/api/v1/medication-candidates/reject" in paths
 
+    assert set(paths["/api/v1/medication-candidate-searches"]) == {"post"}
     assert set(paths["/api/v1/medication-candidate-searches/{prescription_version_medication_id}"]) == {"get"}
     assert set(paths["/api/v1/medication-candidates/confirm"]) == {"post"}
     assert set(paths["/api/v1/medication-candidates/reject"]) == {"post"}
 
 
 def test_candidate_routes_keep_stable_operation_ids_and_response_refs() -> None:
+    create_operation = _operation("post", "/api/v1/medication-candidate-searches")
     get_operation = _operation("get", "/api/v1/medication-candidate-searches/{prescription_version_medication_id}")
     confirm_operation = _operation("post", "/api/v1/medication-candidates/confirm")
     reject_operation = _operation("post", "/api/v1/medication-candidates/reject")
 
+    assert create_operation["operationId"] == "medication-candidate.search.create"
     assert get_operation["operationId"] == "medication-candidate.search.get"
     assert confirm_operation["operationId"] == "medication-candidate.confirm"
     assert reject_operation["operationId"] == "medication-candidate.reject"
 
+    assert _json_schema_ref(create_operation, "202") == "#/components/schemas/MedicationCandidateSearchResponse"
     assert _json_schema_ref(get_operation, "200") == "#/components/schemas/MedicationCandidateSearchResponse"
     assert _json_schema_ref(confirm_operation, "200") == "#/components/schemas/ConfirmMedicationCandidateResponse"
     assert _json_schema_ref(reject_operation, "200") == "#/components/schemas/RejectMedicationCandidateResponse"
@@ -61,15 +66,18 @@ def test_candidate_error_responses_use_shared_error_envelope() -> None:
     confirm_operation = _operation("post", "/api/v1/medication-candidates/confirm")
     reject_operation = _operation("post", "/api/v1/medication-candidates/reject")
 
-    assert set(create_operation["responses"]) == {"202", "422", "503"}
-    assert set(get_operation["responses"]) == {"200", "404", "422", "503"}
+    assert set(create_operation["responses"]) == {"202", "404", "409", "422", "503"}
+    assert set(get_operation["responses"]) == {"200", "404", "409", "422", "503"}
     assert set(confirm_operation["responses"]) == {"200", "400", "404", "409", "422", "503"}
     assert set(reject_operation["responses"]) == {"200", "400", "404", "409", "422", "503"}
 
     for operation, status_code in (
+        (create_operation, "404"),
+        (create_operation, "409"),
         (create_operation, "422"),
         (create_operation, "503"),
         (get_operation, "404"),
+        (get_operation, "409"),
         (get_operation, "422"),
         (get_operation, "503"),
         (confirm_operation, "400"),

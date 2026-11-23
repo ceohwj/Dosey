@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -646,9 +647,12 @@ async def _reject_once_with_idempotency(
     발생하지 않는지 실제로 검증한다(confirm과 동일한 문제가 reject에도 있는지 확인)."""
     async with session_factory() as session:
         repository = MedicationCandidateRepository(session)
+        identification_service = _service(session)
+        # This legacy adapter race uses an unbound Search; runtime/currentness races are tested separately.
+        identification_service.validate_candidate_runtime = AsyncMock(return_value=None)  # type: ignore[method-assign]
         candidate_service = MedicationCandidateService(
             repository,
-            _service(session),
+            identification_service,
             SyncMutationIdempotencyService(IdempotencyRepository(session), get_default_snapshot_cipher()),
         )
 

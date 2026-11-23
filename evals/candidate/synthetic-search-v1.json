@@ -1,0 +1,132 @@
+{
+  "schema": "candidate-synthetic-search-eval-v1",
+  "status": "NON_AUTHORITATIVE_SYNTHETIC_DEV",
+  "purpose": "Internal deterministic regression only; no clinical quality, Source freshness, production threshold, release, or publication approval.",
+  "release_eligible": false,
+  "provenance": {
+    "index_version": "synthetic-index-v1",
+    "catalog_version": "synthetic-catalog-v1",
+    "catalog_manifest_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_snapshot_id": "11111111-1111-4111-8111-111111111111",
+    "source_version": "synthetic-source-v1",
+    "normalization_version": "synthetic-normalization-v1",
+    "index_mode": "LEXICAL_ONLY"
+  },
+  "fixture_policy": {
+    "policy_version": "synthetic-eval-v1",
+    "maximum_input_length": 100,
+    "retrieval_limit": 10,
+    "enable_dense": false,
+    "release_eligible": false,
+    "stage_weights": {
+      "PRODUCT_NAME_EXACT": 4.0,
+      "APPROVED_ALIAS_EXACT": 3.0,
+      "TRIGRAM_EDIT_DISTANCE": 2.0,
+      "DENSE_VECTOR": 1.0
+    },
+    "rrf_k": 10.0,
+    "minimum_relevance": 0.7,
+    "minimum_margin": 0.02,
+    "auto_select_stages": ["PRODUCT_NAME_EXACT", "APPROVED_ALIAS_EXACT"]
+  },
+  "cases": [
+    {
+      "id": "exact_product_ready",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-001", "name": "합성정", "strength_text": "10 mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.91}],
+      "expected": {"outcome": "SINGLE_CANDIDATE", "selected_code": "SYNTH-001", "eligible_count": 1}
+    },
+    {
+      "id": "approved_alias_ready",
+      "input": {"medication_name": "합성 별칭", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-002", "name": "합성정", "strength_text": "10mg", "stage": "APPROVED_ALIAS_EXACT", "score": 0.81}],
+      "expected": {"outcome": "SINGLE_CANDIDATE", "selected_code": "SYNTH-002", "eligible_count": 1}
+    },
+    {
+      "id": "inactive_product_not_selectable",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-003", "name": "합성정", "strength_text": "10mg", "status": "INACTIVE", "stage": "PRODUCT_NAME_EXACT", "score": 0.95}],
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "missing_product_strength_not_assumed",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-004", "name": "합성정", "strength_text": null, "stage": "PRODUCT_NAME_EXACT", "score": 0.95}],
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "conflicting_strength_not_selectable",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-005", "name": "합성정", "strength_text": "20mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.95}],
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "unit_conversion_not_inferred",
+      "input": {"medication_name": "합성정", "strength_text": "1000mg"},
+      "product_hits": [{"code": "SYNTH-006", "name": "합성정", "strength_text": "1g", "stage": "PRODUCT_NAME_EXACT", "score": 0.95}],
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "internal_digit_space_not_equivalent",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-007", "name": "합성정", "strength_text": "1 0mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.95}],
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "below_fixture_threshold_not_selectable",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-008", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.6999}],
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "at_fixture_threshold_selectable",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-009", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.7}],
+      "expected": {"outcome": "SINGLE_CANDIDATE", "selected_code": "SYNTH-009", "eligible_count": 1}
+    },
+    {
+      "id": "two_eligible_products_ambiguous",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [
+        {"code": "SYNTH-010", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "rank": 1, "score": 0.92},
+        {"code": "SYNTH-011", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "rank": 2, "score": 0.82}
+      ],
+      "expected": {"outcome": "AMBIGUOUS", "selected_code": null, "eligible_count": 2}
+    },
+    {
+      "id": "actual_fixture_ingredient_hit_only",
+      "input": {"medication_name": "합성 성분", "strength_text": null},
+      "ingredient_hits": [{"code": "SYNTH-INGREDIENT-001", "score": 0.88}],
+      "expected": {"outcome": "INGREDIENT_ONLY", "selected_code": null, "eligible_count": 0, "ingredient_hit_count": 1}
+    },
+    {
+      "id": "no_hits_no_candidate",
+      "input": {"medication_name": "없는 합성약", "strength_text": null},
+      "expected": {"outcome": "NO_CANDIDATE", "selected_code": null, "eligible_count": 0}
+    },
+    {
+      "id": "wrong_source_hit_rejected",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "product_hits": [{"code": "SYNTH-012", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.9, "source_snapshot_id": "22222222-2222-4222-8222-222222222222"}],
+      "expected": {"failure": "EVIDENCE_INVALID"}
+    },
+    {
+      "id": "wrong_index_provenance_rejected",
+      "input": {"medication_name": "합성정", "strength_text": "10mg"},
+      "provenance_index_version": "synthetic-other-index-v1",
+      "product_hits": [{"code": "SYNTH-013", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.9}],
+      "expected": {"failure": "EVIDENCE_INVALID"}
+    },
+    {
+      "id": "unspecified_input_strength_not_inferred",
+      "input": {"medication_name": "합성정", "strength_text": null},
+      "product_hits": [{"code": "SYNTH-014", "name": "합성정", "strength_text": "10mg", "stage": "PRODUCT_NAME_EXACT", "score": 0.9}],
+      "expected": {"outcome": "SINGLE_CANDIDATE", "selected_code": "SYNTH-014", "eligible_count": 1}
+    },
+    {
+      "id": "blank_medication_name_invalid_input",
+      "input": {"medication_name": "", "strength_text": null},
+      "expected": {"outcome": "INVALID_INPUT", "selected_code": null, "eligible_count": 0, "index_reads": 0}
+    }
+  ]
+}

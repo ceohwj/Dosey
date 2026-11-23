@@ -6,7 +6,8 @@ from fastapi import FastAPI
 
 from app import main
 from app.dependencies import services
-from app.services.guide_sync_runtime_execution import GuideSyncRuntimeAuthorityProvider
+from app.services.guide_sync_runtime_execution import GuideSyncRuntimeAuthorityProviderFactory
+from app.services.guide_sync_runtime_lifecycle import GuideSyncRuntimeAuthority
 from rag_runtime.guide_runtime_execution import GuideRuntimeExecutorFactoryPort, GuideRuntimeExecutorPort
 
 
@@ -15,12 +16,23 @@ class _Factory:
         raise AssertionError("the wiring test must not create an executor")
 
 
+class _Authority:
+    async def revalidate(self, **kwargs):
+        raise AssertionError("wiring must not revalidate")
+
+    def for_session(self, session):
+        return self
+
+    async def resolve(self, **_kwargs: object) -> GuideSyncRuntimeAuthority:
+        raise AssertionError("the wiring test must not resolve request authority")
+
+
 def test_lifespan_initializer_constructs_and_reuses_one_process_scoped_factory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     app = FastAPI()
     opaque_dependencies = object()
-    authority_provider = cast(GuideSyncRuntimeAuthorityProvider, object())
+    authority_provider = cast(GuideSyncRuntimeAuthorityProviderFactory, _Authority())
     main.configure_guide_runtime(
         app,
         provider_dependencies=opaque_dependencies,
@@ -49,7 +61,7 @@ def test_lifespan_initializer_constructs_and_reuses_one_process_scoped_factory(
 
     assert services.get_guide_runtime_executor_factory(request) is factory  # type: ignore[arg-type]
     assert services.get_guide_runtime_executor_factory(request) is factory  # type: ignore[arg-type]
-    assert services.get_guide_sync_runtime_authority_provider(request) is authority_provider  # type: ignore[arg-type]
+    assert services.get_guide_sync_runtime_authority_provider(request, object()) is authority_provider  # type: ignore[arg-type]
     assert calls == [(opaque_dependencies, app.state.openai_client, "gpt-4o", 20.0)]
 
 
