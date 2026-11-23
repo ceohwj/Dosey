@@ -1,6 +1,6 @@
 name = "dosey_integration_verifier"
 description = "Read-only verification of a Dosey flow across Frontend, API, Backend, and Worker boundaries."
-model = "gpt-6.1-sol"
+model = "gpt-6.2-sol"
 model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """

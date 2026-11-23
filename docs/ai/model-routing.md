@@ -1,24 +1,39 @@
-# Codex 역할·모델 설정과 검증 범위
+# Codex · Antigravity 역할·모델 설정과 검증 범위
 
-설정 정본은 `.codex/config.toml`과 `.codex/agents/*.toml`이다. 운영 절차는 [workflow](workflow.md), 작업 입력/결과는 [task-template](task-template.md), 공통 권한은 [AGENTS](../../AGENTS.md)를 따른다. 이 문서는 설정을 실행하거나 모델 선택을 덮어쓰지 않는다.
+Codex 설정 정본은 `.codex/config.toml`과 `.codex/agents/*.toml`이며, Antigravity 진입점은 [GEMINI.md](../../GEMINI.md)다. 운영 절차는 [workflow](workflow.md), 작업 입력/결과는 [task-template](task-template.md), 공통 권한은 [AGENTS](../../AGENTS.md)를 따른다. 이 문서는 설정을 실행하거나 모델 선택을 덮어쓰지 않는다.
 
-## 모델 배분
+## Codex 모델 배분
 
 | 역할 | 설정 모델 | reasoning | 작업 |
 |---|---|---|---|
-| 프로젝트 main 기본값 | `gpt-6.1-sol` | `medium` | Integrator·작은 직접 작업 |
-| `dosey_explore` | `gpt-6.1-sol` | `low` | bounded 조사 |
-| `dosey_writer` | `gpt-6.1-sol` | `medium` | 확정 사실 문서화 |
+| 프로젝트 main 기본값 | `gpt-6.2-sol` | `medium` | Integrator·작은 직접 작업 |
+| `dosey_explore` | `gpt-6.2-sol` | `low` | bounded 조사 |
+| `dosey_writer` | `gpt-6.2-sol` | `medium` | 확정 사실 문서화 |
 | `dosey_executor` | `gpt-6.1-terra` | `medium` | 일반·혼합 구현 |
 | `dosey_frontend` | `gpt-6.1-terra` | `medium` | UI·상태·API 소비 |
 | `dosey_backend` | `gpt-6.1-terra` | `medium` | API·Service/Repository·Job 연결 |
 | `dosey_llm` | `gpt-6.1-terra` | `medium` | Guide/Chat 생성·검증 |
 | `dosey_ocr` | `gpt-6.1-terra` | `medium` | 인식·정규화·구조화 |
 | `dosey_rag` | `gpt-6.1-terra` | `medium` | Source·검색·evidence/citation·평가 |
-| `dosey_integration_verifier` | `gpt-6.1-sol` | `medium` | 계층 간 독립 검증 |
-| `dosey_reviewer` | `gpt-6.1-sol` | `high` | 중요한 변경의 내부 독립 검토 |
+| `dosey_integration_verifier` | `gpt-6.2-sol` | `medium` | 계층 간 독립 검증 |
+| `dosey_reviewer` | `gpt-6.2-sol` | `high` | 중요한 변경의 내부 독립 검토 |
 
-2026-11-05 Human Owner가 “모델 최신 모델들 반영해서” 변경하도록 지시했다. 설치된 Codex의 모델 카탈로그(`~/.codex/models_cache.json`, fetched_at `2026-11-04T16:32:52.969854Z`)에서 표시되는 GPT-6.1 Sol/Terra와 지원 reasoning 값을 확인해 프로젝트 기본값과 10개 역할을 갱신했다. 구현 역할은 Terra, Integrator·조사·문서·독립 검증/검수는 Sol로 배분했다. 기존 reasoning과 sandbox/권한·역할 지침은 유지한다. 이는 측정된 성능·비용 비교 결과가 아닌 승인된 설정 배분이다. 전역 Codex/OMX와 서비스 LLM 모델은 바꾸지 않는다.
+2026-11-23 Human Owner 지시로 Codex 로컬 카탈로그(`~/.codex/models_cache.json`)에서 `gpt-6.2-sol` 및 지원 reasoning 값을 확인하고, 기존 `gpt-6.1-sol`을 사용하던 5개 역할(main 기본값·explore·writer·integration_verifier·reviewer)만 `gpt-6.2-sol`로 교체했다. 구현 6개 역할의 `gpt-6.1-terra`와 기존 reasoning·sandbox/권한·역할 지침은 그대로 유지했다. (2026-11-05 최초 6.1 Sol/Terra 배분 이력은 보존하며, 전역 Codex/OMX와 서비스 LLM 모델은 바꾸지 않는다.)
+
+## Antigravity 역할별 모델 배분
+
+Antigravity는 `.codex/agents/*.toml` 대신 [GEMINI.md](../../GEMINI.md)와 이 문서의 기준에 따라 `/teamwork`(Swarm) 워커의 `model` 핀 지정 또는 `invoke_subagent` 티어를 역할별로 배정한다.
+
+| 역할 그룹 | 해당 역할 | Swarm (`/teamwork`) 모델 | Subagent 티어 | 작업 |
+|---|---|---|---|---|
+| **탐색** | `dosey_explore` | `gemini-4-hydrogen-low` | `flash` | bounded 조사 (read-only) |
+| **문서** | `dosey_writer` | `gemini-4-hydrogen-medium` | `flash` | 확정 사실 문서화 |
+| **구현** | `dosey_executor`, `dosey_frontend`, `dosey_backend`, `dosey_llm`, `dosey_ocr`, `dosey_rag` | `gemini-4-neon-medium` | `inherit` | 도메인·혼합 구현 (필요 시 복잡 작업만 `high`) |
+| **통합 검증** | `dosey_integration_verifier` | `gemini-4-argon-medium` | `pro` | 계층 간 독립 검증 (read-only) |
+| **내부 리뷰** | `dosey_reviewer` | `gemini-4-argon-high` | `pro` | 중요 변경 내부 독립 검토 (read-only) |
+
+- 메인 코디네이터(Integrator)는 기본적으로 `gemini-4-neon-medium`에서 전체 맥락·파일 소유권·수리 루프(최대 2~3회 상한)를 관리하고, 계약·DB·안전·최종 승인 지점에서 Human Owner에게 확인을 요청한다.
+- 이 표는 승인된 모델 라우팅 기준이며, 실행 검증이나 테스트 PASS 증거를 대신하지 않는다.
 
 현재 main의 UI/CLI/profile 선택이나 이미 실행한 에이전트의 모델을 소급 변경하지 않는다. 프로젝트 main 기본값은 이후 해당 설정을 로드하는 실행에 적용된다. 갱신 뒤 현재 App의 Dosey 역할 도구 정의에서도 구현 Terra/검수 Sol 6.1 배분이 노출된 것을 확인했으며, 남은 검수는 새 호출로 수행한다. 도구 정의·TOML 로딩과 실제 provider 모델 실행 기록은 구분하며 이 표 자체는 실행 증거가 아니다.
 
