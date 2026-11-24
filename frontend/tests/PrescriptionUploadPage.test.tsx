@@ -1028,6 +1028,9 @@ describe('PrescriptionUploadPage OCR polling', () => {
 
   it('STALE을 과거 결과로 소비하지 않고 명시적 재등록 경계로 종료한다', async () => {
     vi.mocked(getJobStatus).mockResolvedValue(polledJobStatus('STALE'))
+    vi.mocked(getOcrJob).mockResolvedValue({
+      data: { ...ocrResponse('FAILED').data, error_code: 'PRESCRIPTION_VERSION_STALE' },
+    })
     const { container } = renderPage()
 
     selectPrescriptionFile(container)
@@ -1220,6 +1223,9 @@ describe('PrescriptionUploadPage OCR polling', () => {
     vi.mocked(getJobStatus)
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValueOnce(polledJobStatus('STALE'))
+    vi.mocked(getOcrJob).mockResolvedValue({
+      data: { ...ocrResponse('FAILED').data, error_code: 'PRESCRIPTION_VERSION_STALE' },
+    })
     const { container } = renderPage()
 
     selectPrescriptionFile(container)
