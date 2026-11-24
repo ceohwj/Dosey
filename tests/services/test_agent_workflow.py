@@ -670,5 +670,166 @@ def test_prepare_repair_escalates_when_mixed_in_scope_and_out_of_scope_findings(
     handoff = api.prepare_repair(tmp_path, "one", report_path)
     assert handoff["status"] == "scope_escalation_required"
     assert handoff["next_action"] == "escalate_out_of_scope_findings_to_integrator"
+    assert handoff["re_review_argv"] == []
     assert len(handoff["repair_findings"]) == 1
     assert len(handoff["scope_violations"]) == 1
+
+
+def test_prepare_repair_emits_re_review_argv_for_claude_review(tmp_path):
+    (tmp_path / "source.py").write_text("\n".join(f"line {i}" for i in range(1, 50)) + "\n")
+    api, _ = initialized(tmp_path)
+    report_path = tmp_path / "review-argv.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "One blocking finding.",
+                "findings": [{"severity": "BLOCKING", "file": "source.py", "line": 20, "message": "Fix guard"}],
+            }
+        )
+    )
+    handoff = api.prepare_repair(tmp_path, "one", report_path)
+    assert handoff["status"] == "repair_required"
+    assert handoff["re_review_argv"] == [
+        "python3",
+        "scripts/claude_review.py",
+        "--base",
+        "abc",
+        "--working-tree",
+        "--file",
+        "source.py",
+        "--review-range",
+        "source.py:5:35",
+        "--dry-run",
+    ]
+
+    bad_task = record("bad-ref")
+    bad_task["base_revision"] = "--output-dir=/tmp"
+    canonical(tmp_path, bad_task)
+    with pytest.raises(api.WorkflowError):
+        api.prepare_repair(tmp_path, "bad-ref", report_path)
+
+
+def test_plan_batch_marks_disjoint_tasks_ready_and_detects_file_and_forbidden_conflicts(tmp_path):
+    frontend = record("frontend-task")
+    frontend["allowed_files"] = ["frontend/src/App.tsx"]
+    backend = record("backend-task")
+    backend["allowed_files"] = ["backend/app/main.py"]
+    canonical(tmp_path, frontend)
+    canonical(tmp_path, backend)
+
+    api = module()
+    clean_plan = api.plan_batch(tmp_path)
+    assert clean_plan["status"] == "ready"
+    assert clean_plan["ready"] == ["backend-task", "frontend-task"]
+    assert clean_plan["waiting"] == []
+    assert clean_plan["blocked"] == []
+    assert clean_plan["file_conflicts"] == []
+    assert clean_plan["forbidden_conflicts"] == []
+
+    overlapping = record("rag-task")
+    overlapping["allowed_files"] = ["backend/app/main.py", "backend/app/rag.py"]
+    overlapping["forbidden_files"] = ["frontend/src/App.tsx"]
+    canonical(tmp_path, overlapping)
+
+    conflict_plan = api.plan_batch(tmp_path)
+    assert conflict_plan["status"] == "conflict"
+    assert conflict_plan["file_conflicts"] == [
+        {"file": "backend/app/main.py", "task_ids": ["backend-task", "rag-task"]}
+    ]
+    assert conflict_plan["forbidden_conflicts"] == [
+        {"file": "frontend/src/App.tsx", "writer_task_id": "frontend-task", "forbidding_task_id": "rag-task"}
+    ]
+    assert conflict_plan["ready"] == []
+
+
+def test_plan_batch_handles_dependencies_cycles_and_blocked_tasks(tmp_path):
+    done_task = record("contract-freeze")
+    done_task["phase"] = "complete"
+    done_task["allowed_files"] = ["docs/contracts/current/api.md"]
+
+    ready_task = record("backend-impl")
+    ready_task["allowed_files"] = ["backend/app/service.py"]
+    ready_task["dependencies"] = ["contract-freeze"]
+
+    waiting_task = record("frontend-impl")
+    waiting_task["allowed_files"] = ["frontend/src/Page.tsx"]
+    waiting_task["dependencies"] = ["backend-impl"]
+
+    blocked_task = record("rag-impl")
+    blocked_task["allowed_files"] = ["ai_worker/rag.py"]
+    blocked_task["operation_in_flight"] = True
+
+    for item in (done_task, ready_task, waiting_task, blocked_task):
+        canonical(tmp_path, item)
+
+    api = module()
+    plan = api.plan_batch(tmp_path)
+    assert plan["status"] == "ready"
+    assert plan["ready"] == ["backend-impl"]
+    assert plan["waiting"] == [
+        {"task_id": "frontend-impl", "reason": "DEPENDENCY_WAIT", "pending_dependencies": ["backend-impl"]}
+    ]
+    assert plan["blocked"] == [
+        {"task_id": "rag-impl", "reason": "Budget or operation requires evidence reconciliation"}
+    ]
+
+    # Add a cycle between two new tasks
+    cycle_a = record("cycle-a")
+    cycle_a["allowed_files"] = ["a.py"]
+    cycle_a["dependencies"] = ["cycle-b"]
+    cycle_b = record("cycle-b")
+    cycle_b["allowed_files"] = ["b.py"]
+    cycle_b["dependencies"] = ["cycle-a"]
+    canonical(tmp_path, cycle_a)
+    canonical(tmp_path, cycle_b)
+
+    cycle_plan = api.plan_batch(tmp_path, ["cycle-a"])
+    assert cycle_plan["status"] == "conflict"
+    assert cycle_plan["dependency_cycles"]
+    assert cycle_plan["ready"] == []
+
+
+def test_plan_batch_edge_cases_dedup_completed_and_blocked_precedence(tmp_path):
+    done = record("done-task")
+    done["phase"] = "complete"
+    done["allowed_files"] = ["shared.py"]
+
+    active = record("active-task")
+    active["allowed_files"] = ["shared.py", "shared.py"]
+    active["dependencies"] = ["done-task"]
+
+    blocker = record("blocker-task")
+    blocker["phase"] = "blocked"
+    blocker["allowed_files"] = ["b.py"]
+
+    waiter = record("waiter-task")
+    waiter["allowed_files"] = ["w.py"]
+    waiter["dependencies"] = ["blocker-task"]
+
+    for item in (done, active, blocker, waiter):
+        canonical(tmp_path, item)
+
+    api = module()
+    explicit_done_plan = api.plan_batch(tmp_path, ["done-task", "active-task"])
+    assert explicit_done_plan["status"] == "ready"
+    assert explicit_done_plan["ready"] == ["active-task"]
+    assert explicit_done_plan["file_conflicts"] == []
+
+    blocked_over_waiting = api.plan_batch(tmp_path, ["blocker-task", "waiter-task"])
+    assert blocked_over_waiting["status"] == "blocked"
+    assert blocked_over_waiting["ready"] == []
+    assert blocked_over_waiting["blocked"][0]["task_id"] == "blocker-task"
+    assert blocked_over_waiting["waiting"][0]["task_id"] == "waiter-task"
+
+    cli_result = cli(tmp_path, "plan-batch", "--task", "done-task", "--task", "active-task")
+    assert cli_result.returncode == 0, cli_result.stderr
+    assert json.loads(cli_result.stdout)["ready"] == ["active-task"]
+
+
+def test_plan_batch_cli_empty_store_is_read_only(tmp_path):
+    result = cli(tmp_path, "plan-batch")
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ready"
+    assert payload["ready"] == []
+    assert not (tmp_path / ".omx").exists()

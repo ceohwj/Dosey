@@ -544,6 +544,7 @@ def prepare_repair(root, task_id, review_report_path):
             "scope_violations": scope_violations,
             "deferred_findings": deferred_findings,
             "re_review_ranges": [],
+            "re_review_argv": [],
             "next_action": "stop_and_reconcile_budget_or_in_flight_before_repair",
         }
 
@@ -558,15 +559,19 @@ def prepare_repair(root, task_id, review_report_path):
             "scope_violations": [],
             "deferred_findings": deferred_findings,
             "re_review_ranges": [],
+            "re_review_argv": [],
             "next_action": "ready_for_integrator_verification",
         }
 
+    ranges = _merge_review_ranges(root, repair_findings)
     if scope_violations:
         status = "scope_escalation_required"
         next_action = "escalate_out_of_scope_findings_to_integrator"
+        re_review_argv = []
     else:
         status = "repair_required"
         next_action = "dispatch_owner_agent_red_green_repair_then_re_review"
+        re_review_argv = _build_re_review_argv(task["base_revision"], repair_findings, ranges)
     return {
         "task_id": task_id,
         "status": status,
@@ -576,8 +581,163 @@ def prepare_repair(root, task_id, review_report_path):
         "repair_findings": repair_findings,
         "scope_violations": scope_violations,
         "deferred_findings": deferred_findings,
-        "re_review_ranges": _merge_review_ranges(root, repair_findings),
+        "re_review_ranges": ranges,
+        "re_review_argv": re_review_argv,
         "next_action": next_action,
+    }
+
+
+def _find_dependency_cycles(graph):
+    cycles = []
+    seen_cycles = set()
+    state = {}
+    stack = []
+
+    def dfs(node):
+        state[node] = 1
+        stack.append(node)
+        for dep in graph.get(node, ()):
+            if dep not in graph:
+                continue
+            dep_state = state.get(dep, 0)
+            if dep_state == 1:
+                cycle = stack[stack.index(dep) :] + [dep]
+                canonical_cycle = tuple(cycle)
+                if canonical_cycle not in seen_cycles:
+                    seen_cycles.add(canonical_cycle)
+                    cycles.append(cycle)
+            elif dep_state == 0:
+                dfs(dep)
+        stack.pop()
+        state[node] = 2
+
+    for node in sorted(graph):
+        if state.get(node, 0) == 0:
+            dfs(node)
+    return cycles
+
+
+def _safe_git_ref(value):
+    if (
+        not isinstance(value, str)
+        or not value
+        or value.startswith("-")
+        or any(ch.isspace() or ord(ch) < 32 for ch in value)
+    ):
+        raise WorkflowError("Invalid base_revision for re-review command")
+    return value
+
+
+def _build_re_review_argv(base_revision, repair_findings, ranges):
+    safe_base = _safe_git_ref(base_revision)
+    files = sorted({item["file"] for item in repair_findings})
+    if any(path.startswith("-") for path in files):
+        raise WorkflowError("Unsafe file path for re-review command")
+    return [
+        "python3",
+        "scripts/claude_review.py",
+        "--base",
+        safe_base,
+        "--working-tree",
+        *[arg for path in files for arg in ("--file", path)],
+        *[arg for item in ranges for arg in ("--review-range", item)],
+        "--dry-run",
+    ]
+
+
+def _reachable_dependency_graph(selected_ids, all_records, completed_ids):
+    graph = {}
+    queue = list(selected_ids)
+    while queue:
+        node = queue.pop()
+        if node in graph or node in completed_ids or node not in all_records:
+            continue
+        deps = sorted({dep for dep in all_records[node]["dependencies"] if dep not in completed_ids})
+        graph[node] = deps
+        for dep in deps:
+            if dep in all_records and dep not in graph:
+                queue.append(dep)
+    return graph
+
+
+def _classify_batch_tasks(selected_ids, selected, completed_ids):
+    blocked = []
+    waiting = []
+    runnable = []
+    for task_id in selected_ids:
+        item = selected[task_id]
+        if item["phase"] == "blocked":
+            blocked.append({"task_id": task_id, "reason": "Task phase is blocked"})
+        elif _reconciliation(item):
+            blocked.append({"task_id": task_id, "reason": "Budget or operation requires evidence reconciliation"})
+        else:
+            pending_deps = sorted({dep for dep in item["dependencies"] if dep not in completed_ids})
+            if pending_deps:
+                waiting.append({"task_id": task_id, "reason": "DEPENDENCY_WAIT", "pending_dependencies": pending_deps})
+            else:
+                runnable.append(task_id)
+    return blocked, waiting, runnable
+
+
+def _batch_conflicts(runnable, selected):
+    owners_by_file = {}
+    for task_id in runnable:
+        for file_path in sorted(set(selected[task_id]["allowed_files"])):
+            owners_by_file.setdefault(file_path, []).append(task_id)
+    file_conflicts = [
+        {"file": file_path, "task_ids": sorted(owners)}
+        for file_path, owners in sorted(owners_by_file.items())
+        if len(owners) > 1
+    ]
+    forbidden_conflicts = []
+    for writer_id in runnable:
+        writer_files = set(selected[writer_id]["allowed_files"])
+        for other_id in runnable:
+            for file_path in sorted(writer_files & set(selected[other_id]["forbidden_files"])):
+                forbidden_conflicts.append(
+                    {"file": file_path, "writer_task_id": writer_id, "forbidding_task_id": other_id}
+                )
+    forbidden_conflicts.sort(key=lambda item: (item["file"], item["writer_task_id"], item["forbidding_task_id"]))
+    return file_conflicts, forbidden_conflicts
+
+
+def _batch_status(has_conflicts, ready, blocked, waiting):
+    if has_conflicts:
+        return "conflict"
+    if ready:
+        return "ready"
+    if blocked:
+        return "blocked"
+    if waiting:
+        return "waiting"
+    return "ready"
+
+
+def plan_batch(root, task_ids=None):
+    all_records = {summary["task_id"]: _canonical(root, summary["task_id"]) for summary in discover_tasks(root)}
+    if task_ids:
+        requested = sorted({_task_id(task_id) for task_id in task_ids})
+        for task_id in requested:
+            all_records.setdefault(task_id, _canonical(root, task_id))
+        selected_ids = [task_id for task_id in requested if all_records[task_id]["phase"] != "complete"]
+    else:
+        selected_ids = sorted(task_id for task_id, item in all_records.items() if item["phase"] != "complete")
+
+    selected = {task_id: all_records[task_id] for task_id in selected_ids}
+    completed_ids = {task_id for task_id, item in all_records.items() if item["phase"] == "complete"}
+    dependency_cycles = _find_dependency_cycles(_reachable_dependency_graph(selected_ids, all_records, completed_ids))
+    blocked, waiting, runnable = _classify_batch_tasks(selected_ids, selected, completed_ids)
+    file_conflicts, forbidden_conflicts = _batch_conflicts(runnable, selected)
+    has_conflicts = bool(file_conflicts or forbidden_conflicts or dependency_cycles)
+    ready = [] if has_conflicts else runnable
+    return {
+        "status": _batch_status(has_conflicts, ready, blocked, waiting),
+        "ready": ready,
+        "waiting": waiting,
+        "blocked": blocked,
+        "file_conflicts": file_conflicts,
+        "forbidden_conflicts": forbidden_conflicts,
+        "dependency_cycles": dependency_cycles,
     }
 
 
@@ -598,11 +758,13 @@ def _parser():
     parser = _Parser(description=__doc__)
     parser.add_argument("--root", default=argparse.SUPPRESS)
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
-    for name in ("discover", "restore", "claim", "checkpoint", "validate", "release", "prepare-repair"):
+    for name in ("discover", "restore", "claim", "checkpoint", "validate", "release", "prepare-repair", "plan-batch"):
         command = commands.add_parser(name)
         command.add_argument("--root", default=argparse.SUPPRESS)
-        if name != "discover":
+        if name not in ("discover", "plan-batch"):
             command.add_argument("--task", required=True)
+        if name == "plan-batch":
+            command.add_argument("--task", action="append", default=[])
         if name in ("checkpoint", "release"):
             command.add_argument("--claim", required=True)
         if name == "checkpoint":
@@ -639,6 +801,8 @@ def _dispatch(args):
         result = release_writer(root, args.task, args.claim)
     elif args.command == "prepare-repair":
         result = prepare_repair(root, args.task, args.review_report)
+    elif args.command == "plan-batch":
+        result = plan_batch(root, args.task or None)
     else:
         restored = restore_task(root, args.task)
         result = {
