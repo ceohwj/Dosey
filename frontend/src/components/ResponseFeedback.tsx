@@ -21,8 +21,11 @@ export function ResponseFeedback({
   const targetKey = 'guideId' in target
     ? `guide:${target.guideId}`
     : `chat:${target.sessionId}:${target.messageId}`
+  const previousTargetKeyRef = useRef(targetKey)
 
   useEffect(() => {
+    if (previousTargetKeyRef.current === targetKey) return
+    previousTargetKeyRef.current = targetKey
     requestIdRef.current += 1
     lock.current = false
     setRating(null)

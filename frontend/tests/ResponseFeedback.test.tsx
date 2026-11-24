@@ -106,4 +106,32 @@ describe('ResponseFeedback', () => {
     expect(await screen.findByText('저장된 평가: 도움이 됐어요')).toBeTruthy()
     expect(screen.getByRole('status').textContent).toContain('피드백을 저장했어요.')
   })
+
+  it('preserves rating under StrictMode double-mount and same-target rerender while still resetting on target change', async () => {
+    const { rerender } = render(
+      <React.StrictMode>
+        <ResponseFeedback target={{ sessionId: 'session', messageId: 'mount-message' }} />
+      </React.StrictMode>,
+    )
+    const positiveButton = screen.getByRole('button', { name: '👍 도움이 됐어요' })
+    fireEvent.click(positiveButton)
+    expect(positiveButton.getAttribute('aria-pressed')).toBe('true')
+    expect(await screen.findByRole('button', { name: '피드백 보내기' })).toBeTruthy()
+
+    rerender(
+      <React.StrictMode>
+        <ResponseFeedback target={{ sessionId: 'session', messageId: 'mount-message' }} />
+      </React.StrictMode>,
+    )
+    expect(screen.getByRole('button', { name: '👍 도움이 됐어요' }).getAttribute('aria-pressed')).toBe('true')
+
+    rerender(
+      <React.StrictMode>
+        <ResponseFeedback target={{ sessionId: 'session', messageId: 'next-message' }} />
+      </React.StrictMode>,
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '👍 도움이 됐어요' }).getAttribute('aria-pressed')).toBe('false'),
+    )
+  })
 })

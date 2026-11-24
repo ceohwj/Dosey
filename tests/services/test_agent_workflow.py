@@ -502,8 +502,173 @@ def test_safe_record_input_under_repository_with_private_ancestor(tmp_path):
 
 
 def test_read_only_missing_task_never_creates_store(tmp_path):
-    for command in ["restore", "validate"]:
-        result = cli(tmp_path, command, "--task", "one")
+    report_path = tmp_path / "review.json"
+    report_path.write_text(json.dumps({"summary": "clean", "findings": []}))
+    for args in [
+        ("restore", "--task", "one"),
+        ("validate", "--task", "one"),
+        ("prepare-repair", "--task", "one", "--review-report", str(report_path)),
+    ]:
+        result = cli(tmp_path, *args)
         assert result.returncode != 0
         assert set(json.loads(result.stderr)) == {"error", "code"}
         assert not (tmp_path / ".omx").exists()
+
+
+def test_prepare_repair_builds_handoff_and_review_ranges(tmp_path):
+    api, _ = initialized(tmp_path)
+    report_path = tmp_path / "review-report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "Found one blocking defect and one minor polish.",
+                "findings": [
+                    {
+                        "severity": "BLOCKING",
+                        "file": "source.py",
+                        "line": 42,
+                        "message": "Missing ownership guard on update",
+                    },
+                    {
+                        "severity": "LOW",
+                        "file": "source.py",
+                        "line": 10,
+                        "message": "Minor docstring wording",
+                    },
+                ],
+            }
+        )
+    )
+    handoff = api.prepare_repair(tmp_path, "one", report_path)
+    assert handoff["status"] == "repair_required"
+    assert handoff["task_id"] == "one"
+    assert handoff["allowed_files"] == ["source.py"]
+    assert len(handoff["repair_findings"]) == 1
+    assert handoff["repair_findings"][0]["severity"] == "BLOCKING"
+    assert len(handoff["deferred_findings"]) == 1
+    assert handoff["scope_violations"] == []
+    assert handoff["re_review_ranges"] == ["source.py:27:57"]
+
+
+def test_prepare_repair_returns_clean_when_no_blocking_or_high_findings(tmp_path):
+    api, _ = initialized(tmp_path)
+    report_path = tmp_path / "review-clean.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "Only minor notes.",
+                "findings": [
+                    {"severity": "MEDIUM", "file": "source.py", "line": 5, "message": "Optional simplification"}
+                ],
+            }
+        )
+    )
+    handoff = api.prepare_repair(tmp_path, "one", report_path)
+    assert handoff["status"] == "clean"
+    assert handoff["repair_findings"] == []
+    assert len(handoff["deferred_findings"]) == 1
+    assert handoff["re_review_ranges"] == []
+    assert handoff["next_action"] == "ready_for_integrator_verification"
+
+
+def test_prepare_repair_separates_out_of_scope_findings(tmp_path):
+    api, _ = initialized(tmp_path)
+    report_path = tmp_path / "review-oob.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "Finding outside allowed files.",
+                "findings": [
+                    {"severity": "HIGH", "file": "other.py", "line": 3, "message": "Outside assigned scope"},
+                ],
+            }
+        )
+    )
+    handoff = api.prepare_repair(tmp_path, "one", report_path)
+    assert handoff["status"] == "scope_escalation_required"
+    assert handoff["repair_findings"] == []
+    assert len(handoff["scope_violations"]) == 1
+    assert handoff["scope_violations"][0]["file"] == "other.py"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"operation_in_flight": True},
+        {"budget": {"max_cycles": 3, "max_active_seconds": 1200, "cycles_used": 3, "active_seconds": 10}},
+        {"budget": {"max_cycles": 3, "max_active_seconds": 1200, "cycles_used": 1, "active_seconds": 1200}},
+        {"budget": {"max_cycles": 3, "max_active_seconds": 1200, "cycles_used": None, "active_seconds": 10}},
+    ],
+)
+def test_prepare_repair_blocks_when_budget_exhausted_or_in_flight(tmp_path, mutation):
+    item = record()
+    item.update(mutation)
+    canonical(tmp_path, item)
+    report_path = tmp_path / "review-blocked.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "Blocking issue.",
+                "findings": [{"severity": "BLOCKING", "file": "source.py", "line": 20, "message": "Fix required"}],
+            }
+        )
+    )
+    api = module()
+    handoff = api.prepare_repair(tmp_path, "one", report_path)
+    assert handoff["status"] == "blocked"
+    assert handoff["repair_findings"] == []
+
+
+def test_prepare_repair_rejects_invalid_or_sensitive_review_report(tmp_path):
+    api, _ = initialized(tmp_path)
+    env_file = tmp_path / ".env"
+    env_file.write_text("{}")
+    with pytest.raises(api.WorkflowError):
+        api.prepare_repair(tmp_path, "one", env_file)
+
+    bad_report = tmp_path / "bad.json"
+    bad_report.write_text(json.dumps({"summary": "no findings array"}))
+    with pytest.raises(api.WorkflowError):
+        api.prepare_repair(tmp_path, "one", bad_report)
+
+
+def test_prepare_repair_cli_outputs_json_and_clamps_ranges(tmp_path):
+    (tmp_path / "source.py").write_text("\n".join(f"line {i}" for i in range(1, 7)) + "\n")
+    api, _ = initialized(tmp_path)
+    report_dir = tmp_path / "outputs/claude-reviews/run-123"
+    report_dir.mkdir(parents=True)
+    report_path = report_dir / "report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "One high finding near EOF.",
+                "findings": [{"severity": "HIGH", "file": "source.py", "line": 5, "message": "Null check missing"}],
+            }
+        )
+    )
+    result = cli(tmp_path, "prepare-repair", "--task", "one", "--review-report", str(report_path))
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "repair_required"
+    assert payload["re_review_ranges"] == ["source.py:1:6"]
+
+
+def test_prepare_repair_escalates_when_mixed_in_scope_and_out_of_scope_findings(tmp_path):
+    api, _ = initialized(tmp_path)
+    report_path = tmp_path / "review-mixed.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "summary": "Mixed findings.",
+                "findings": [
+                    {"severity": "BLOCKING", "file": "source.py", "line": 2, "message": "In-scope bug"},
+                    {"severity": "HIGH", "file": "other.py", "line": 4, "message": "Out-of-scope bug"},
+                ],
+            }
+        )
+    )
+    handoff = api.prepare_repair(tmp_path, "one", report_path)
+    assert handoff["status"] == "scope_escalation_required"
+    assert handoff["next_action"] == "escalate_out_of_scope_findings_to_integrator"
+    assert len(handoff["repair_findings"]) == 1
+    assert len(handoff["scope_violations"]) == 1

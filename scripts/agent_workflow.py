@@ -441,6 +441,146 @@ def checkpoint_task(root, task_id, claim, expected_revision, record):
         return {"task_id": task_id, "revision": saved["revision"], "verification": "MATCHED_SNAPSHOT"}
 
 
+REPAIR_SEVERITIES = {"BLOCKING", "HIGH"}
+DEFERRED_SEVERITIES = {"MEDIUM", "LOW"}
+REVIEW_RANGE_PADDING = 15
+
+
+def _validate_review_report(report):
+    if type(report) is not dict or type(report.get("findings")) is not list:
+        raise WorkflowError("Review report must be a JSON object with a findings array")
+    normalized = []
+    for item in report["findings"]:
+        if type(item) is not dict:
+            raise WorkflowError("Each review finding must be a JSON object")
+        severity = item.get("severity")
+        file_path = item.get("file")
+        line = item.get("line")
+        message = item.get("message")
+        if severity not in REPAIR_SEVERITIES | DEFERRED_SEVERITIES:
+            raise WorkflowError("Review finding severity must be BLOCKING, HIGH, MEDIUM, or LOW")
+        if type(file_path) is not str or not file_path:
+            raise WorkflowError("Review finding must include a relative file path")
+        _relative(file_path)
+        if not _integer(line) or line < 1:
+            raise WorkflowError("Review finding line must be a positive integer")
+        if type(message) is not str or not message.strip():
+            raise WorkflowError("Review finding message must be a non-empty string")
+        normalized.append({"severity": severity, "file": file_path, "line": line, "message": message.strip()})
+    return normalized
+
+
+def _file_line_count(root, relative_path):
+    candidate = _safe_components(_root(root) / relative_path)
+    if not candidate.is_file():
+        return None
+    try:
+        return max(1, len(candidate.read_bytes().splitlines()))
+    except OSError:
+        return None
+
+
+def _read_review_report_input(path, root):
+    path = _safe_components(path)
+    repository = _root(root)
+    parts = path.relative_to(repository).parts if path.is_relative_to(repository) else path.parts[1:]
+    if len(parts) >= 3 and parts[0] == "outputs" and parts[1] == "claude-reviews":
+        parts = parts[2:]
+    for part in parts:
+        _relative(part)
+    return _read_json(path)
+
+
+def _merge_review_ranges(root, findings):
+    per_file = {}
+    for item in findings:
+        start = max(1, item["line"] - REVIEW_RANGE_PADDING)
+        end = item["line"] + REVIEW_RANGE_PADDING
+        line_count = _file_line_count(root, item["file"])
+        if line_count is not None:
+            end = min(end, line_count)
+            start = min(start, end)
+        per_file.setdefault(item["file"], []).append((start, end))
+    ranges = []
+    for file_path in sorted(per_file):
+        merged = []
+        for start, end in sorted(per_file[file_path]):
+            if merged and start <= merged[-1][1] + 1:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+            else:
+                merged.append((start, end))
+        for start, end in merged:
+            ranges.append(f"{file_path}:{start}:{end}")
+    return ranges
+
+
+def prepare_repair(root, task_id, review_report_path):
+    _task_id(task_id)
+    restored = restore_task(root, task_id)
+    task = restored["task"]
+    findings = _validate_review_report(_read_review_report_input(review_report_path, root))
+    allowed = set(task["allowed_files"])
+
+    repair_findings = []
+    scope_violations = []
+    deferred_findings = []
+    for item in findings:
+        if item["severity"] in REPAIR_SEVERITIES:
+            if item["file"] in allowed:
+                repair_findings.append(item)
+            else:
+                scope_violations.append(item)
+        else:
+            deferred_findings.append(item)
+
+    if restored["reconciliation_required"]:
+        return {
+            "task_id": task_id,
+            "status": "blocked",
+            "reason": restored["reason"],
+            "allowed_files": list(task["allowed_files"]),
+            "required_tests": list(task["required_tests"]),
+            "repair_findings": [],
+            "scope_violations": scope_violations,
+            "deferred_findings": deferred_findings,
+            "re_review_ranges": [],
+            "next_action": "stop_and_reconcile_budget_or_in_flight_before_repair",
+        }
+
+    if not repair_findings and not scope_violations:
+        return {
+            "task_id": task_id,
+            "status": "clean",
+            "reason": "No BLOCKING or HIGH findings remain",
+            "allowed_files": list(task["allowed_files"]),
+            "required_tests": list(task["required_tests"]),
+            "repair_findings": [],
+            "scope_violations": [],
+            "deferred_findings": deferred_findings,
+            "re_review_ranges": [],
+            "next_action": "ready_for_integrator_verification",
+        }
+
+    if scope_violations:
+        status = "scope_escalation_required"
+        next_action = "escalate_out_of_scope_findings_to_integrator"
+    else:
+        status = "repair_required"
+        next_action = "dispatch_owner_agent_red_green_repair_then_re_review"
+    return {
+        "task_id": task_id,
+        "status": status,
+        "reason": f"{len(repair_findings)} in-scope and {len(scope_violations)} out-of-scope BLOCKING/HIGH findings",
+        "allowed_files": list(task["allowed_files"]),
+        "required_tests": list(task["required_tests"]),
+        "repair_findings": repair_findings,
+        "scope_violations": scope_violations,
+        "deferred_findings": deferred_findings,
+        "re_review_ranges": _merge_review_ranges(root, repair_findings),
+        "next_action": next_action,
+    }
+
+
 def release_writer(root, task_id, claim):
     _task_id(task_id)
     with _metadata_lock(root) as store:
@@ -458,7 +598,7 @@ def _parser():
     parser = _Parser(description=__doc__)
     parser.add_argument("--root", default=argparse.SUPPRESS)
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
-    for name in ("discover", "restore", "claim", "checkpoint", "validate", "release"):
+    for name in ("discover", "restore", "claim", "checkpoint", "validate", "release", "prepare-repair"):
         command = commands.add_parser(name)
         command.add_argument("--root", default=argparse.SUPPRESS)
         if name != "discover":
@@ -468,6 +608,8 @@ def _parser():
         if name == "checkpoint":
             command.add_argument("--expected-revision", required=True, type=int)
             command.add_argument("--record", required=True)
+        if name == "prepare-repair":
+            command.add_argument("--review-report", required=True)
     return parser
 
 
@@ -495,6 +637,8 @@ def _dispatch(args):
         )
     elif args.command == "release":
         result = release_writer(root, args.task, args.claim)
+    elif args.command == "prepare-repair":
+        result = prepare_repair(root, args.task, args.review_report)
     else:
         restored = restore_task(root, args.task)
         result = {
