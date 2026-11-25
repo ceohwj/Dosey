@@ -42,7 +42,7 @@ Backend는 SQLAlchemy asyncio와 `asyncpg`를 사용합니다. OpenAI 클라이�
 - **RAG 구현 구성요소·제한 경로**: Source·검색·평가 구성요소와 조건부 CLOSED_DEMO Guide/Chat 조립 경로가 있다. 각 flag의 기본값은 비활성이고, 환경·대상·기간·승인 조건을 따른다. 일반 사용자용 전체 RAG·정식 Citation·Release Gate 완료를 뜻하지 않음
 - **Post-MVP 전체 실행 흐름의 잔여 범위**: OCR LLM의 최소전송·provenance·Worker 확장, MFDS Source/Catalog·Candidate Resolver·Identification·Preflight, Rule-first RAG·Citation·Safety와 AI 평가의 통합 및 Guide·Chat 비동기 확장. 개별 구성요소 구현 여부는 각 계약·구현 증빙에서 확인
 
-CLOSED_DEMO 경로는 기본 생성과 별도 조립이다. 현재 코드의 존재를 [Guide 경계 결정](governance/decisions/2026-09-21-guide-closed-demo-rag-provider-boundary.md)의 승인 대기 해소나 [공개 게이트](release-gates/post-mvp-1-external-approvals.md) 통과로 해석하지 않는다.
+CLOSED_DEMO 경로는 기본 생성과 별도 조립이다. 현재 코드의 존재를 [Guide 경계 결정](archive/decisions/2026-09-21-guide-closed-demo-rag-provider-boundary.md)의 승인 대기 해소나 [공개 게이트](release-gates/post-mvp-1-external-approvals.md) 통과로 해석하지 않는다.
 
 ## Post-MVP-1 목표 구조 — Approved v4·RAG-00 target / Not implemented
 

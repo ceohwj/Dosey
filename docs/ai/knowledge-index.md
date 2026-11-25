@@ -8,7 +8,7 @@
 | 제품 목적·구조·UX | [PRD](../../PRD.md), [아키텍처](../architecture.md), [DESIGN](../../DESIGN.md). DESIGN은 현재 Report/clinic 범위 |
 | 보안·Privacy·의료 안전 | [SECURITY](../../SECURITY.md), [Privacy/safety](../privacy-safety.md) |
 | 현재·목표·제안 계약 | [계약 인덱스](../contracts/README.md). current는 구현·DTO·관련 migration·테스트를 확인하고 targets는 승인 목표, proposed는 미확정으로 읽음 |
-| Decision·역사적 provenance | [문서 권위·상태](../governance/post-mvp-1-document-authority.md)에서 연결한 기존 `docs/governance/decisions/` 기록. 과거 팀 역할·승인을 현재 staffing/권한으로 승계하지 않음 |
+| Decision·역사적 provenance | [문서 권위·상태](../governance/post-mvp-1-document-authority.md)에서 연결한 기존 `docs/archive/decisions/` 기록. 과거 팀 역할·승인을 현재 staffing/권한으로 승계하지 않음 |
 | 아키텍처 결정 상태 | [ADR 인덱스](../adr/README.md). Accepted current, Accepted target/Not implemented, Proposed를 구분하고 결정 사본을 만들지 않음 |
 | 검증 범위와 근거 | [테스트 전략](../testing.md)의 해당 검증 기록. 환경·revision·실행 여부를 대조하며 과거 PASS를 현재에 승계하지 않음 |
 | 공개 조건 | [외부 승인 게이트](../release-gates/post-mvp-1-external-approvals.md). 구현·review와 별도 조건 |

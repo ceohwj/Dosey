@@ -8,7 +8,7 @@ Human Owner가 제품·계약·migration·안전·merge·배포·공개를 최�
 
 | Agent | 주된 작업·읽을 근거 | 대표 검증 |
 |---|---|---|
-| `dosey_frontend` | 화면·API 표시·접근성, 해당 UX와 현재 DTO. DESIGN.md는 현재 Report/clinic 범위 | 관련 frontend/tests, type/build/lint, 필요한 합성 E2E |
+| `dosey_frontend` | 화면·API 표시·접근성, 해당 UX와 현재 DTO. DESIGN.md는 현재 Report/clinic 범위 | 관련 `apps/frontend/tests`, type/build/lint, 필요한 합성 E2E |
 | `dosey_backend` | API·Service/Repository·소유권·transaction·Job 연결, api/data-schema와 current 계약 | 변경 영역 unit·contract·integration |
 | `dosey_llm` | Guide/Chat 생성·prompt·payload·출력 검증, ai-pipeline와 생성 계약 | 구조화 schema, baseline 대비 생성·의료 안전 회귀 |
 | `dosey_ocr` | 인식·정규화·구조화, OCR 계약과 사용자 확인 경계 | 합성 OCR fixture·Worker/Backend 경계 회귀 |
@@ -109,7 +109,7 @@ python3 scripts/agent_workflow.py plan-batch [--task ID ...] --root PATH
 
 Python 공개 API는 `WorkflowError`, `discover_tasks(root)`, `restore_task(root, task_id)`, `claim_writer(root, task_id)`, `checkpoint_task(root, task_id, claim, expected_revision, record)`, `release_writer(root, task_id, claim)`, `prepare_repair(root, task_id, review_report_path)`, `plan_batch(root, task_ids=None)`, `validate_record(record)`다. discover API는 CLI의 tasks 배열에 해당하는 summary list를 반환하고, 나머지 동작 API는 위 CLI와 같은 JSON-serializable 객체를 반환한다. `validate_record`는 성공 시 None, 실패 시 WorkflowError다.
 
-report-only hygiene helper는 `python3 scripts/ci/check_agent_hygiene.py --root PATH`이며 반복 `--document`와 `--check`를 지원한다. 기본 문서는 AGENTS·workflow·task-template·knowledge-index·failures README다. fenced 예제·외부 URL을 제외한 local Markdown link/anchor, 안전한 상대 경로, 제한된 source root의 임시 파일명 후보를 검사한다. 명시적인 역사 참조를 구분하고 역사 문서를 기본 순회하지 않는다. JSON findings는 `path`, `line`, `code`, `message`; exit 0 clean, 1 findings, 2 invocation error다. delete/apply 옵션은 없다.
+report-only hygiene helper는 `python3 scripts/ci/check_agent_hygiene.py --root PATH`이며 반복 `--document`와 `--check`를 지원한다. 기본 문서는 AGENTS·docs/README·workflow·task-template·knowledge-index·failures README·contracts/README·adr/README·designs/README·testing·architecture·문서 권위 문서다. fenced 예제·외부 URL을 제외한 local Markdown link/anchor, 안전한 상대 경로, 제한된 source root(`scripts`, `apps/backend/app`, `apps/ai_worker`, `apps/frontend/src`, `packages`)의 임시 파일명 후보를 검사한다. 명시적인 역사 참조를 구분하고 역사 문서를 기본 순회하지 않는다. JSON findings는 `path`, `line`, `code`, `message`; exit 0 clean, 1 findings, 2 invocation error다. delete/apply 옵션은 없다.
 
 ## Claude Code CLI 검토
 
@@ -126,7 +126,7 @@ python3 scripts/claude_review.py --base HEAD --working-tree \
 
 # 두 commit 사이의 명시 파일 검토 (REF를 실제 revision으로 교체).
 python3 scripts/claude_review.py --base BASE_REF --head HEAD_REF \
-  --file frontend/src/pages/ReportPage.tsx
+  --file apps/frontend/src/pages/ReportPage.tsx
 ```
 
 - 기본 packet은 `--file`로 선택한 파일의 변경 hunk와 앞뒤 6줄만 담으며 전체 최종 본문을 중복 전송하지 않는다. 새 파일은 전체가 변경이므로 해당 diff에 포함된다. AGENTS.md·SECURITY.md·docs/privacy-safety.md는 검토 안전 경계로 유지한다. 필요한 호출부·테스트는 `--file`과 `--context-range FILE:START:END`로 정확한 최종 줄 구간만 추가한다(구간당 최대120줄). 변경 없는 파일은 명시 구간이 필요하며 전체 선택에는 실제 변경이 있어야 한다. 생략한 테스트·구현은 미확인이지 미구현이 아니다. 문맥이 부족한 지적은 필요한 구간을 확인한 뒤 판단한다.
@@ -135,8 +135,8 @@ python3 scripts/claude_review.py --base BASE_REF --head HEAD_REF \
 ```bash
 # 실제 수리한 구간만 재검토. 줄 번호는 현재 파일에 맞춰 지정.
 python3 scripts/claude_review.py --base HEAD --working-tree \
-  --file frontend/src/pages/ChatPage.tsx \
-  --review-range frontend/src/pages/ChatPage.tsx:830:875 --dry-run
+  --file apps/frontend/src/pages/ChatPage.tsx \
+  --review-range apps/frontend/src/pages/ChatPage.tsx:830:875 --dry-run
 ```
 
 - 완료 검토는 무시되는 `outputs/claude-reviews/review-index.json`에 packet hash와 run ID로 기록한다. 같은 기준 revision·파일 범위·변경 hunk·추가 구간·정책 내용이면 구조화된 기존 보고서를 검증한 후 `status: reused`, `claude_called: false`로 반환한다. 새 CLI 호출은 하지 않는다. dry-run·실패·stale·미완료는 재사용하지 않는다. 코드나 정책·범위가 달라지면 새 검토 대상이다. 재검토 시 이미 끝난 파일을 다시 포함하지 않고 수정된 파일과 미해결 지적의 필요한 문맥만 선택한다.
@@ -145,12 +145,12 @@ python3 scripts/claude_review.py --base HEAD --working-tree \
 ```bash
 # 변경된 Chat 화면 hunk만 전송한다.
 python3 scripts/claude_review.py --base HEAD --working-tree \
-  --file frontend/src/pages/ChatPage.tsx --file frontend/src/pages/ChatPage.css --dry-run
+  --file apps/frontend/src/pages/ChatPage.tsx --file apps/frontend/src/pages/ChatPage.css --dry-run
 
 # 필요성이 확인된 테스트 문맥만 추가(실제 줄 번호로 교체).
 python3 scripts/claude_review.py --base HEAD --working-tree \
-  --file frontend/src/pages/ChatPage.tsx --file frontend/tests/ChatPage.test.tsx \
-  --context-range frontend/tests/ChatPage.test.tsx:1:40 --dry-run
+  --file apps/frontend/src/pages/ChatPage.tsx --file apps/frontend/tests/ChatPage.test.tsx \
+  --context-range apps/frontend/tests/ChatPage.test.tsx:1:40 --dry-run
 ```
 
 - 기본 크기 상한은 파일 128 KiB·전체 packet 256 KiB다. 디렉터리·저장소 전체 전송은 하지 않는다. source/문서 형식 allowlist를 적용하고 Git에서 무시되는 입력, 민감 경로·dataset/export 형식·바이너리·symlink·경로 이탈을 거부한다. 이 검사는 비밀 탐지기가 아니므로 선택한 코드·문서의 민감정보 포함 여부를 확인한다.

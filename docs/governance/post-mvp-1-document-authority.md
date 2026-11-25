@@ -48,7 +48,7 @@
 
 ## RAG-00 Approved Target
 
-[Product Decision `PD-125-20260831`](./decisions/2026-08-31-rag-p0-contract-freeze.md)과 `docs/contracts/targets/post-mvp-1/`의 RAG P0 계약은 외부 Authority Manifest `post-mvp-rag-evaluation-contract@2026-08-29.11`을 저장소 공유 경계로 투영한 `Approved Target · Not implemented`다. 외부 논리 계약 `medication-candidate-identification-v1`은 기존 `medication-identification-v1.md`에 통합하며 같은 상태 폴더에 중복 파일을 두지 않는다. Safety Result v1은 Approved v4 이력으로 유지하고 Safety Result·Citation v2는 후속 Target으로 별도 관리한다.
+[Product Decision `PD-125-20260831`](../archive/decisions/2026-08-31-rag-p0-contract-freeze.md)과 `docs/contracts/targets/post-mvp-1/`의 RAG P0 계약은 외부 Authority Manifest `post-mvp-rag-evaluation-contract@2026-08-29.11`을 저장소 공유 경계로 투영한 `Approved Target · Not implemented`다. 외부 논리 계약 `medication-candidate-identification-v1`은 기존 `medication-identification-v1.md`에 통합하며 같은 상태 폴더에 중복 파일을 두지 않는다. Safety Result v1은 Approved v4 이력으로 유지하고 Safety Result·Citation v2는 후속 Target으로 별도 관리한다.
 
 [Issue #136](https://github.com/AI-HealthCare-05/AH_05_04/issues/136)의 Guide·Chat 책임 경계·상태 표시 산출물은 RAG-00의 입력 Receipt다. 해당 산출물은 [PR #191](https://github.com/AI-HealthCare-05/AH_05_04/pull/191)의 `docs/contracts/proposed/guide-chat-session-message-status-ui-v1.md`로 연결됐다(리뷰 반영 중). 이 PR이 병합되어 Issue #136이 Close되기 전까지는 같은 문서를 RAG-00에서 중복 작성하거나 미확정 상태 UI 계약을 추정하지 않는다. Issue #125는 이 Receipt 확정 전인 2026-09-01에 이미 수동으로 Close됐다 — 아래 서술은 애초에 지켜지지 않았으므로 개인 프로젝트의 개별 이슈 Close 판단은 Human Owner가 하며, 이 문서는 계약 상태 자체의 정합성만 기록한다.
 
@@ -56,13 +56,13 @@
 
 ## 확정된 Current 소유권 경계
 
-2026-09-01 [`PD-117`](./decisions/2026-09-01-profile-self-ownership-current.md)과 #117/#133 병합으로 사용자당 단일 `SELF` Profile, 기존 의료 리소스 `profile_id` backfill, 부모·자식 composite FK와 read/write cutover가 Current 계약이 됐다. 새 Backend·RAG 리소스의 소유권은 SELF `profile_id` 또는 부모 chain의 `profile_id`를 따르며 `user_id` 직접 비교로 되돌리지 않는다. 보호자·멀티 프로필·위임 권한은 후속 Decision 전까지 범위 밖이다.
+2026-09-01 [`PD-117`](../archive/decisions/2026-09-01-profile-self-ownership-current.md)과 #117/#133 병합으로 사용자당 단일 `SELF` Profile, 기존 의료 리소스 `profile_id` backfill, 부모·자식 composite FK와 read/write cutover가 Current 계약이 됐다. 새 Backend·RAG 리소스의 소유권은 SELF `profile_id` 또는 부모 chain의 `profile_id`를 따르며 `user_id` 직접 비교로 되돌리지 않는다. 보호자·멀티 프로필·위임 권한은 후속 Decision 전까지 범위 밖이다.
 
 ## 구현 전 재결정이 필요한 충돌
 
-다음 항목은 Approved v4 문구와 현재 실행·배포 경계 사이의 남은 충돌이다. 이 PR은 값을 추정해 해소하지 않으며, [Issue #91](https://github.com/AI-HealthCare-05/AH_05_04/issues/91)에 연결된 후속 Product Decision 또는 새 Contract Freeze version이 승인될 때까지 관련 구현과 `current/` 승격을 차단한다. 2026-08-31 [Product Decision `PD-91-20260831`](./decisions/2026-08-31-ocr-timeout-idempotency.md)로 OCR `hard timeout 60초 / lease 75초`, PostgreSQL `BYTEA`, 단일 `idempotency_record + record_type`을 목표 계약에 확정했으며 더 이상 미정 충돌로 취급하지 않는다.
+다음 항목은 Approved v4 문구와 현재 실행·배포 경계 사이의 남은 충돌이다. 이 PR은 값을 추정해 해소하지 않으며, [Issue #91](https://github.com/AI-HealthCare-05/AH_05_04/issues/91)에 연결된 후속 Product Decision 또는 새 Contract Freeze version이 승인될 때까지 관련 구현과 `current/` 승격을 차단한다. 2026-08-31 [Product Decision `PD-91-20260831`](../archive/decisions/2026-08-31-ocr-timeout-idempotency.md)로 OCR `hard timeout 60초 / lease 75초`, PostgreSQL `BYTEA`, 단일 `idempotency_record + record_type`을 목표 계약에 확정했으며 더 이상 미정 충돌로 취급하지 않는다.
 
-2026-09-02 [Product Decision `PD-141-20260902`](./decisions/2026-09-02-worker-attempt-lease-fencing.md)로 Worker `attempt_count=0`, lease 획득 transaction에서의 attempt 증가, `attempt_count + lease_token` fencing, commit-before-ACK와 동일 event 재전달 멱등 경계를 승인했다. lease 만료 후 reclaim·새 retry Outbox·DLQ는 #142 범위로 분리했으며, 이 항목은 더 이상 #141 구현을 차단하는 미정 충돌로 취급하지 않는다.
+2026-09-02 [Product Decision `PD-141-20260902`](../archive/decisions/2026-09-02-worker-attempt-lease-fencing.md)로 Worker `attempt_count=0`, lease 획득 transaction에서의 attempt 증가, `attempt_count + lease_token` fencing, commit-before-ACK와 동일 event 재전달 멱등 경계를 승인했다. lease 만료 후 reclaim·새 retry Outbox·DLQ는 #142 범위로 분리했으며, 이 항목은 더 이상 #141 구현을 차단하는 미정 충돌로 취급하지 않는다.
 
 - **Runtime Bundle과 Worker 배포:** Worker artifact version을 Bundle에 포함하면서 재시도 snapshot 고정, active Bundle 변경 시 `STALE`, 구·신 Worker 동시 배포를 함께 만족시키는 전이가 미정이다. `RETRY_WAIT` 처리, Worker–Bundle 호환성 검사와 drain/rolling deployment 방식을 함께 확정한다.
 - **OTC 질문의 안정 Identity:** Chat 자유 입력에서 OTC 제품·성분·함량·제형을 식별하고 애매함·사용자 확인을 거쳐 Rule 입력 Identity로 고정하는 전이가 미정이다. 이 전이가 확정되기 전에는 불충분한 입력으로 Rule 평가를 실행하지 않는다.

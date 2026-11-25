@@ -15,12 +15,19 @@ from urllib.parse import unquote, urlsplit
 
 DEFAULT_DOCUMENTS = (
     "AGENTS.md",
+    "docs/README.md",
     "docs/ai/workflow.md",
     "docs/ai/task-template.md",
     "docs/ai/knowledge-index.md",
     "docs/failures/README.md",
+    "docs/contracts/README.md",
+    "docs/adr/README.md",
+    "docs/designs/README.md",
+    "docs/testing.md",
+    "docs/architecture.md",
+    "docs/governance/post-mvp-1-document-authority.md",
 )
-SOURCE_ROOTS = ("scripts", "apps/backend/app", "apps/ai_worker", "apps/frontend/src")
+SOURCE_ROOTS = ("scripts", "apps/backend/app", "apps/ai_worker", "apps/frontend/src", "packages")
 EXCLUDED = {
     "runtime",
     "state",

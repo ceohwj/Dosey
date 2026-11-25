@@ -123,12 +123,14 @@ def test_bounded_source_names_exclude_data_cache_and_symlinks(tmp_path):
         "apps/backend/app/a_old.py",
         "apps/ai_worker/a_backup.py",
         "apps/frontend/src/tmp_probe.tsx",
+        "packages/rag_runtime/tmp_probe.py",
     ]
     for name in candidates + [
         "docs/tmp_note.md",
         "apps/backend/elsewhere/tmp_no.py",
         "scripts/node_modules/tmp_no.js",
         "apps/ai_worker/data/tmp_no.py",
+        "packages/rag_runtime/data/tmp_no.py",
         "scripts/cache/tmp_no.py",
         "scripts/normal.py",
     ]:
@@ -151,10 +153,17 @@ def test_invalid_invocation_is_json_error(tmp_path, args):
 def test_default_documents_and_repeatable_selection(tmp_path):
     defaults = [
         "AGENTS.md",
+        "docs/README.md",
         "docs/ai/workflow.md",
         "docs/ai/task-template.md",
         "docs/ai/knowledge-index.md",
         "docs/failures/README.md",
+        "docs/contracts/README.md",
+        "docs/adr/README.md",
+        "docs/designs/README.md",
+        "docs/testing.md",
+        "docs/architecture.md",
+        "docs/governance/post-mvp-1-document-authority.md",
     ]
     for name in defaults:
         write(tmp_path, name, "# Good")
@@ -180,10 +189,17 @@ def test_ci_schedules_stdlib_hygiene_for_docs_and_existing_events(tmp_path):
     assert len(commands) == 1
     write(tmp_path, "AGENTS.md", "[bad](missing.md)")
     for name in [
+        "docs/README.md",
         "docs/ai/workflow.md",
         "docs/ai/task-template.md",
         "docs/ai/knowledge-index.md",
         "docs/failures/README.md",
+        "docs/contracts/README.md",
+        "docs/adr/README.md",
+        "docs/designs/README.md",
+        "docs/testing.md",
+        "docs/architecture.md",
+        "docs/governance/post-mvp-1-document-authority.md",
     ]:
         write(tmp_path, name)
     # Run from fixture checkout with the same relative script location.
