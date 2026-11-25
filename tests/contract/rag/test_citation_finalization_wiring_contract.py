@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-MODULE_PATH = Path("ai_worker/tasks/rag/citation_finalization_wiring.py")
+MODULE_PATH = Path("apps/ai_worker/tasks/rag/citation_finalization_wiring.py")
 
 
 def _imports() -> tuple[set[str], dict[str, set[str]]]:

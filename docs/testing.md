@@ -43,12 +43,12 @@ Post-MVP용 디렉터리나 문서가 저장소에 있더라도 현재 MVP의 �
 ## OCR 처방일 후보 회귀
 
 #309의 분리된 생년월일 라벨·교부일자 우선 선택과 Backend 호환 경로 검증은
-[처방일 라벨·값 연결 검증 기록](testing/prescribed-date-labels-309.md)을 참고합니다.
+[처방일 라벨·값 연결 검증 기록](archive/testing/prescribed-date-labels-309.md)을 참고합니다.
 최초 실패 재현과 최종 통과 결과를 구분하며 실제 레이아웃 정확도 평가를 대신하지 않습니다.
 
 Playwright 환경과 자동 시나리오는 `frontend/playwright.config.ts`와 `frontend/e2e/`에 있습니다.
 대상 요구사항, 현재 구현 근거, 제외한 목표 범위는
-[구현 요구사항 E2E 추적표](testing/implemented-requirements-e2e.md)에 기록합니다. 로컬에서는
+[구현 요구사항 E2E 추적표](archive/testing/implemented-requirements-e2e.md)에 기록합니다. 로컬에서는
 다음 명령으로 Chromium 시나리오를 실행합니다.
 
 ```bash
@@ -88,12 +88,12 @@ network, 업로드 volume도 전용 이름으로 격리합니다. 이 E2E는 실
 FastAPI·Frontend를 연결해 미인증·만료·재인증·이메일 중복과 선택 동의 저장을 검증합니다.
 SMTP·외부 AI를 호출하지 않으며 기존 개발/test DB를 사용하지 않습니다. #549 gate를
 지원하는 Backend checkout 지정 방법과 미병합 코드 검증의 한계는
-[회원가입 인증 gate 검증](testing/signup-gate-431.md)을 참고합니다.
+[회원가입 인증 gate 검증](archive/testing/signup-gate-431.md)을 참고합니다.
 이 경로는 별도 opt-in 검증이며 기본 CI에 추가하지 않습니다.
 
 ## 부하테스트 프레임워크 (#627)
 
-#627의 1단계는 API별 완성 시나리오가 아니라 부하테스트 실행 구조와 운영 절차를 준비하는 범위입니다. Locust 기반 엔트리포인트, 기본 smoke 경로, 결과 요약 형식과 후속 API 시나리오 추가 순서는 [부하테스트 프레임워크](testing/load-testing-627.md)를 따릅니다. 현재 문서는 Production 수용량 증빙이나 `p95 <= 3s` 달성을 의미하지 않으며, 로그인·OCR·Guide·Chat 등 실제 API별 시나리오는 API 계약 안정화 후 후속 PR에서 추가합니다.
+#627의 1단계는 API별 완성 시나리오가 아니라 부하테스트 실행 구조와 운영 절차를 준비하는 범위입니다. Locust 기반 엔트리포인트, 기본 smoke 경로, 결과 요약 형식과 후속 API 시나리오 추가 순서는 [부하테스트 프레임워크](archive/testing/load-testing-627.md)를 따릅니다. 현재 문서는 Production 수용량 증빙이나 `p95 <= 3s` 달성을 의미하지 않으며, 로그인·OCR·Guide·Chat 등 실제 API별 시나리오는 API 계약 안정화 후 후속 PR에서 추가합니다.
 
 ## 현재 자동 검증 범위
 
@@ -308,7 +308,7 @@ uv run pytest backend/app/tests/chat backend/app/tests/repositories/test_chat_re
 
 [Issue #567](https://github.com/AI-HealthCare-05/AH_05_04/issues/567)은 불변 v1을 수정하지 않고 동일한 16 case를 재사용하는 `chat-v3-history-eval-v2`를 추가해 모델 설정만 `gpt-4o`로 전환했습니다. [Issue #581](https://github.com/AI-HealthCare-05/AH_05_04/issues/581)의 v4는 해당 16 case와 `gpt-4o` 설정을 보존하고 새 대화 품질 사례를 추가했으며, runner의 canonical 경로·`dataset_id`·고정 SHA-256은 v4를 가리킵니다. 실제 Provider 품질·latency·token 평가는 별도 opt-in 실행 전까지 `NOT_RUN`입니다.
 
-2026-09-09 owner 결정으로 정한 대상 불명확 재확인 30/30, 세 응급 우선 case의 baseline/history 6개 경로와 PII sentinel 비복제는 v4에서도 유지합니다. #581의 중복·과량 안전 의미는 서로 다른 case의 baseline/history 4개 경로를 추가 blocking 조건으로 삼으며, 어느 한 경로라도 실패하면 live runner는 `passed=false`, exit code 1을 반환합니다. 전체 단발 결과는 `full_suite_passed`와 case별 rule ID로 계속 기록하지만 그 밖의 일반 품질 case는 merge blocker가 아닙니다. v4의 `baseline`은 이전 prompt가 아니라 같은 `chat-prompt-v4`의 `history=[]` 비교군이므로 현행 prompt/model 대 후보 prompt/model의 blind A/B 결과가 아닙니다. [동결 v1 / `gpt-4o-mini` historical live evidence](validation/issue-306-chat-live-evaluation.md)는 당시 gate 결과일 뿐 현재 canonical v4의 `gpt-4o` 검증 근거 또는 전체 모델 품질 통과로 해석하지 않습니다. v4 Provider 평가와 blind A/B, Provider latency·token 평가는 실행 전까지 `NOT_RUN`이며 #581에서 계속 추적합니다. 모든 합성 Local 실행은 Production 공개나 Privacy 승인의 근거가 아닙니다.
+2026-09-09 owner 결정으로 정한 대상 불명확 재확인 30/30, 세 응급 우선 case의 baseline/history 6개 경로와 PII sentinel 비복제는 v4에서도 유지합니다. #581의 중복·과량 안전 의미는 서로 다른 case의 baseline/history 4개 경로를 추가 blocking 조건으로 삼으며, 어느 한 경로라도 실패하면 live runner는 `passed=false`, exit code 1을 반환합니다. 전체 단발 결과는 `full_suite_passed`와 case별 rule ID로 계속 기록하지만 그 밖의 일반 품질 case는 merge blocker가 아닙니다. v4의 `baseline`은 이전 prompt가 아니라 같은 `chat-prompt-v4`의 `history=[]` 비교군이므로 현행 prompt/model 대 후보 prompt/model의 blind A/B 결과가 아닙니다. [동결 v1 / `gpt-4o-mini` historical live evidence](archive/validation/issue-306-chat-live-evaluation.md)는 당시 gate 결과일 뿐 현재 canonical v4의 `gpt-4o` 검증 근거 또는 전체 모델 품질 통과로 해석하지 않습니다. v4 Provider 평가와 blind A/B, Provider latency·token 평가는 실행 전까지 `NOT_RUN`이며 #581에서 계속 추적합니다. 모든 합성 Local 실행은 Production 공개나 Privacy 승인의 근거가 아닙니다.
 
 v4의 각 새 사례는 전체 case expectation과 별도로 `quality_expectations`를 둡니다. `context_resolution`, `redundant_clarification`, `user_correction`, `topic_continuity`, `colloquial_language`, `safety`, `medication_consistency`, `naturalness`를 각자 독립적으로 채점하고 `{dimension}_evaluated_case_count`, `{dimension}_history_pass_count`, `{dimension}_history_violation_count`를 기록합니다. 하나의 multi-tag case 전체 통과 여부를 여러 품질 축의 통과로 복제하지 않습니다.
 
@@ -328,7 +328,7 @@ PYTHONPATH=backend:. uv run python -m app.evaluation.chat_history_runner \
 
 #581 blind A/B runner는 별도 `RUN_OPENAI_CHAT_BLIND_AB_EVAL=1` Local opt-in을 요구하며 허용된 versioned config·dataset·prompt snapshot의 고정 SHA-256이 모두 맞아야 Provider client를 생성합니다. 종료된 #633의 v4/v5 config와 현재 #581의 v4/v6 config는 서로 다른 path·experiment id·hash로 고정합니다. 두 arm은 동일한 `gpt-4o`와 생성 설정으로 arm당 113개 응답을 실행합니다. 회귀 테스트는 prompt/model override, 54개 review item의 arm 정체 비노출과 response 1 위치 27:27 균형, PII sentinel 치환, 자동 safety/품질 결과, p95 latency, Provider usage token 집계와 완전한 judgment coverage를 검증합니다. 자동 점수와 blind 선호 집계는 responsible reviewer의 최종 선택을 대신하지 않습니다.
 
-현재 runtime은 `chat-prompt-v6`이며 v3/v4/v5 snapshot은 각 과거 실행을 재현하는 고정 비교 버전으로 보존합니다. #581 추가 피드백의 `파라시타몰은?`, `왱?`, 첫 병용 답변의 미확인 안전 단정은 `chat-v5-short-followup-eval-v1.json`의 신규 3개 사례에서 검증합니다. 기존 27개 사례·안전 gate 보존, 고정 안전 프롬프트의 동일성, 실패 문구 검출 및 문맥 성공과 안전 실패의 독립 판정을 `test_short_followup_eval.py`에서 검사합니다. [검증 기록](validation/issue-581-short-followup-v5.md)은 결정론적 replay와 실제 Provider 평가를 구분합니다.
+현재 runtime은 `chat-prompt-v6`이며 v3/v4/v5 snapshot은 각 과거 실행을 재현하는 고정 비교 버전으로 보존합니다. #581 추가 피드백의 `파라시타몰은?`, `왱?`, 첫 병용 답변의 미확인 안전 단정은 `chat-v5-short-followup-eval-v1.json`의 신규 3개 사례에서 검증합니다. 기존 27개 사례·안전 gate 보존, 고정 안전 프롬프트의 동일성, 실패 문구 검출 및 문맥 성공과 안전 실패의 독립 판정을 `test_short_followup_eval.py`에서 검사합니다. [검증 기록](archive/validation/issue-581-short-followup-v5.md)은 결정론적 replay와 실제 Provider 평가를 구분합니다.
 
 추가 회귀는 같은 공개 config에서 비공개 seed에 따라 case/path별 arm mapping이 달라지면서 27:27 균형을 유지하는지, judgment에 사전 고정된 commitment가 mapping 한 항목의 변조도 거부하는지 검증합니다. baseline의 dimension 목록은 비어 있어야 하며 history에만 canonical case의 `quality_expectations`를 적용합니다. baseline에 history 전용 dimension을 제출해도 unblind는 거부합니다. seed·nonce·mapping은 judgment 제출 전까지 비공개 assignment 파일에 보관합니다.
 
@@ -448,7 +448,7 @@ rollback과 민감 합성 sentinel 비노출을 검증한 뒤 database를 제거
 
 순수 RRF 융합 로직(`rrf-rank-fusion@1`, Fraction 기반 무손실 연산, Stable coordinate UTF-8 tie-break, Exact 버킷 우선순위 융합, Top 30/20 경계)은 `ai_worker/tests/rag/test_evidence_rank_fusion.py`에서 검증하며, 검색 프로토콜·설정 해시·쿼리 유효성 검증 및 18자리 소수점 점수 포맷팅(`observed-stage-score-decimal@1`)은 `ai_worker/tests/rag/test_evidence_search.py`에서 검증하여 AI Worker lane에서 실행한다.
 
-상세 실행 증빙과 미완료 #178 범위는 [Knowledge Evidence Index #178 검증 기록](./testing/knowledge-evidence-index-178.md)을 따른다.
+상세 실행 증빙과 미완료 #178 범위는 [Knowledge Evidence Index #178 검증 기록](./archive/testing/knowledge-evidence-index-178.md)을 따른다.
 
 ### Track F Evaluation Release Gate
 
@@ -470,7 +470,7 @@ rollback과 민감 합성 sentinel 비노출을 검증한 뒤 database를 제거
 ### #148 OCR 접수 비동기 전환 응답 시간
 
 OCR 접수의 동기→비동기 전환 전후 접수 응답 시간을 Provider 지연 0·500·2000 ms 세 조건에서 비교한
-기록은 [#148 접수 응답 시간 비교](validation/issue-148-ocr-async-intake-latency.md)를 따릅니다. 전환 후
+기록은 [#148 접수 응답 시간 비교](archive/validation/issue-148-ocr-async-intake-latency.md)를 따릅니다. 전환 후
 접수 응답은 Provider 지연과 무관하게 p50 19~21 ms로 일정하고, 전환 전에는 지연분이 응답 시간에 그대로
 더해집니다. 로컬 in-process 측정이므로 운영 환경 수치나 공개 승인 근거로 사용하지 않습니다.
 
@@ -494,14 +494,14 @@ Worker 이관 전후 OCR 비퇴행은 CI replay와 release smoke를 분리해 �
 
 실제 환자정보, 재식별 가능한 처방과 인증정보는 fixture에 포함하지 않습니다. Critical field는 약명, 용량, 단위, 복용 횟수, 복용 시점, 기간이며 CI replay의 critical invariant는 100% 통과해야 합니다. 성공·부분 추출·저신뢰·timeout·Provider 오류, 미확정 값의 downstream 유입 차단, 사용자 수정·확정 값 보존과 fixture manifest 완전성을 최소 검증 범위로 둡니다.
 
-Track별 요구사항·계약·소유자·예정 테스트·승인 증빙은 [Post-MVP-1 계약 추적표](./testing/post-mvp-1-contract-traceability.md)에서 연결합니다.
+Track별 요구사항·계약·소유자·예정 테스트·승인 증빙은 [Post-MVP-1 계약 추적표](./archive/testing/post-mvp-1-contract-traceability.md)에서 연결합니다.
 
 
 ## #203 앱 내부 알림 구현 검증
 
 `backend/app/tests/notifications/`는 실제 PostgreSQL 기반 목록·읽음·재알림 API, 원본 날짜, SELF 소유권·멱등 snapshot·기한·취소·Check-in 정정을 검증한다. 별도 schema와 독립 connection으로 동일 key replay·상이 key 경쟁 및 occurrence 잠금 시 게시 유예를 검증한다. `tests/migration/test_notification_migration.py`는 실제 Alembic DB 제약과 이력 보존 downgrade guard를 검사한다.
 
-알림 단독 실행 결과·배치 실행 안내는 [#203 검증 기록](validation/track-b/issue-203-notifications.md)을 따른다. 후속 일정 PUT/PATCH 통합 결과는 아래 #202 검증 기록에서 구분한다. Frontend E2E는 별도다.
+알림 단독 실행 결과·배치 실행 안내는 [#203 검증 기록](archive/validation/track-b/issue-203-notifications.md)을 따른다. 후속 일정 PUT/PATCH 통합 결과는 아래 #202 검증 기록에서 구분한다. Frontend E2E는 별도다.
 
 
 ### #202 일정 API·실제 알림 취소 연결
@@ -509,13 +509,13 @@ Track별 요구사항·계약·소유자·예정 테스트·승인 증빙은 [Po
 `backend/app/tests/medication_schedules/`는 날짜별 조회, 일정 PUT/PATCH, 동일 session의
 실제 미전달 알림 취소, 실패 후 전체 rollback, 멱등 재현, 교차 사용자 404와 OpenAPI를
 PostgreSQL·실제 ASGI 앱으로 검증한다. 기본 runner의 Backend 수집 범위에 포함한다.
-[실행 결과와 재현 방법](./validation/track-b/issue-202-schedule-api.md),
-[Frontend 합성 fixture](./validation/track-b/issue-202-schedule-fixtures.json)를 참조한다.
+[실행 결과와 재현 방법](./archive/validation/track-b/issue-202-schedule-api.md),
+[Frontend 합성 fixture](./archive/validation/track-b/issue-202-schedule-fixtures.json)를 참조한다.
 
 ### #434 알림 운영 검증
 
 알림 명령의 실제 transaction 복구·501건 backlog·Runtime DB 권한 및 Docker 시작/중지
-검증은 [#434 기록](./validation/track-b/issue-434-notification-operations.md)을 참고한다.
+검증은 [#434 기록](./archive/validation/track-b/issue-434-notification-operations.md)을 참고한다.
 `backend/app/tests/notifications`, `tests/contract/test_notification_runtime_configuration.py`,
 `tests/integration/rag/test_database_role_provisioning.py`는 기본 필수 runner에 포함된다.
 실제 Local Docker smoke와 Production 적용 여부는 별도로 기록한다.
@@ -526,10 +526,10 @@ PostgreSQL·실제 ASGI 앱으로 검증한다. 기본 runner의 Backend 수집 
 - `tests/migration/test_push_migration.py`: 별도 PostgreSQL DB에서 실제 upgrade·제약·이력 보존 downgrade guard 및 재upgrade.
 - 기존 `backend/app/tests/notifications/` 및 인증 회귀를 함께 실행한다. Push 접수는 앱 내부 게시·읽음·복약을 변경하지 않는다.
 - 실제 provider 접수·iOS/Android 기기 표시와 #470 Service Worker generation·원래 날짜 연결은 #471의 별도 통합 증빙이다. Backend mock/암호화 roundtrip을 실기기 수신으로 표기하지 않는다.
-- [실행 기록](validation/track-b/issue-469-web-push.md), [검토 계약](contracts/proposed/web-push-v1.md).
+- [실행 기록](archive/validation/track-b/issue-469-web-push.md), [검토 계약](contracts/proposed/web-push-v1.md).
 
-#471의 환경·기기 준비는 [실기기 사전 검증 절차](operations/web-push-preflight-471.md)를,
-실행별 PASS/FAIL/BLOCKED·미실행 구분은 [기록 양식](validation/track-b/issue-471-web-push-preflight.md)을 따른다.
+#471의 환경·기기 준비는 [실기기 사전 검증 절차](runbooks/web-push-preflight-471.md)를,
+실행별 PASS/FAIL/BLOCKED·미실행 구분은 [기록 양식](archive/validation/track-b/issue-471-web-push-preflight.md)을 따른다.
 이 준비 문서와 합성 payload 예시는 실제 Push 접수·기기 수신 또는 Production 적용 증거가 아니다.
 
 ### #419 공통 복약 집계
@@ -537,7 +537,7 @@ PostgreSQL·실제 ASGI 앱으로 검증한다. 기본 runner의 Backend 수집 
 `backend/app/tests/medication_reports/test_medication_report_api.py`는 7/30일·KST 경계,
 0분모·반올림, 과거 version·SELF 소유권, Scheduler 지연 및 실제 Check-in API 정정 후
 재집계, OpenAPI와 Frontend 합성 fixture를 검증한다. 기본 `run_test.sh` Backend lane에
-자동 포함된다. [실행 증빙](validation/track-b/issue-419-medication-report.md)을 참고한다.
+자동 포함된다. [실행 증빙](archive/validation/track-b/issue-419-medication-report.md)을 참고한다.
 #469와 병렬 실행할 때는 같은 이름의 test DB를 재생성하지 않도록 별도 PostgreSQL 인스턴스를 사용한다.
 
 Frontend 실제 왕복은 `REAL_STACK_ENV_FILE=envs/example.local.env bash scripts/e2e/real_stack.sh test-report`로
@@ -553,11 +553,11 @@ Frontend 실제 왕복은 `REAL_STACK_ENV_FILE=envs/example.local.env bash scrip
 타인/없는 ID의 동일 404·401·422·no-store·OpenAPI requiredness와 GET 전후 상태 불변을 포함합니다.
 합성 응답 export는 `TRACK_B_OCCURRENCE_MEDICATION_FIXTURE_OUTPUT`에 출력 경로를 지정할 때만
 실행합니다. 기본 CI는 fixture를 갱신하지 않습니다. 검증 환경·결과는
-[검증 기록](validation/track-b/issue-202-closure-readiness.md)을 참조합니다.
+[검증 기록](archive/validation/track-b/issue-202-closure-readiness.md)을 참조합니다.
 
 ### Track C Plan lifecycle (#617)
 
-[검증 기록](testing/track-c-plan-lifecycle-617.md): 조회·완료·취소, SELF 404, strict confirmation, terminal 충돌,
+[검증 기록](archive/testing/track-c-plan-lifecycle-617.md): 조회·완료·취소, SELF 404, strict confirmation, terminal 충돌,
 멱등 replay/충돌/rollback, Safety·Barrier·Check-in 정정 및 동시 mutation을 확인한다.
 
 ### Track C 완료 계획 Follow-up (#194 후속)
@@ -567,13 +567,13 @@ Frontend 실제 왕복은 `REAL_STACK_ENV_FILE=envs/example.local.env bash scrip
 revision/소유권/입력 오류, snapshot 실패 rollback, Check-in·Safety·Barrier 정정 후 과거 평가를 검증한다.
 독립 PostgreSQL transaction으로 첫 제출·정정 경쟁, 같은 key/다른 body, Check-in·Safety 정정 경쟁을 검증한다.
 [합성 fixture](../tests/fixtures/post_mvp_1/track_c/followup-v1.json)와 OpenAPI/DTO 소비 계약도 대조한다.
-실행 결과 및 제한: [검증 기록](testing/track-c-followup-194.md). #139 브라우저 인수·외부 공개 검증은 별도다.
+실행 결과 및 제한: [검증 기록](archive/testing/track-c-followup-194.md). #139 브라우저 인수·외부 공개 검증은 별도다.
 
 ### Track C Frontend 연결 (#139)
 
 개발 전용 Safety→Barrier→Support Offer→Plan 생성·조회·완료·취소 연결과
 320·390·412px mock 브라우저 검증, 실제 FastAPI·PostgreSQL 왕복 결과는
-[#139 검증 기록](validation/issue-139-track-c-frontend.md)을 따른다.
+[#139 검증 기록](archive/validation/issue-139-track-c-frontend.md)을 따른다.
 `frontend/e2e-real-stack/track-c-round-trip.spec.ts`는 새 격리 DB의 합성 fixture를 사용하며,
 이 검증으로 임상 Safety·Follow-up 구현이나 Production 공개 게이트를 완료 처리하지 않는다.
 
@@ -585,7 +585,7 @@ Frontend `TrackCPage.test.tsx`는 상황 선택·명시 채택·실제 준비 �
 약 정보·일정 링크와 근거 미제공·일반 안내 중단을 검증한다.
 약별 승인 설명·Citation, 증상별 임상 판정과 실제 Push 도착은 별도 미완료 범위다.
 
-실행 결과·선행 PR·미완료 의존성: [사유별 연결 검증 기록](testing/track-c-support-routes-194.md).
+실행 결과·선행 PR·미완료 의존성: [사유별 연결 검증 기록](archive/testing/track-c-support-routes-194.md).
 
 ### #633 Guide·Chat 피드백
 
@@ -594,13 +594,13 @@ Frontend `TrackCPage.test.tsx`는 상황 선택·명시 채택·실제 준비 �
 새 합성 부정 feedback을 검토용 `chat-feedback-gold-v1` case로 연결하고 v5 기존 30-case 보존·hash 및 잘못된 재질문 거절을 확인한다.
 `frontend/tests/ResponseFeedback.test.tsx`와 `frontend/e2e/response-feedback.spec.ts`는 실패 후 입력 유지·재시도·평가 변경·삭제,
 중복 전송 차단, 완료 ASSISTANT만 노출, 320·390·412px 키보드·레이아웃을 확인한다.
-[실행 기록](validation/issue-633-feedback.md)의 합성 replay와 실제 Provider 개선 효과·책임 리뷰 승인을 구분한다.
+[실행 기록](archive/validation/issue-633-feedback.md)의 합성 replay와 실제 Provider 개선 효과·책임 리뷰 승인을 구분한다.
 
 ## #193 내부 합성 증상 데모 / #196 RAG 준비 상태
 
-- [Local 7일 증상 정책 검증·실행](testing/track-c-demo-safety-193.md): versioned 정책, 만료·계정·환경 제한,
+- [Local 7일 증상 정책 검증·실행](archive/testing/track-c-demo-safety-193.md): versioned 정책, 만료·계정·환경 제한,
   실제 API 저장·Barrier 차단·Plan 취소·멱등 replay. Frontend 증상 UI·임상 평가와 구분한다.
-- [공용 RAG 연결 준비 상태](testing/track-c-rag-readiness-196.md): kernel 구현과 실제 Source/Bundle/handoff
+- [공용 RAG 연결 준비 상태](archive/testing/track-c-rag-readiness-196.md): kernel 구현과 실제 Source/Bundle/handoff
   인계를 구분하며, 확인되지 않은 근거를 데모 승인으로 대체하지 않는다.
 
 ## #634 MFDS RAG Phase 2A: Knowledge Materialization 검증
@@ -674,10 +674,10 @@ Human Owner 결정으로 확정하며, 이 lane의 cross-flow 테스트는 확�
 계산 무저장·소유권·처방 변경·기존 일정 보존·멱등 저장을 검증한다.
 Frontend ScheduleRecommendation/SchedulePage/MedicationSchedulesApi 테스트는 명시적 적용·입력 수정·
 늦은 응답 무효화·저장 실패 재시도·직접 입력 전환을 확인한다.
-[검증 기록](validation/track-b/issue-670-recommendation.md)을 참고한다. Provider 호출·RAG 변경은 없으며
+[검증 기록](archive/validation/track-b/issue-670-recommendation.md)을 참고한다. Provider 호출·RAG 변경은 없으며
 이 검증은 약학적 적절성이나 Production 승인을 대신하지 않는다.
 
 
 ## Candidate Search 합성 내부 연결 (2026-10-23)
 
-[합성 연결 검증 기록](testing/candidate-search-synthetic-20261023.md)은 실제 격리 PostgreSQL의 Source·Index·Bundle·HTTP 생성/조회/선택/재시도·철회/동시성/취소와 [합성 DEV 판정 fixture](../evals/candidate/synthetic-search-v1.json)를 다룬다. 운영 Source freshness/threshold·영속 Candidate REQUEST Guard·공개 승인으로 해석하지 않는다. 수치 정책은 fixture에만 있으며 공개 flag와 일반 DI는 계속 차단한다.
+[합성 연결 검증 기록](archive/testing/candidate-search-synthetic-20261023.md)은 실제 격리 PostgreSQL의 Source·Index·Bundle·HTTP 생성/조회/선택/재시도·철회/동시성/취소와 [합성 DEV 판정 fixture](../evals/candidate/synthetic-search-v1.json)를 다룬다. 운영 Source freshness/threshold·영속 Candidate REQUEST Guard·공개 승인으로 해석하지 않는다. 수치 정책은 fixture에만 있으며 공개 flag와 일반 DI는 계속 차단한다.

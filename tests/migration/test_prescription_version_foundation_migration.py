@@ -37,7 +37,7 @@ def legacy_foundation_schema():
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

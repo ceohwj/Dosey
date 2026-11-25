@@ -1,4 +1,4 @@
-"""docs/validation/ai-one-cycle-release.md의 고정 명령이 backend/ 이동 이후에도
+"""docs/archive/validation/ai-one-cycle-release.md의 고정 명령이 backend/ 이동 이후에도
 저장소 루트에서 그대로 실행 가능한지 확인합니다(PR #87 리뷰).
 
 app/이 backend/app/으로 이동한 뒤 `python -m app.release_validation...`을 저장소
@@ -18,8 +18,8 @@ from pathlib import Path
 from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DOC_PATH = PROJECT_ROOT / "docs" / "validation" / "ai-one-cycle-release.md"
-_PYTHONPATH_DECLARATION = "PYTHONPATH=backend "
+DOC_PATH = PROJECT_ROOT / "docs" / "archive" / "validation" / "ai-one-cycle-release.md"
+_PYTHONPATH_DECLARATION = "PYTHONPATH=apps/backend:packages:apps:. "
 
 
 def _release_validation_command_blocks() -> list[str]:

@@ -6,7 +6,7 @@
 - 최신 협의 기준: 김지혜가 제공한 D-05 v2 검토 반영본. 원본 공유 문서 자체를 복제하지 않는다.
 - Source 인계 기준: [Source 계약](../../targets/post-mvp-1/rag-source-ingestion-v1.md).
 
-- 검토용 인계 목록과 답변 양식: [DB 인계·결정 검토표](../../../designs/jye-rookie/issue-166-db-handoff-review.md).
+- 검토용 인계 목록과 답변 양식: [DB 인계·결정 검토표](../../../designs/rag/issue-166-db-handoff-review.md).
 
 ## 문서 적용 범위와 최신 검토 기록
 
@@ -347,7 +347,7 @@ forward migration `e8c41a09d652`는 기존 제품별 순서 충돌 시 무보정
 MFDS 상세 변환 함수는 원료→Ingredient 매핑과 order를 명시적으로 받는다. 누락 후보키·
 매핑 불일치는 거부하고, 일련번호의 숫자 변환·배열 index 순서·이름 기반 Identity 추론은
 하지 않는다. 실제 수집 자동 연결과 공식 매핑 승인은 완료 범위가 아니다.
-근거: [D-04 검토 문서](../../../designs/jye-rookie/issue-166-d04-component-order.md).
+근거: [D-04 검토 문서](../../../designs/rag/issue-166-d04-component-order.md).
 
 ### 2026-09-13 — MFDS 관찰 입력 검사 (#477 구현·담당 범위 검토 완료)
 

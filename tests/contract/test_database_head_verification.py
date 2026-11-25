@@ -41,7 +41,7 @@ def test_draft_pr_372_catalog_functions_are_in_final_removal_inventory() -> None
 
 
 def test_finds_alembic_tree_in_repository_and_app_image_layout(tmp_path: Path) -> None:
-    assert alembic_paths(ROOT) == (ROOT / "backend/alembic.ini", ROOT / "backend/alembic")
+    assert alembic_paths(ROOT) == (ROOT / "apps/backend/alembic.ini", ROOT / "apps/backend/alembic")
     (tmp_path / "alembic.ini").touch()
     (tmp_path / "alembic").mkdir()
     assert alembic_paths(tmp_path) == (tmp_path / "alembic.ini", tmp_path / "alembic")
@@ -108,7 +108,7 @@ def test_heads_only_runs_before_any_alembic_upgrade() -> None:
     for relative_path in (".github/workflows/checks.yml", "scripts/ci/run_test.sh"):
         source = (ROOT / relative_path).read_text()
         heads_only_at = source.find("--heads-only")
-        first_upgrade_at = source.find("alembic -c backend/alembic.ini upgrade")
+        first_upgrade_at = source.find("alembic -c apps/backend/alembic.ini upgrade")
 
         assert heads_only_at != -1, relative_path
         assert first_upgrade_at != -1, relative_path

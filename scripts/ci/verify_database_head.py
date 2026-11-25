@@ -60,7 +60,7 @@ class DatabaseHeadState:
 def alembic_paths(root: Path = ROOT) -> tuple[Path, Path]:
     """저장소와 app 이미지에서 Alembic 설정 경로를 찾습니다."""
     candidates = (
-        (root / "backend/alembic.ini", root / "backend/alembic"),
+        (root / "apps/backend/alembic.ini", root / "apps/backend/alembic"),
         (root / "alembic.ini", root / "alembic"),
     )
     for config_path, script_path in candidates:
@@ -78,7 +78,7 @@ def _ensure_migration_imports(root: Path) -> None:
     대신 `ModuleNotFoundError`가 나와, 원인을 알려주는 것이 목적인 진단이 오히려 원인을
     가립니다. 호출자와 무관하게 동작하도록 여기서 경로를 보장합니다.
     """
-    for path in (root, root / "backend"):
+    for path in (root, root / "packages", root / "apps", root / "apps/backend"):
         if path.is_dir() and str(path) not in sys.path:
             sys.path.insert(0, str(path))
 
@@ -236,7 +236,7 @@ def verify_single_head() -> int:
     print("  1. git fetch origin && git merge/rebase origin/develop")
     print("  2. 내 migration의 down_revision을 현재 develop head로 변경")
     print("     (컬럼·제약 정의는 바꾸지 않습니다)")
-    print("  3. uv run alembic -c backend/alembic.ini heads  # 단일인지 확인")
+    print("  3. uv run alembic -c apps/backend/alembic.ini heads  # 단일인지 확인")
     print()
     print("downgrade/upgrade 테스트에 부모 revision을 하드코딩했다면, migration 모듈의")
     print("down_revision을 읽도록 바꾸면 재연결마다 테스트를 고치지 않아도 됩니다.")

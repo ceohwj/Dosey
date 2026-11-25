@@ -58,7 +58,7 @@ from app.repositories.rag_source_catalog_repository import (
 from app.tests.db_extensions import ensure_vector_extension
 
 ROOT = Path(__file__).resolve().parents[3]
-RECEIPT = ROOT / "docs/validation/rag/endpoints/LIST_APPROVED_PRODUCTS.json"
+RECEIPT = ROOT / "docs/archive/validation/rag/endpoints/LIST_APPROVED_PRODUCTS.json"
 NOW = datetime(2026, 9, 11, tzinfo=UTC)
 pytestmark = pytest.mark.asyncio
 

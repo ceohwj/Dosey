@@ -23,11 +23,11 @@ LABEL = "org.dosey.synthetic-publisher-probe"
 CONTEXT_PATHS = (
     "pyproject.toml",
     "uv.lock",
-    "ai_worker",
-    "provider_contracts",
-    "ocr_runtime",
-    "provider_runtime",
-    "rag_runtime",
+    "apps/ai_worker",
+    "packages/provider_contracts",
+    "packages/ocr_runtime",
+    "packages/provider_runtime",
+    "packages/rag_runtime",
     "infra/python/protected_retrieval_role_policy.py",
     "infra/python/catalog_approval_role_policy.py",
     "infra/python/catalog_role_policy.py",
@@ -145,7 +145,7 @@ def copy_context(destination: Path) -> None:
             shutil.copytree(source, target, ignore=ignore)
         else:
             shutil.copy2(source, target)
-    shutil.copy2(ROOT / "ai_worker/Dockerfile", destination / "Dockerfile")
+    shutil.copy2(ROOT / "apps/ai_worker/Dockerfile", destination / "Dockerfile")
 
 
 def run(

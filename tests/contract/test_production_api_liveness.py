@@ -26,7 +26,14 @@ def test_production_probe_targets_an_existing_app_route(tmp_path: Path) -> None:
     # Isolate Config imports from other test modules and use only synthetic settings.
     environment = {
         "PATH": os.environ.get("PATH", ""),
-        "PYTHONPATH": os.pathsep.join([str(PROJECT_ROOT / "backend"), str(PROJECT_ROOT)]),
+        "PYTHONPATH": os.pathsep.join(
+            [
+                str(PROJECT_ROOT / "apps" / "backend"),
+                str(PROJECT_ROOT / "apps"),
+                str(PROJECT_ROOT / "packages"),
+                str(PROJECT_ROOT),
+            ]
+        ),
         "ENV": "local",
         "DB_HOST": "127.0.0.1",
         "DB_PORT": "1",

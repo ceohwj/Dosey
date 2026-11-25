@@ -22,8 +22,8 @@ htmlcov/
 .DS_Store
 
 # AI model artifacts
-ai_worker/models/*
-!ai_worker/models/README.md
+apps/ai_worker/models/*
+!apps/ai_worker/models/README.md
 *.pt
 *.pth
 *.ckpt
@@ -39,15 +39,16 @@ data/*
 !data/sample/.gitkeep
 
 # Frontend artifacts
-frontend/node_modules/
-frontend/.next/
-frontend/dist/
-frontend/coverage/
-frontend/.env*
-frontend/playwright-report/
-frontend/test-results/
+apps/frontend/node_modules/
+apps/frontend/.next/
+apps/frontend/dist/
+apps/frontend/coverage/
+apps/frontend/.env*
+apps/frontend/playwright-report/
+apps/frontend/test-results/
 
 # Runtime / generated artifacts
+.omc/
 .playwright-cli/
 .pnpm-store/
 artifacts/
@@ -65,4 +66,4 @@ knowledge/documents/
 knowledge/indexes/
 
 # Frontend environment example
-!frontend/.env.example
+!apps/frontend/.env.example

@@ -10,7 +10,7 @@ from collections.abc import Iterator
 
 import pytest
 
-PROJECT_ROOT_DOCKERFILE = "backend/app/Dockerfile"
+PROJECT_ROOT_DOCKERFILE = "apps/backend/app/Dockerfile"
 STORAGE_DIR_IMAGE_TAG = "ah-05-04-storage-dir-contract-test:latest"
 
 

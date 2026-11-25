@@ -19,7 +19,7 @@ fi
 prepare_test_environment
 
 echo "Alembic migration을 test 데이터베이스에 적용합니다."
-if ! run_with_integration_test_environment alembic -c backend/alembic.ini upgrade head; then
+if ! run_with_integration_test_environment alembic -c apps/backend/alembic.ini upgrade head; then
   echo
   echo "[TEST FAILURE] Alembic migration 적용에 실패했습니다."
   exit 1

@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy.dialects import postgresql
 
 MIGRATION_PATH = (
-    Path(__file__).parents[2] / "backend" / "alembic" / "versions" / "20fd11d29ecc_add_guide_ai_job_mapping.py"
+    Path(__file__).parents[2] / "apps" / "backend" / "alembic" / "versions" / "20fd11d29ecc_add_guide_ai_job_mapping.py"
 )
 
 

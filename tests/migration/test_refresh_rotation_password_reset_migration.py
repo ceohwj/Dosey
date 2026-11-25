@@ -19,7 +19,7 @@ from app.core import config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MIGRATION_PATH = (
-    PROJECT_ROOT / "backend" / "alembic" / "versions" / "206a1b2c3d4e_add_refresh_rotation_password_reset.py"
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "206a1b2c3d4e_add_refresh_rotation_password_reset.py"
 )
 REFRESH_ROTATION_REVISION = "206a1b2c3d4e"
 REFRESH_ROTATION_BASE_REVISION = "201a1b2c3d4e"
@@ -66,7 +66,7 @@ class FakeConnection:
 
 
 def _alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

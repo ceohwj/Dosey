@@ -226,7 +226,7 @@ Do not commit the bearer token or generated CSV files. Commit only a redacted su
 | `LOAD_TEST_TRACK_C_SUPPORT_PLAN_ID` | empty | Optional action plan fixture id for plan/resources/followup read checks. |
 | `LOAD_TEST_TRACK_C_TRAVEL_SITUATION` | empty | Optional support-offer filter; allowed values are `SCHEDULE_CHANGED` and `MEDICATION_NOT_WITH_ME`. |
 | `LOAD_TEST_TRACK_C_SUBREASON_CODE` | empty | Optional support-offer subreason filter for the target fixture. |
-| `LOAD_TEST_OCR_MANIFEST_PATH` | `backend/app/release_validation/scenarios/ai-one-cycle-clova-openai-v1.json` | Synthetic OCR scenario manifest |
+| `LOAD_TEST_OCR_MANIFEST_PATH` | `apps/backend/app/release_validation/scenarios/ai-one-cycle-clova-openai-v1.json` | Synthetic OCR scenario manifest |
 | `LOAD_TEST_OCR_FIXTURE_PATH` | manifest `fixture_path` | Synthetic prescription image fixture |
 | `LOAD_TEST_OCR_POLL_INTERVAL_SECONDS` | `1.0` | Fallback Job polling interval when `retry_after_seconds` is absent |
 | `LOAD_TEST_OCR_MAX_WAIT_SECONDS` | `60.0` | Maximum wait for OCR Job completion |

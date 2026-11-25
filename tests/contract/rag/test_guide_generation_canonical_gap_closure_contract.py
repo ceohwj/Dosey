@@ -73,10 +73,12 @@ def test_compose_node_is_the_only_new_importable_callable() -> None:
 
     assert callable(composer.compose_personalized_guide)
     assert "guide_medication_guideline_selection" not in {
-        module.stem for module in Path("ai_worker/tasks/rag").glob("*.py")
+        module.stem for module in Path("apps/ai_worker/tasks/rag").glob("*.py")
     }
-    assert "guide_medication_safety_filter" not in {module.stem for module in Path("ai_worker/tasks/rag").glob("*.py")}
-    assert "guide_conflict_gate" not in {module.stem for module in Path("ai_worker/tasks/rag").glob("*.py")}
+    assert "guide_medication_safety_filter" not in {
+        module.stem for module in Path("apps/ai_worker/tasks/rag").glob("*.py")
+    }
+    assert "guide_conflict_gate" not in {module.stem for module in Path("apps/ai_worker/tasks/rag").glob("*.py")}
 
 
 def test_readiness_marks_only_the_composition_node_as_a_thin_adapter() -> None:

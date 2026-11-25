@@ -1,6 +1,6 @@
 {
   "schema_version": "consent-gate-207.fixture@1",
-  "decision": "docs/governance/decisions/2026-09-10-consent-gate-207.md",
+  "decision": "docs/archive/decisions/2026-09-10-consent-gate-207.md",
   "purposes": ["OCR", "GUIDE", "CHAT", "NOTIFICATION"],
   "statuses": ["GRANTED", "WITHDRAWN"],
   "current_policy_versions": {

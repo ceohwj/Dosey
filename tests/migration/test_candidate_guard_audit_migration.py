@@ -22,7 +22,7 @@ from app.models.rag_candidate_guard_audit import RagCandidateRequestGuardAudit
 from app.models.rag_source_capture_observation import RagSourceCaptureObservation
 
 ROOT = Path(__file__).resolve().parents[2]
-PATH = ROOT / "backend/alembic/versions/925a1b2c3d4e_candidate_guard_audit_capture.py"
+PATH = ROOT / "apps/backend/alembic/versions/925a1b2c3d4e_candidate_guard_audit_capture.py"
 
 
 def _module():
@@ -34,8 +34,8 @@ def _module():
 
 
 def test_single_forward_head() -> None:
-    settings = Config(str(ROOT / "backend/alembic.ini"))
-    settings.set_main_option("script_location", str(ROOT / "backend/alembic"))
+    settings = Config(str(ROOT / "apps/backend/alembic.ini"))
+    settings.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
     assert ScriptDirectory.from_config(settings).get_heads() == ["925a1b2c3d4e"]
     assert _module().down_revision == "924a1b2c3d4e"
 

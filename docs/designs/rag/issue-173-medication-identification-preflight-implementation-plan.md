@@ -1,6 +1,6 @@
 # Issue #173 RAG-12 Medication Identification Preflight 구현 계획
 
-동반 설계: [단위 설계](../ceohwj/issue-173-medication-identification-preflight-design.md)
+동반 설계: [단위 설계](./issue-173-medication-identification-preflight-design.md)
 
 ## 범위 고정
 

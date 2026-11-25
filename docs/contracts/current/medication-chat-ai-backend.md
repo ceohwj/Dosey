@@ -4,7 +4,7 @@
 
 ## 목적과 적용 범위
 
-이 문서는 복약 챗봇 요청이 Backend DTO에서 Provider payload로 변환되고 결과와 오류가 다시 Backend로 전달되는 공유 경계를 정의한다. HTTP API body 계약은 [`docs/api.md`](../../api.md), 상세 구현 설계는 [Backend 연동 설계](../../designs/ceohwj/medication-chat-ai-backend-integration-design.md)를 따른다.
+이 문서는 복약 챗봇 요청이 Backend DTO에서 Provider payload로 변환되고 결과와 오류가 다시 Backend로 전달되는 공유 경계를 정의한다. HTTP API body 계약은 [`docs/api.md`](../../api.md), 상세 구현 설계는 [Backend 연동 설계](../../designs/guide-chat/medication-chat-ai-backend-integration-design.md)를 따른다.
 
 실제 구현 스키마의 기준은 `app.services.chat_ai`의 Backend DTO와 `app.services.chat_ai.schemas`의 AI Core 입력 모델이다. 이 문서는 두 경계 사이에서 보존하거나 제외해야 할 의미를 고정한다.
 

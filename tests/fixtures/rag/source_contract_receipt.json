@@ -26,7 +26,7 @@
       "sha256": "1008d974047fdb8cd5a29cc4905323953234179edd8f082b5f3a1f82e470e755"
     },
     "decision": {
-      "repository_path": "docs/governance/decisions/2026-08-31-rag-p0-contract-freeze.md",
+      "repository_path": "docs/archive/decisions/2026-08-31-rag-p0-contract-freeze.md",
       "decision_id": "PD-125-20260831",
       "sha256": "f7e04cad41e3bc4c078e088906a9e7d50826f973fb8825fc45b23198a119ab85"
     }
@@ -38,15 +38,15 @@
     "suite_version": "1.1.0",
     "suite_artifacts": [
       {
-        "path": "ai_worker/tasks/rag/source_governance.py",
+        "path": "apps/ai_worker/tasks/rag/source_governance.py",
         "sha256": "1d17635f383d997ad178286c4377f748ca1aa857d45df1c0910209263da7220f"
       },
       {
         "path": "tests/contract/test_rag_source_governance_receipt.py",
-        "sha256": "2ee606c3a067e6e969d4fcfb1a5f9b56088b0e1a7a64e3ced9f19e415ab3f78b"
+        "sha256": "a1227d6d2a9c51c65b642c032fb783b24a2cb752f09c053912a2cd357d9bfee4"
       },
       {
-        "path": "ai_worker/tests/rag/test_source_governance.py",
+        "path": "apps/ai_worker/tests/rag/test_source_governance.py",
         "sha256": "739803c457f3de64821bd9eeb45c21f60bc36de06a4df7807502dbaccf63b8cd"
       }
     ],
@@ -582,6 +582,6 @@
   "receipt_hash": {
     "algorithm": "sha256",
     "canonicalization": "sorted-keys-compact-utf8-excluding-generated_at-and-receipt_hash-v1",
-    "value": "708bbdaee65eed8169940c26084fbf92fffef51ee1a82c7594fbaeb4b27857c6"
+    "value": "f5bd11f59bc402c10afd2c959902ffffc725b92af513dc1d5b8a7e72b968fe25"
   }
 }

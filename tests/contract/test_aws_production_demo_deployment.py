@@ -142,7 +142,7 @@ def test_production_chat_history_context_compose_resolution() -> None:
 
 
 def test_frontend_production_image_requires_api_origin_and_contains_built_spa() -> None:
-    dockerfile = _read(PROJECT_ROOT / "frontend/Dockerfile.prod")
+    dockerfile = _read(PROJECT_ROOT / "apps/frontend/Dockerfile.prod")
 
     assert "ARG VITE_API_BASE_URL" in dockerfile
     assert 'test -n "$VITE_API_BASE_URL"' in dockerfile

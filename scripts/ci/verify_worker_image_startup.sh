@@ -14,7 +14,7 @@ if [[ -n "${WORKER_IMAGE_CACHE_FROM:-}" ]]; then
     buildx build
     --load
     --cache-from "${WORKER_IMAGE_CACHE_FROM}"
-    --file ai_worker/Dockerfile
+    --file apps/ai_worker/Dockerfile
     --tag "${image_tag}"
   )
   if [[ -n "${WORKER_IMAGE_CACHE_TO:-}" ]]; then
@@ -22,7 +22,7 @@ if [[ -n "${WORKER_IMAGE_CACHE_FROM:-}" ]]; then
   fi
   docker "${build_args[@]}" .
 else
-  docker build --file ai_worker/Dockerfile --tag "${image_tag}" .
+  docker build --file apps/ai_worker/Dockerfile --tag "${image_tag}" .
 fi
 docker run --rm \
   --env PROTECTED_RETRIEVAL_ENABLED=false \

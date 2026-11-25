@@ -32,7 +32,7 @@ def test_issue_398_migrations_import_frozen_v1() -> None:
         "398b2c3d4e5f_require_prescription_fingerprint.py",
         "398e5f607182_remove_prescription_candidate_database_logic.py",
     ):
-        source = (root / "backend/alembic/versions" / name).read_text()
+        source = (root / "apps/backend/alembic/versions" / name).read_text()
         assert "provider_contracts.prescription_integrity_v1" in source
         assert "from provider_contracts.prescription_integrity import" not in source
 

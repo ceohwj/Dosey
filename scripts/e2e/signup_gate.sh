@@ -5,7 +5,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BACKEND_ROOT="${AUTH_GATE_BACKEND_ROOT:-$REPO_ROOT}"
 PYTHON_BIN="${AUTH_GATE_PYTHON:-$BACKEND_ROOT/.venv/bin/python}"
-if [[ ! -x "$PYTHON_BIN" || ! -f "$BACKEND_ROOT/backend/alembic.ini" ]]; then
+if [[ ! -x "$PYTHON_BIN" || ! -f "$BACKEND_ROOT/apps/backend/alembic.ini" ]]; then
   echo 'Set AUTH_GATE_BACKEND_ROOT to the #549 checkout and AUTH_GATE_PYTHON to its dependency runtime.' >&2
   exit 2
 fi
@@ -29,7 +29,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 backend_env() {
-  local command=(env -i PATH="$PATH" PYTHONPATH="$BACKEND_ROOT/backend:$BACKEND_ROOT" \
+  local command=(env -i PATH="$PATH" PYTHONPATH="$BACKEND_ROOT/apps/backend:$BACKEND_ROOT/apps:$BACKEND_ROOT/packages:$BACKEND_ROOT" \
     ENV=local EMAIL_PROVIDER=noop OPENAI_API_KEY=sk-not-configured \
     DB_HOST=127.0.0.1 DB_PORT="$DB_PORT_VALUE" DB_EXPOSE_PORT="$DB_PORT_VALUE" \
     DB_NAME=signup_gate_e2e DB_USER=signup_e2e DB_PASSWORD="$DB_PASSWORD_VALUE" \
@@ -71,7 +71,7 @@ for ((attempt=0; attempt<30; attempt++)); do
   sleep 1
 done
 if [[ "$ready" != true ]]; then echo 'Isolated PostgreSQL did not become ready.' >&2; exit 2; fi
-backend_env "$PYTHON_BIN" -m alembic -c "$BACKEND_ROOT/backend/alembic.ini" upgrade head >"$RUN_DIR/migrate.log" 2>&1 || {
+backend_env "$PYTHON_BIN" -m alembic -c "$BACKEND_ROOT/apps/backend/alembic.ini" upgrade head >"$RUN_DIR/migrate.log" 2>&1 || {
   echo 'Isolated migration failed.' >&2; tail -20 "$RUN_DIR/migrate.log" >&2; exit 1;
 }
 backend_env --exec "$PYTHON_BIN" -m uvicorn app.main:app --host 127.0.0.1 --port 18432 --no-access-log >"$RUN_DIR/on.log" 2>&1 &
@@ -91,6 +91,6 @@ for port in 18432 18434; do
 done
 echo "Backend revision: $(git -C "$BACKEND_ROOT" rev-parse --short HEAD)"
 echo 'Local FastAPI + migrated temporary PostgreSQL; SMTP/AI calls disabled.'
-cd "$REPO_ROOT/frontend"
+cd "$REPO_ROOT/apps/frontend"
 SIGNUP_GATE_E2E=1 SIGNUP_GATE_DB_CONTAINER="$DB_CONTAINER" \
   pnpm exec playwright test --config playwright.auth-gate.config.ts

@@ -28,7 +28,9 @@ from sqlalchemy.pool import NullPool
 from app.core import config  # type: ignore[import-untyped]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "712a1b2c3d4e_create_rag_evidence_authority.py"
+MIGRATION_PATH = (
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "712a1b2c3d4e_create_rag_evidence_authority.py"
+)
 
 REVISION = "712a1b2c3d4e"
 TABLE_NAME = "rag_evidence_authority"
@@ -47,7 +49,7 @@ def _load_migration() -> Any:
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

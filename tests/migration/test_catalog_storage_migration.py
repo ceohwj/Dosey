@@ -26,8 +26,8 @@ RAG_SOURCE_CATALOG_BASE_REVISION = "171c0f751206"
 CATALOG_IDENTITY_BASE_REVISION = "3984b5c6d7e8"
 CATALOG_IDENTITY_REVISION = "166a7b8c9d0e"
 CATALOG_MIGRATION_PATHS = (
-    PROJECT_ROOT / "backend/alembic/versions/166a7b8c9d0e_add_catalog_identity_alias_search.py",
-    PROJECT_ROOT / "backend/alembic/versions/166b8c9d0e1f_add_catalog_set_manifest.py",
+    PROJECT_ROOT / "apps/backend/alembic/versions/166a7b8c9d0e_add_catalog_identity_alias_search.py",
+    PROJECT_ROOT / "apps/backend/alembic/versions/166b8c9d0e1f_add_catalog_set_manifest.py",
 )
 
 
@@ -39,7 +39,7 @@ def test_catalog_migrations_do_not_define_database_triggers_or_functions() -> No
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 def create_alembic_database_url() -> str:

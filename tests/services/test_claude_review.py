@@ -143,7 +143,7 @@ def test_missing_cli_and_error_envelope(tmp_path):
 def test_no_change_binary_oversize_and_domain_source(tmp_path):
     setup(tmp_path)
     assert run(tmp_path, "--working-tree", "--file", "source.py", "--dry-run").returncode == 1
-    target = tmp_path / "backend/app/services/prescriptions.py"
+    target = tmp_path / "apps/backend/app/services/prescriptions.py"
     target.parent.mkdir(parents=True)
     target.write_text("safe synthetic source\n")
     assert (
@@ -151,7 +151,7 @@ def test_no_change_binary_oversize_and_domain_source(tmp_path):
             tmp_path,
             "--working-tree",
             "--file",
-            "backend/app/services/prescriptions.py",
+            "apps/backend/app/services/prescriptions.py",
             "--dry-run",
         ).returncode
         == 0
@@ -162,7 +162,7 @@ def test_no_change_binary_oversize_and_domain_source(tmp_path):
             tmp_path,
             "--working-tree",
             "--file",
-            "backend/app/services/prescriptions.py",
+            "apps/backend/app/services/prescriptions.py",
             "--dry-run",
         ).returncode
         == 1
@@ -173,7 +173,7 @@ def test_no_change_binary_oversize_and_domain_source(tmp_path):
             tmp_path,
             "--working-tree",
             "--file",
-            "backend/app/services/prescriptions.py",
+            "apps/backend/app/services/prescriptions.py",
             "--dry-run",
         ).returncode
         == 1

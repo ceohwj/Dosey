@@ -1,60 +1,25 @@
-# 다섯알 — 본인 중심 만성질환 복약관리
+# 다섯알 (Dosey) — 본인 중심 만성질환 복약관리
 
-개인 프로젝트 목적과 다음 고도화 범위는 [PRD](PRD.md), Codex 도메인 Agent·Claude 검토·수동 Antigravity 운영은 [개발 workflow](docs/ai/workflow.md)를 참고하세요. 아래 날짜별 MVP 상태 설명은 과거 기록이 포함되어 있으므로 현재 구현 여부는 코드·현재 계약·테스트와 대조해야 합니다.
+개인 프로젝트 목적과 고도화 방향은 [PRD](PRD.md), 전체 문서 지도는 [문서 인덱스](docs/README.md), Agent 운영은 [개발 workflow](docs/ai/workflow.md)를 참고하세요.
 
-다섯알은 고혈압·제2형 당뇨병·이상지질혈증 등 만성질환 사용자가 처방전을 이해하고 자신의 복약 상태와 어려움을 관리할 수 있도록 돕는 서비스입니다. 처방전을 안전하게 구조화하고, 사용자가 확인한 처방을 기준으로 복약 안내와 질문 응답을 제공하며, 처방 변경이나 임상 판단이 필요한 상황에서는 약사·의료진 확인으로 연결하는 것을 목표로 합니다.
+다섯알(Dosey)은 고혈압·제2형 당뇨병·이상지질혈증 등 만성질환 사용자가 처방전을 이해하고 자신의 복약 상태와 어려움을 관리할 수 있도록 돕는 서비스입니다. 처방전을 구조화하고, 사용자가 확인한 처방을 기준으로 복약 안내와 질문 응답을 제공하며, 처방 변경이나 임상 판단이 필요한 상황에서는 약사·의료진 확인으로 연결하는 것을 목표로 합니다.
 
-## 포트폴리오 안내
+## 프로젝트 배경 및 개인 개발 범위
 
-이 저장소는 [AI-HealthCare-05/AH_05_04](https://github.com/AI-HealthCare-05/AH_05_04) 팀 프로젝트의 코드 미러를 바탕으로 개인 프로젝트로 발전시키는 저장소입니다. 팀 전체의 구현을 개인 단독 성과로 표현하지 않습니다.
+이 저장소는 [AI-HealthCare-05/AH_05_04](https://github.com/AI-HealthCare-05/AH_05_04) 팀 프로젝트 코드를 바탕으로 정현우(`@ceohwj`)가 개인 프로젝트로 고도화하는 저장소입니다. 팀 전체의 구현을 개인 단독 성과로 표현하지 않으며, 과거 팀 시절의 결정·검증 증빙은 [`docs/archive/`](docs/archive/README.md)에 분리 보관합니다.
 
-**정현우의 담당 범위:** medication retrieval, evidence/citation/provenance 경계, canonical Guide runtime assembly와 Backend provider 연동.
-[개인 기여와 한계](https://hyunwoo-jung-portfolio.vercel.app/case-studies/healthcare-rag)는 원본 팀 저장소의 [PR #919](https://github.com/AI-HealthCare-05/AH_05_04/pull/919), [PR #924](https://github.com/AI-HealthCare-05/AH_05_04/pull/924), [PR #926](https://github.com/AI-HealthCare-05/AH_05_04/pull/926)에서 확인할 수 있습니다.
+- **핵심 담당 및 고도화 영역**: medication retrieval, evidence/citation/provenance 경계, canonical Guide runtime assembly, Backend provider 연동, 한국어 2단계 Reranker 및 에이전트 워크플로우 개선.
+- [원본 팀 프로젝트 기여 기록](https://hyunwoo-jung-portfolio.vercel.app/case-studies/healthcare-rag): [PR #919](https://github.com/AI-HealthCare-05/AH_05_04/pull/919), [PR #924](https://github.com/AI-HealthCare-05/AH_05_04/pull/924), [PR #926](https://github.com/AI-HealthCare-05/AH_05_04/pull/926).
 
-아래 기존 구현 상태 설명의 **‘현재’는 2026-08-27 시점을 뜻합니다.** 이후 현황은 원본 팀 저장소와 PR 기록 및 현재 계약 문서에서 확인하고, 당시 구현·목표 서술과 구분해서 읽어 주세요. End-to-End 제품 완료나 임상 유효성을 주장하지 않습니다.
+## 핵심 사용자 여정
 
-## 해결하려는 문제
+1. 처방전 업로드 및 비동기 OCR(CLOVA OCR + Outbox/Redis Stream Worker)
+2. OCR 구조화 초안 확인·수정 및 처방 확정
+3. 확정 처방 기반 복약 가이드 및 Q&A 챗봇(OpenAI Responses API)
+4. 복약 일정 및 Check-in 관리
+5. 미복용 사유에 따른 Barrier/Support 및 병용(OTC) 확인
 
-- 처방전의 약품명·용량·횟수·복용법을 한눈에 이해하기 어렵습니다.
-- 여러 복약 정보를 직접 입력하면 번거롭고 오류가 발생하기 쉽습니다.
-- 같은 미복용이라도 망각, 일정 충돌, 복용법 이해 부족, 약에 대한 우려와 접근성 문제처럼 원인이 다릅니다.
-- 일반적인 AI 답변은 사용자의 실제 처방과 다르거나 근거·안전 범위가 불분명할 수 있습니다.
-
-다섯알은 처방전 OCR과 사용자 확인을 통해 입력 부담을 줄이고, 확정 처방 기반 안내에서 시작해 일정·Check-in·Barrier/Support와 OTC 병용 확인까지 하나의 반복 경험으로 연결합니다. 의료진의 반복 가능한 설명과 상담 준비를 보조하지만 진단, 처방 변경과 복용 중단을 대신 결정하지 않습니다.
-
-## 목표 사용자와 핵심 가치
-
-1차 대상은 고혈압·제2형 당뇨병·이상지질혈증 중 하나 이상을 진단받고 본인이 직접 처방약을 관리하는 40~60대 사용자입니다.
-
-> 처방전을 올리면 복용해야 할 약과 일정을 쉽게 확인할 수 있고, 복약이 어려운 순간에는 상황에 맞는 도움을 받을 수 있습니다.
-
-제품이 완성하려는 핵심 여정은 다음과 같습니다.
-
-1. 처방전 업로드
-2. OCR·비-RAG LLM 구조화 초안 확인·수정과 처방 확정
-3. 확정 처방 기반 복약 가이드와 챗봇
-4. 사용자가 확인한 일정과 Check-in
-5. 미복용 사유에 따른 Barrier/Support
-6. 기존 챗봇에서 처방약–OTC Rule과 승인 근거를 이용한 병용 질문
-
-## 2026-08-27 구현 상태와 목표 범위
-
-Backend 기능 구현과 End-to-End 제품 MVP 완료를 구분합니다.
-
-| 구분 | 2026-08-27 당시 기록 — 현재 상태는 아래 정본 확인 |
-| --- | --- |
-| Backend MVP | 이메일 인증, 처방전 업로드, 같은 요청 안에서 완료되는 CLOVA OCR, 별도 OCR 필드 수정·처방 확정 API, OpenAI Guide·Chat 동기 API 구현 |
-| Frontend API 연결 | 회원가입·로그인, 처방전 업로드·OCR 조회, OCR 필드 검수·수정, 처방 확정, Guide 생성·조회, Chat 세션·이력·메시지까지 실제 API 연결 |
-| PostgreSQL 실제 E2E | 회원가입 → 로그인 → 업로드 → OCR → 검수·수정 → 처방 확정까지 완료 |
-| 전체 AI E2E 확인 필요 | Guide 생성 → Guide 조회 → Chat 진입과 실제 OpenAI 응답까지의 전체 흐름은 최종 완료로 표시하지 않음 |
-| Schema-only | 지식 문서·청크와 Guide·Chat citation 테이블은 존재하지만 실행 경로에는 미연결 |
-| Post-MVP-1 Approved v4 목표 | 비동기 Job·Outbox·Redis Stream·Worker, 처방 버전, 일정·Check-in, Barrier/Support, 현재 OCR LLM 경로의 최소전송·provenance·Worker 확장, MFDS 공식 Identity·Preflight, Guide·Chat Rule-first RAG·Citation·Safety·OTC |
-| 구현 상태 | PostgreSQL 전환은 완료됐지만 Post-MVP-1 OpenAPI, RAG/Eval schema, 기능·계약 테스트와 Evaluation Run은 아직 별도 구현·검증 필요 |
-| 공개 상태 | 현재 Guide·Chat Production 공개 차단. `PUBLIC_TRACK_C=false`, `PUBLIC_TRACK_F=false`이며 OTC는 F 게이트를 공유 |
-
-현재 OCR endpoint의 `202 Accepted`는 비동기 Job 접수입니다. FastAPI는 Job·Outbox를 저장하고 Redis Stream의 Worker가 CLOVA OCR·규칙 구조화와 결과 저장을 수행합니다. Guide와 Chat의 기본 생성 경로는 동기 one-cycle `201 Created` 계약입니다. 제한된 CLOSED_DEMO RAG 코드의 존재와 일반 사용자용 RAG·공개 승인 완료는 구분합니다.
-
-Approved Contract Freeze v4와 Post-MVP-1 계약 문서는 현재 **규범 목표 계약**이며 구현 완료 보고서가 아닙니다. 현재 runtime과 목표의 차이는 [시스템 아키텍처](docs/architecture.md), [AI 파이프라인](docs/ai-pipeline.md), [API 명세](docs/api.md), [데이터 구조](docs/data-schema.md), [테스트 전략](docs/testing.md)을 확인하세요.
+> **현재 구현과 목표 계약의 구분**: OCR 접수는 `202 Accepted` 비동기 Worker 경로로 동작하며, Guide·Chat 기본 생성 경로는 동기 `201 Created` 계약입니다. 일반 사용자용 RAG·공개 기능 플래그(`PUBLIC_TRACK_F_ENABLED` 등)는 비활성 상태이며, 상세 현재 runtime vs 목표 계약 구분은 [시스템 아키텍처](docs/architecture.md), [AI 파이프라인](docs/ai-pipeline.md), [API 명세](docs/api.md), [계약 인덱스](docs/contracts/README.md)를 확인하세요.
 
 ## 의료 안전 원칙
 
@@ -66,63 +31,64 @@ Approved Contract Freeze v4와 Post-MVP-1 계약 문서는 현재 **규범 목�
 
 자세한 기준은 [보안 정책](SECURITY.md)과 [개인정보 및 의료 안전](docs/privacy-safety.md)을 따릅니다.
 
-## 기술 구성
+## 기술 스택
 
-- **Frontend**: React, TypeScript, React Router, Vite, CSS·디자인 토큰
+- **Frontend**: React, TypeScript, React Router, Vite, 디자인 토큰
 - **Backend**: FastAPI, Pydantic, SQLAlchemy asyncio, Alembic
-- **Database**: PostgreSQL 17, `asyncpg`
-- **AI Provider**: CLOVA OCR, OpenAI Responses API
-- **Infrastructure**: Docker Compose, Nginx, Redis
+- **Database & Broker**: PostgreSQL 17 (`pgvector`, `asyncpg`), Redis Streams
+- **AI Provider**: CLOVA OCR, OpenAI API
 - **Quality**: Ruff, Mypy, Pytest, Oxlint, TypeScript build
 
-정확한 잠금 버전·런타임/선택 의존성·현재 AI 구현 범위는 [기술 스택](docs/technology-stack.md)에 정리합니다. Agent 역할과 서비스에서 호출하는 AI 모델은 별도 사용처입니다.
+상세 잠금 버전과 사용 범위는 [기술 스택](docs/technology-stack.md)을 참고하세요.
 
 ## 프로젝트 구조
 
 ```text
 .
-├── backend/            # FastAPI API, 모델·저장소, OCR 접수, 동기 Guide·Chat, Alembic
-│   ├── app/
-│   ├── alembic/
-│   └── alembic.ini
-├── ai_worker/          # OCR Outbox·Redis Consumer·복구 및 RAG/평가 구성요소
-├── frontend/           # 사용자 화면과 UX
-├── docs/               # 아키텍처, API, 계약, AI 파이프라인, 테스트·배포 문서
-├── evals/              # Post-MVP AI 평가 기준 준비 영역
-├── knowledge/          # Post-MVP 승인 의료 지식 소스 준비 영역
-├── tests/              # 계약·통합 테스트와 E2E 준비 영역
-├── envs/               # 로컬·배포 환경변수 예시
-├── infra/              # Docker·Nginx 배포 구성
-├── scripts/            # CI·배포 스크립트
-├── docker-compose.yml  # 로컬 개발 서비스 구성
-└── pyproject.toml      # uv 의존성 및 도구 설정
+├── apps/                       # 실행 가능한 서비스 애플리케이션
+│   ├── backend/                # FastAPI API, 모델·저장소, OCR 접수, 동기 Guide·Chat, Alembic
+│   ├── ai_worker/              # OCR Outbox·Redis Consumer·복구 및 RAG/평가 구성요소
+│   └── frontend/               # React + Vite 사용자 화면
+├── packages/                   # 앱들이 공유하는 순수 Python 패키지 (import명 유지)
+│   ├── ocr_runtime/            # OCR 엔진·구조화·정규화
+│   ├── provider_contracts/     # Provider 공용 계약·관측성·처방 무결성 타입
+│   ├── provider_runtime/       # Provider 관측성 런타임
+│   └── rag_runtime/            # RAG preflight·근거 권한·바인딩 순수 계층
+├── docs/                       # 현행 정본 문서 (archive/에 과거 팀 이력 분리 보관)
+├── evals/                      # AI/RAG 평가 데이터셋·매니페스트
+├── tests/                      # 계약·통합·마이그레이션·서비스 테스트
+├── envs/                       # example.local.env, example.prod.env, .local.env(gitignore)
+├── infra/                      # Nginx·DB 역할 프로비저닝·배포 구성
+├── scripts/                    # CI·검증·개발 스크립트
+└── docker-compose.yml          # 로컬 개발 서비스 구성
 ```
 
-## 사전 준비
+## 사전 준비 및 환경 설정
 
-- Python 3.13 이상
-- [uv](https://docs.astral.sh/uv/)
-- Docker와 Docker Compose
+- Python 3.13 이상, [uv](https://docs.astral.sh/uv/), Node/pnpm, Docker & Docker Compose
 
-## 설치와 환경 설정
-
-의존성을 설치합니다.
+1. Python 의존성 설치:
 
 ```bash
 uv sync --group app --group worker --frozen
 ```
 
-로컬 Docker Compose는 `envs/.local.env`를 사용합니다. 로컬 예시를 복사한 뒤 모든 placeholder를 실제 로컬 값으로 교체하고, 실제 환경 파일은 커밋하지 않습니다. 운영 환경은 `envs/example.prod.env`를 참고해 별도의 `envs/.prod.env`를 준비합니다.
+2. 로컬 환경변수 파일 준비 (`envs/.local.env`는 `.gitignore`에 포함되어 커밋되지 않습니다):
 
 ```bash
 cp envs/example.local.env envs/.local.env
 ```
 
-최소한 DB 설정과 사용하는 외부 제공자의 자격증명을 확인합니다. `OPENAI_MODEL`과 `OPENAI_TIMEOUT_SECONDS` 등 운영 기준값은 코드 기본값만으로 승인하지 않고 [배포 가이드](docs/deployment.md)에 실제 값과 확인 결과를 기록합니다.
+`envs/.local.env`에서 최소한 다음 값을 로컬 환경에 맞게 채우세요.
+- `DB_PASSWORD`: 로컬 PostgreSQL 비밀번호
+- `OPENAI_API_KEY`: OpenAI Platform API 키 (`OPENAI_MODEL=gpt-4o`, `OPENAI_EMBEDDING_MODEL=text-embedding-3-large`)
+- (OCR 테스트 시) `CLOVA_OCR_INVOKE_URL`, `CLOVA_OCR_SECRET`
 
-## 실행
+Docker Compose와 로컬 Python(`app.core.config.Config`) 모두 저장소 루트의 `envs/.local.env`를 읽도록 통일되어 있습니다. 운영 환경은 `envs/example.prod.env`를 참고해 별도의 `envs/.prod.env`를 준비하세요.
 
-Backend·OCR Worker·Frontend와 지원 인프라를 로컬 Compose로 빌드하고 실행합니다.
+## 실행 방법
+
+### Docker Compose로 전체 스택 실행
 
 ```bash
 docker compose \
@@ -131,59 +97,28 @@ docker compose \
   up -d --build
 ```
 
-Frontend 개발 서버를 직접 실행할 때의 명령은 다음과 같습니다.
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
-```
-
-주요 서비스명은 다음과 같습니다.
-
-| 서비스 | 역할 | 현재 동작 |
+| 서비스 | 역할 | 접속 주소 |
 | --- | --- | --- |
 | `fastapi` | API 서버 | `http://localhost:8000/api/docs` |
-| `postgres` | PostgreSQL 17 | 영속 데이터 저장 |
-| `migrate` | Alembic migration | 실행 완료 후 정상 종료 |
-| `redis` | Redis Streams | OCR 메시지 전달·Consumer Group |
-| `ai-worker` | OCR Worker | Outbox Publisher·Consumer·복구 Scheduler 실행 |
+| `postgres` | PostgreSQL 17 | `localhost:5432` |
+| `migrate` | Alembic migration | 초기화 후 정상 종료 |
+| `redis` | Redis Streams | `localhost:6379` |
+| `ai-worker` | OCR Worker | Outbox Publisher·Consumer 실행 |
 | `frontend` | Vite 개발 서버 | `http://localhost:5173` |
 | `nginx` | 리버스 프록시 | `http://localhost/api/docs` |
 
-필요한 서비스만 실행할 수도 있습니다.
+### 로컬 Python / Frontend 직접 실행
 
 ```bash
-docker compose \
-  --env-file envs/.local.env \
-  -f docker-compose.yml \
-  up -d --build fastapi
+# Backend API (저장소 루트에서 실행)
+PYTHONPATH=apps/backend:packages:apps:. uv run --env-file envs/.local.env \
+  uvicorn --app-dir apps/backend app.main:app --reload
 
-docker compose \
-  --env-file envs/.local.env \
-  -f docker-compose.yml \
-  up -d --build ai-worker
-```
+# DB migration
+uv run alembic -c apps/backend/alembic.ini upgrade head
 
-로컬 Python 환경에서 API 서버를 직접 실행하려면 DB와 필요한 외부 설정을 준비한 뒤 다음 명령을 사용합니다. `Config`는 현재 작업 디렉터리 기준으로 `.env`를 찾으므로, 저장소 루트에서 실행 위치만 `--app-dir`로 지정합니다.
-
-```bash
-uv run --env-file envs/.local.env \
-  uvicorn --app-dir backend app.main:app --reload
-```
-
-## Database migration
-
-전체 Compose 실행 시 `migrate` 서비스가 PostgreSQL health check 후 다음 명령을 한 번 실행합니다.
-
-```bash
-uv run --no-sync alembic upgrade head
-```
-
-로컬 Python 환경에서는 다음 명령을 사용합니다.
-
-```bash
-uv run alembic -c backend/alembic.ini upgrade head
+# Frontend
+cd apps/frontend && pnpm install && pnpm dev
 ```
 
 ## 테스트와 품질 검사
@@ -193,23 +128,17 @@ uv run alembic -c backend/alembic.ini upgrade head
 ```bash
 uv run ruff check .
 uv run ruff format . --check
-uv run mypy backend/app ai_worker
+uv run mypy apps/backend/app apps/ai_worker
 bash scripts/ci/run_test.sh
 
-cd frontend
-pnpm lint
-pnpm build
+cd apps/frontend && pnpm lint && pnpm build
 ```
 
-Python 기본 테스트 명령은 `backend/app`, `tests/contract`, `ai_worker/tests/core`를 실행합니다. OpenAI 실호출 smoke, `tests/integration`, E2E와 AI 평가가 기본 CI에서 자동 실행되는 것은 아닙니다. 정확한 범위는 [테스트 전략](docs/testing.md)을 확인하세요.
+문서만 변경한 경우에는 링크·범위 검토와 `git diff --check`를 실행합니다.
 
-문서만 변경한 경우에는 렌더링·링크·범위와 전체 diff를 검토하고 `git diff --check`를 실행합니다.
+## 새 기능 추가 가이드 (반복 워크플로우)
 
-## 개발 가이드
-
-- API 경로와 오류 계약은 [API 명세](docs/api.md)를 따릅니다.
-- 공유 DTO·상태·오류 의미를 변경하면 관련 [계약 문서](docs/contracts/README.md), 구현과 계약·통합 테스트를 함께 갱신합니다.
-- DB 모델은 `backend/app/models/`에 SQLAlchemy 모델로 정의하고 Alembic migration을 추가합니다.
-- OCR 접수는 `backend/app/services/ocr.py`, 비동기 실행은 `ai_worker/tasks/ocr/`에 있습니다. 기본 동기 생성은 `backend/app/services/guide_ai/`, `backend/app/services/chat_ai/`에서 확인합니다.
-- Post-MVP 비동기 작업은 계약과 전환 조건을 승인한 뒤 `ai_worker/tasks/`에 구현합니다.
-- 비밀정보와 실제 환자 정보는 저장소에 포함하지 않습니다. [SECURITY.md](SECURITY.md)와 [개인정보 및 의료 안전](docs/privacy-safety.md)을 따릅니다.
+1. `docs/designs/_template/`의 `design.md`, `plan.md`를 `docs/designs/<도메인>/` 아래로 복사해 범위·계약·안전 기준을 먼저 정리합니다.
+2. 공유 DTO·상태·오류 의미를 변경할 때는 [`docs/contracts/`](docs/contracts/README.md), 구현, 계약·통합 테스트를 함께 갱신합니다.
+3. DB 모델은 `apps/backend/app/models/`에 정의하고 Alembic forward migration을 추가합니다(Trigger/RLS/Stored Procedure 금지).
+4. 비밀정보와 실제 환자 정보는 절대 저장소에 커밋하지 않습니다([SECURITY.md](SECURITY.md), [개인정보 및 의료 안전](docs/privacy-safety.md)).

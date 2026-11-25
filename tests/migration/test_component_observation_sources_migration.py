@@ -18,7 +18,8 @@ def component_database(request):
 
 def migrate(connection, direction):
     spec = importlib.util.spec_from_file_location(
-        "d04_observation_migration", ROOT / "backend/alembic/versions/166f30415263_component_observation_sources.py"
+        "d04_observation_migration",
+        ROOT / "apps/backend/alembic/versions/166f30415263_component_observation_sources.py",
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

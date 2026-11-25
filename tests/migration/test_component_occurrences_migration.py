@@ -29,7 +29,7 @@ def run_component_migration(connection, direction):
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
 
-    path = ROOT / "backend/alembic/versions/e8c41a09d652_align_component_occurrences.py"
+    path = ROOT / "apps/backend/alembic/versions/e8c41a09d652_align_component_occurrences.py"
     spec = importlib.util.spec_from_file_location("d04_migration", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

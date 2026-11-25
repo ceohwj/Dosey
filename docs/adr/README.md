@@ -18,5 +18,7 @@
 - [ADR 0001](./0001-synchronous-chat-generation-with-session-row-lock.md) — Accepted, 현재 동기 MVP
 - [ADR 0002](./0002-post-mvp-1-async-execution.md) — Accepted target / Not implemented, 승인된 목표 결정·미구현
 - [ADR 0003](./0003-chat-recent-context-single-v2.md) — Proposed, 단일 `chat-prompt-v2`와 Local-only 최근 대화 조회 결정
+- [809: Normalized OCR Image](./809-normalized-ocr-image.md) — OCR 정규화 이미지 처리 결정
+- [838: Production Chat History Context Activation](./838-production-chat-history-context-activation.md) — 운영 환경 최근 대화 문맥 활성화 경계
 
 목표 ADR의 존재는 현재 구조의 대체를 뜻하지 않는다. 실제 전환 PR에서 route·DTO·migration·Worker·계약 및 통합 테스트가 함께 병합되고 운영 gate가 확인된 뒤 상태 관계를 갱신한다.

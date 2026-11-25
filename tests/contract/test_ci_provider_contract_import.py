@@ -21,7 +21,19 @@ def test_ci_python_test_lanes_use_their_required_import_boundaries() -> None:
         step for step in jobs["test-worker"]["steps"] if step["name"] == "Run AI Worker Unit Tests with Coverage"
     )
 
-    assert backend_step["env"]["PYTHONPATH"] == "${{ github.workspace }}/backend:${{ github.workspace }}"
-    assert contract_step["env"]["PYTHONPATH"] == "${{ github.workspace }}/backend:${{ github.workspace }}"
-    assert rag_step["env"]["PYTHONPATH"] == "${{ github.workspace }}/backend:${{ github.workspace }}"
-    assert worker_step["env"]["PYTHONPATH"] == "${{ github.workspace }}"
+    assert (
+        backend_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert (
+        contract_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert (
+        rag_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert (
+        worker_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )

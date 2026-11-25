@@ -42,7 +42,7 @@ from rag_runtime.source_use_approval import SourceUsePurpose
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MIGRATION_PATH = (
-    PROJECT_ROOT / "backend" / "alembic" / "versions" / "853a1b2c3d4e_runtime_bundle_citation_approval_pin.py"
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "853a1b2c3d4e_runtime_bundle_citation_approval_pin.py"
 )
 
 
@@ -55,7 +55,7 @@ def _load_migration() -> Any:
 
 
 def _alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

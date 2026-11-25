@@ -40,7 +40,7 @@ def create_test_database_url() -> URL:
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 def create_alembic_database_url() -> str:

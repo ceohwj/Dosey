@@ -37,7 +37,7 @@ def database(monkeypatch):
 
     asyncio.run(execute(f'CREATE DATABASE "{name}"', admin=True))
     monkeypatch.setattr(config, "DB_NAME", name)
-    cfg = Config(str(ROOT / "backend/alembic.ini"))
+    cfg = Config(str(ROOT / "apps/backend/alembic.ini"))
     try:
         command.upgrade(cfg, PARENT)
         asyncio.run(

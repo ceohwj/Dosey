@@ -25,8 +25,8 @@ from scripts.verify_rag_01_receipt import (
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RECEIPT_PATH = PROJECT_ROOT / "tests" / "fixtures" / "rag" / "source_contract_receipt.json"
 LOCAL_TARGET_PATH = PROJECT_ROOT / "docs" / "contracts" / "targets" / "post-mvp-1" / "rag-source-ingestion-v1.md"
-TRACEABILITY_PATH = PROJECT_ROOT / "docs" / "testing" / "post-mvp-1-contract-traceability.md"
-DECISION_PATH = PROJECT_ROOT / "docs" / "governance" / "decisions" / "2026-08-31-rag-p0-contract-freeze.md"
+TRACEABILITY_PATH = PROJECT_ROOT / "docs" / "archive" / "testing" / "post-mvp-1-contract-traceability.md"
+DECISION_PATH = PROJECT_ROOT / "docs" / "archive" / "decisions" / "2026-08-31-rag-p0-contract-freeze.md"
 
 
 def _sha256(path: Path) -> str:

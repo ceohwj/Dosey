@@ -2,7 +2,7 @@
 
 - **상태**: Proposed (구현 브랜치 `feat/178-ret-h-runtime` 검증 중, target/current 미승격)
 - **책임자**: 구현 정현우, 단일 책임 리뷰어 송은영 (@phina-io)
-- **상위 근거**: Issue #178, `docs/designs/ceohwj/issue-178-ret-h-completion-design.md`, Decision 2026-09-08 `production-evidence-retrieval-contract-divergence`
+- **상위 근거**: Issue #178, `docs/designs/rag/issue-178-ret-h-completion-design.md`, Decision 2026-09-08 `production-evidence-retrieval-contract-divergence`
 
 ---
 

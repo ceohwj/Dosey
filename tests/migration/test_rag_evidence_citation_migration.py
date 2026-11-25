@@ -25,7 +25,7 @@ RAG_EVIDENCE_CITATION_BASE_REVISION = "199a1b2c3d4e"
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

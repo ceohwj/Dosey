@@ -520,9 +520,9 @@ async def test_benchmark_sync_201_synthetic_executor(cra_case: CraCase, monkeypa
         return observed[-1]
 
     source_paths = (
-        Path("backend/app/services/guide_sync_runtime_execution.py"),
-        Path("backend/app/services/guide_sync_runtime_finalizer.py"),
-        Path("backend/app/services/guide_request_authority.py"),
+        Path("apps/backend/app/services/guide_sync_runtime_execution.py"),
+        Path("apps/backend/app/services/guide_sync_runtime_finalizer.py"),
+        Path("apps/backend/app/services/guide_request_authority.py"),
     )
     source_hash = hashlib.sha256()
     for source_path in source_paths:

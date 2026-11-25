@@ -20,7 +20,7 @@ from sqlalchemy.pool import NullPool
 from app.core import config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "807a1b2c3d4e_source_use_approval.py"
+MIGRATION_PATH = PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "807a1b2c3d4e_source_use_approval.py"
 
 
 def _load_migration() -> Any:
@@ -33,7 +33,7 @@ def _load_migration() -> Any:
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

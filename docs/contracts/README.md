@@ -1,6 +1,6 @@
 # 공통 데이터 계약
 
-- [Dosey Candidate Runtime 결속 v2 Decision](../governance/decisions/2026-10-23-candidate-runtime-bundle-binding.md): Human Owner의 내부 구현 진행 지시에 따른 Search Bundle/hash·환경 revision 고정과 legacy 성공 키 재현. 정본은 기존 [멱등 Target](targets/post-mvp-1/idempotency-v1.md), [Candidate Target](targets/post-mvp-1/medication-identification-v1.md), [Runtime Target](targets/post-mvp-1/rag-runtime-v1.md)에 반영한다. 기존 로컬 DB의 read-only 관측은 Candidate 키·Search 각 0건(revision `180a1b2c3d4e`), 다른 배포는 미확인. 생산자·Candidate Source Guard·Index artifact 대응·공개 gate 완료나 Current 승격을 의미하지 않는다.
+- [Dosey Candidate Runtime 결속 v2 Decision](../archive/decisions/2026-10-23-candidate-runtime-bundle-binding.md): Human Owner의 내부 구현 진행 지시에 따른 Search Bundle/hash·환경 revision 고정과 legacy 성공 키 재현. 정본은 기존 [멱등 Target](targets/post-mvp-1/idempotency-v1.md), [Candidate Target](targets/post-mvp-1/medication-identification-v1.md), [Runtime Target](targets/post-mvp-1/rag-runtime-v1.md)에 반영한다. 기존 로컬 DB의 read-only 관측은 Candidate 키·Search 각 0건(revision `180a1b2c3d4e`), 다른 배포는 미확인. 생산자·Candidate Source Guard·Index artifact 대응·공개 gate 완료나 Current 승격을 의미하지 않는다.
 
 - [#591 XML 제한 수집 Receipt](targets/post-mvp-1/mfds-label-xml-receipts-591.md): 승인된 필드·hash·단방향 결속 및 private 발급 도구. 구현 리뷰/서버 적용 대기, DB 등록·READY·공개 게이트 별도.
 
@@ -92,7 +92,7 @@ Frontend, Backend, OCR과 RAG·LLM이 공유하는 의미와 상태를 관리합
 - [OCR LLM Worker 범위 정정 (#453)](./proposed/ocr-llm-worker-consent-453.md): 기존 이관 범위와 리뷰 시 별도 검토할 항목. 기존 동의 개정안 미채택.
 - [목적별 동의 Gate 계약 제안 (PD-207)](./proposed/consent-gate-207.md): OCR/GUIDE/CHAT/NOTIFICATION 목적별 GRANTED/WITHDRAWN 동의 상태와 row 없음=미동의 기준. #465에서 `user_consent` 저장 기반을 병합했고, #510에서 현재 사용자 목적별 동의 상태 조회·변경 API를 추가했다. #505는 OCR 목적의 Backend 동의 API·접수 Gate, Worker 재검사·차단 저장과 Frontend 소비를 구현했다. GUIDE/CHAT/NOTIFICATION 실행 연결, OCR 최종 정책 문구·버전과 Production 공개 승인은 후속 범위다. 전체 목적별 계약은 Proposed 유지.
 
-- [Track B UNCONFIRMED backlog v1](./proposed/unconfirmed-backlog-v1.md): PD-418 URL·cursor·DTO·오류. #426 후보와 #462 실제 등록·PUT 보완·페이지 이동·날짜별 revision 검증 병합 완료; #462 남한솔 APPROVED·최종 CI 7/7 확인. 문서는 Proposed 유지, Current 승격 별도 검토. [승인 범위·상태 근거](../governance/decisions/2026-09-10-unconfirmed-backlog-418.md#승인-증빙과-등록-변경의-병합-조건).
+- [Track B UNCONFIRMED backlog v1](./proposed/unconfirmed-backlog-v1.md): PD-418 URL·cursor·DTO·오류. #426 후보와 #462 실제 등록·PUT 보완·페이지 이동·날짜별 revision 검증 병합 완료; #462 남한솔 APPROVED·최종 CI 7/7 확인. 문서는 Proposed 유지, Current 승격 별도 검토. [승인 범위·상태 근거](../archive/decisions/2026-09-10-unconfirmed-backlog-418.md#승인-증빙과-등록-변경의-병합-조건).
 
 - [Source Artifact·REJECTS 보존·삭제 정책 초안 (#335)](./proposed/post-mvp-1/source-artifact-retention-cleanup.md): PM 30일 유예·참조 보존·수동 배치 승인 반영, 통합 검토 대상, 후속 구현 [#347](https://github.com/AI-HealthCare-05/AH_05_04/issues/347)·김지혜 담당. Local 합성 #347의 승인 순서·revision·경합 잠금·DB 감사 근거·참조 범위 보완 연결 포함. 운영 삭제·활성화 승인 아님.
 - [Source Artifact Finalizer Owner 경계 v1 (`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)](./proposed/post-mvp-1/source-artifact-finalizer-owner-boundary-v1.md): 별도 non-root owner의 합성 UDS `source-artifact-owner@1` (`PUT`·verified `READ`·`OUTCOME`), private intent/outcome 저널, rematerialization 일시 input spool, 새 owner vault의 business `DELETE` 차단 계약. 합성 내부 동결·구현 완료이며 운영 배포·실제 Source·Current 승격은 별도.
@@ -116,7 +116,7 @@ Proposed 계약은 문서별 구현 상태를 별도로 표시합니다. 부분 
 - [멱등성 계약 v1](./targets/post-mvp-1/idempotency-v1.md): 요청 지문, 중복·충돌 처리와 보존 기간
 - [Transactional Outbox와 Redis Stream 계약 v1](./targets/post-mvp-1/outbox-stream-v1.md): at-least-once 전달, ACK, fencing과 메시지 경계
 - [처방 버전 계약 v1](./targets/post-mvp-1/prescription-version-v1.md): 불변 snapshot, 활성화, stale 및 기존 데이터 backfill
-- [Check-in과 Barrier 계약 v1](./targets/post-mvp-1/checkin-v1.md): 3개 Check-in 결과와 Barrier 명시적 거절·미제출 구분; #413 Check-in PUT·#456 일정 API 병합, 전체 목표 Current 승격은 별도, [HTTP 구체화 제안](../governance/decisions/2026-09-10-checkin-api-202.md)
+- [Check-in과 Barrier 계약 v1](./targets/post-mvp-1/checkin-v1.md): 3개 Check-in 결과와 Barrier 명시적 거절·미제출 구분; #413 Check-in PUT·#456 일정 API 병합, 전체 목표 Current 승격은 별도, [HTTP 구체화 제안](../archive/decisions/2026-09-10-checkin-api-202.md)
 - [OCR 비-RAG LLM 구조화 계약 v1](./targets/post-mvp-1/ocr-llm-structuring-v1.md): 최소전송, 구조화 초안 provenance, 사용자 확정과 실패 복구
 - [MFDS 공식 의약품 식별·Candidate 계약 v1](./targets/post-mvp-1/medication-identification-v1.md): 공식 Source/Catalog·후보 검색·사용자 확인·Preflight 공유 경계. #583에서 Candidate Index `BUILDING→READY/FAILED`, 기존 READY `RETIRED`, code당 active READY 1개, `lexical_storage_hash`/`embedding_storage_hash` 기반 READY 전 재검증과 legacy receipt fail-closed 의미를 목표 정본에 반영했다. Runtime 활성화와 공개 전환은 후속 범위다.
 - [Safety Result 계약 v1](./targets/post-mvp-1/safety-result-v1.md): Approved v4 이력과 Track C 공통 Safety 기준; Track F 후속 의미는 v2가 대체
@@ -186,15 +186,15 @@ RAG Source·Runtime·Evaluation·Medication Candidate·Safety/Citation v2는 외
 
 ### #166 D-03·D-04·D-05 범위와 검토 연결
 
-- [D-03 Catalog Set·Authority Alias Set 관계 및 Crosswalk 범위](../governance/decisions/2026-09-13-catalog-crosswalk-scope.md):
+- [D-03 Catalog Set·Authority Alias Set 관계 및 Crosswalk 범위](../archive/decisions/2026-09-13-catalog-crosswalk-scope.md):
   일반 Catalog 저장·재현 구성에 Alias member를 포함하며 독립 Authority Alias Set을 대체하지 않는다.
   Crosswalk는 현재 P0 소비 경로가 없어 제외. 다섯 항목과 재개 조건을 기록하며 Authority 구현 완료가 아니다.
 
-- [D-05 hash 전환 보류·재개 조건](../governance/decisions/2026-09-13-catalog-d05-transition-scope.md):
+- [D-05 hash 전환 보류·재개 조건](../archive/decisions/2026-09-13-catalog-d05-transition-scope.md):
   현우님 답변 반영 문서 리뷰 대상. 전체 전환과 Runtime 구성·연결 보류, 기존 v2·관찰 v3 envelope 유지.
   축소 projection은 필요 확인 후 새 계약으로 검토. 신규 hash 구현 완료·공개 승인 아님.
 
-- [Catalog Component occurrence 결정안](../governance/decisions/2026-09-11-catalog-component-occurrences.md):
+- [Catalog Component occurrence 결정안](../archive/decisions/2026-09-11-catalog-component-occurrences.md):
   Proposed. 선택 원본 키·제품별 순서 UNIQUE·release_profile·무손실 migration 경계.
   계약 정본은 기존 [Catalog DB 연결안](proposed/post-mvp-1/catalog-db-integration-v2.md)을 갱신한다.
   2026-09-13 후속 구현: MFDS 관찰 입력의 총량 그룹·원본 필드·제외 사유·건수 검사.
@@ -202,7 +202,7 @@ RAG Source·Runtime·Evaluation·Medication Candidate·Safety/Citation v2는 외
   [정현우 담당 범위 리뷰](https://github.com/AI-HealthCare-05/AH_05_04/pull/477#pullrequestreview-5190458759)를 완료했다. 실제 API 수집·상세 Snapshot 생산은 후속이다.
   승인 대상 HEAD는 `c58f0968`이며 병합·운영 활성화와 구분한다.
 
-- [D-04 관찰 출처·인계 v3 결정안](../governance/decisions/2026-09-13-component-observation-handoff.md):
+- [D-04 관찰 출처·인계 v3 결정안](../archive/decisions/2026-09-13-component-observation-handoff.md):
   검증된 상세 artifact Loader, 독립 Snapshot FK, 관찰 버전·총량 그룹의 DB/Candidate 인계 제안.
   기존 v2를 보존하고 관찰 자료는 medication-catalog-v3로 구분. 계약 정본은 위 Catalog DB 연결안.
 
@@ -211,25 +211,25 @@ RAG Source·Runtime·Evaluation·Medication Candidate·Safety/Citation v2는 외
 ## Track C C1 저장 기반 (#192)
 
 - [저장 계약 v1 — Proposed/내부 저장 기반 구현 완료](proposed/track-c-storage-v1.md)
-- [PD-192](../governance/decisions/2026-09-13-track-c-storage-192.md)
+- [PD-192](../archive/decisions/2026-09-13-track-c-storage-192.md)
 - 실제 Check-in 부모에 Safety·Barrier·Plan·Follow-up 이력을 연결하는 저장 기반이다.
   공개 mutation, #195 무효화와 Track C 공개는 미완료다.
 - [HandlerConfig 구체안 — Proposed/제품 승인·내부 구현](proposed/track-c-handler-config-192.md):
   기존 Plan JSONB 기반 설정·버전·지원별 허용 필드 및 #194 실행 인계. 제품 승인 Rule·한국어 Copy와
   명시적 allowlist·엄격 로더를 구현했으며 담당 기술·화면 리뷰와 공개 실행은 미완료다.
-- [PD-192-2](../governance/decisions/2026-09-15-track-c-handler-config-rules-192.md):
+- [PD-192-2](../archive/decisions/2026-09-15-track-c-handler-config-rules-192.md):
   6개 최소 안내형 Support의 내부 Rule·Copy 제품 승인과 공개 전 경계.
 
 ## Track C C2 Safety·Barrier API (#193)
 
 - [API v1 — Proposed](proposed/track-c-safety-barrier-api-193.md): HTTP·DTO·멱등성·정정·동시성 구현 리뷰 대상.
-- [PD-193](../governance/decisions/2026-09-15-track-c-safety-barrier-api-193.md): 구체화 delta와 NHS 참고 자료 경계.
+- [PD-193](../archive/decisions/2026-09-15-track-c-safety-barrier-api-193.md): 구체화 delta와 NHS 참고 자료 경계.
 - [Safety 정책·한국어 문구 검토안](proposed/track-c-safety-policy-copy-193.md): NHS 근거별 선택표, 복수 선택 규칙, 고정 안내와 합성 검증 명세. 문서 초안이며 런타임 미적용.
 
 ## Track C 지원 1개 제안·Plan 생성 (#194 부분)
 
 - [API v1 — Proposed, 리뷰 revision 2](proposed/track-c-support-plan-api-194.md): 잠금 없는 단일 제안 GET, 설정 로딩 후 잠그는 확정 POST, 현재성·소유권·멱등성.
-- [PD-194](../governance/decisions/2026-09-15-track-c-support-plan-api-194.md): PM의 0/1개 결정과 이번 구현 범위 축소.
+- [PD-194](../archive/decisions/2026-09-15-track-c-support-plan-api-194.md): PM의 0/1개 결정과 이번 구현 범위 축소.
 - Plan 조회·완료·취소·follow-up·revision 추가는 이번 범위 밖이며 #194 전체 완료가 아니다.
 - 실제 증상별 임상 판정표·환자용 문구 및 #195 연결은 미완료다.
 
@@ -237,20 +237,20 @@ RAG Source·Runtime·Evaluation·Medication Candidate·Safety/Citation v2는 외
 ### #458 Worker 동의 조회·재검사 로컬 구현
 
 - [후속 계약](proposed/ocr-llm-transfer-458.md)
-- [#465 대조·구현 범위 및 runtime 연결 조건](../designs/ocr-consent-gate-458-implementation.md)
-- [동의 조회·재검사 검증](../testing/ocr-consent-gate-458.md)
+- [#465 대조·구현 범위 및 runtime 연결 조건](../designs/ocr/ocr-consent-gate-458-implementation.md)
+- [동의 조회·재검사 검증](../archive/testing/ocr-consent-gate-458.md)
 - 내부 조회와 호출 직전 검사 부품. 동의 API·차단 저장·전송 최소화·공개 활성화 완료 아님.
 
 ## Track C 완료 계획 Follow-up (#194 후속)
 
 - [Follow-up API v1 — Current, PR #631 반영](current/track-c-followup-api-194.md): 완료 계획의 평가 GET/POST, 현재값·revision 정정·audit·멱등성·동시성. 기존 생성/Plan 응답은 유지한다. 최종 책임 리뷰 승인·병합은 대기 중이며 외부 공개는 별도다.
-- [PD-194-2](../governance/decisions/2026-09-16-track-c-followup-194.md): 완료 계획만 평가, 이후 Check-in 정정에도 과거 평가 허용. 권가빈 구현·김지혜 단일 책임 리뷰.
+- [PD-194-2](../archive/decisions/2026-09-16-track-c-followup-194.md): 완료 계획만 평가, 이후 Check-in 정정에도 과거 평가 허용. 권가빈 구현·김지혜 단일 책임 리뷰.
 - #139 Frontend·Constraint/RAG Handler·외부 공개 및 #194 전체 완료는 별도 범위다.
 
 ## Track C 규칙 기반 개인화 지원 (#718)
 
 - [규칙 기반 개인화 지원 — Current, 구현 PR 반영](current/track-c-rule-based-personalization-718.md): 세부 이유, 최대 2개 지원, 고정 상담 질문, Plan snapshot·재조회 계약. RAG·LLM·실시간 웹 조회를 호출하지 않으며 기존 Safety·SELF·현재성·공개 게이트를 유지한다.
-- [PD-718](../governance/decisions/2026-09-17-track-c-rule-based-personalization-718.md): 기존 정적 Rule·Copy 확장과 JSONB snapshot 재사용 결정. Follow-up v2는 별도 migration·계약으로 남긴다.
+- [PD-718](../archive/decisions/2026-09-17-track-c-rule-based-personalization-718.md): 기존 정적 Rule·Copy 확장과 JSONB snapshot 재사용 결정. Follow-up v2는 별도 migration·계약으로 남긴다.
 
 ## Track C 일정 변경·외출 상황 선택 (#194 후속)
 
@@ -262,8 +262,8 @@ PR #639의 두 계약은 구현 PR 내 이동이며 #629 병합·최종 책임 �
 ## Track C 내부 합성 데모 및 RAG 준비 상태 (2026-09-16)
 
 - [#193 Safety API Proposed의 Local 7일 데모](proposed/track-c-safety-barrier-api-193.md): 기본 OFF,
-  합성 계정·시간창 제한과 별도 demo version. [PD-193 revision 3](../governance/decisions/2026-09-16-track-c-internal-demo-193.md).
-- [#196 연결 준비 상태](../testing/track-c-rag-readiness-196.md): 공용 kernel과 실제 handoff·Source·Bundle
+  합성 계정·시간창 제한과 별도 demo version. [PD-193 revision 3](../archive/decisions/2026-09-16-track-c-internal-demo-193.md).
+- [#196 연결 준비 상태](../archive/testing/track-c-rag-readiness-196.md): 공용 kernel과 실제 handoff·Source·Bundle
   승인 Receipt를 구분한다. 새 공용 계약을 정의하거나 RAG 완료를 주장하지 않는다.
 
 - [Track B 명시적 식후 시간 후보 v1 (#670)](proposed/track-b-explicit-schedule-recommendation-v1.md): Local 구현 검토안. 확정 문구의 간격·사용자 식사 종료 시각 계산, 선택 저장 context·서버 재계산. 담당·전문 리뷰와 공개 승인 대기.
@@ -277,39 +277,39 @@ PR #639의 두 계약은 구현 PR 내 이동이며 #629 병합·최종 책임 �
 
 ## 합성 Candidate 내부 연결 상태 (2026-10-23)
 
-[합성 내부 연결 v1 결정](../governance/decisions/2026-10-23-candidate-search-synthetic-connection.md): 기존 식별·Runtime·멱등 Target에 대한 합성 TEST 범위의 연결이다. 실제 Source 기간/threshold·공개 승인은 미확정이며 Current로 승격하지 않는다. 영속 감사의 합성 내부 승인 범위는 아래 후속 결정으로 구분한다.
+[합성 내부 연결 v1 결정](../archive/decisions/2026-10-23-candidate-search-synthetic-connection.md): 기존 식별·Runtime·멱등 Target에 대한 합성 TEST 범위의 연결이다. 실제 Source 기간/threshold·공개 승인은 미확정이며 Current로 승격하지 않는다. 영속 감사의 합성 내부 승인 범위는 아래 후속 결정으로 구분한다.
 
 ## Candidate 초기 stage 실행과 영속 감사 내부 계약 (2026-11-04)
 
-- [초기 Exact·승인 Alias 결정](../governance/decisions/2026-11-04-candidate-exact-alias-validation.md): Owner가 선택한 초기 검증 범위. 기존 식별 Target에 반영하며 Source 활성화·공개·운영 수치 승인은 포함하지 않는다.
+- [초기 Exact·승인 Alias 결정](../archive/decisions/2026-11-04-candidate-exact-alias-validation.md): Owner가 선택한 초기 검증 범위. 기존 식별 Target에 반영하며 Source 활성화·공개·운영 수치 승인은 포함하지 않는다.
 - [Candidate 정책·원천 재확인·영속 감사 v1](./targets/post-mvp-1/candidate-request-guard-audit-v1.md): 합성 내부 Contract Freeze v1. Owner가 두 저장 구조·분리된 발행 역할·FAIL 감사 transaction의 격리 구현을 승인했다. 실제 Source·운영 수치·운영 DB·공개는 미승인이다.
 
 ## Guide Runtime Authority·Bootstrap 변경 요청 (2026-11-04)
 
-- [Guide Sync REQUEST Authority v1](./targets/post-mvp-1/guide-sync-request-authority-v1.md): 2026-11-04 Human Owner의 [CR-A 결정](../governance/decisions/2026-11-04-guide-sync-request-authority.md)에 따른 **Approved Target · CR-A 연결·합성 검증 완료; 실제 정책 연결 및 Current 승격 미수행**. 요청별 issuer·snapshot, 동기 201의 A 접수 commit → B transaction 없는 실행 → C 잠금 재검증/commit을 고정한다. Current·공개 승인은 아니다.
+- [Guide Sync REQUEST Authority v1](./targets/post-mvp-1/guide-sync-request-authority-v1.md): 2026-11-04 Human Owner의 [CR-A 결정](../archive/decisions/2026-11-04-guide-sync-request-authority.md)에 따른 **Approved Target · CR-A 연결·합성 검증 완료; 실제 정책 연결 및 Current 승격 미수행**. 요청별 issuer·snapshot, 동기 201의 A 접수 commit → B transaction 없는 실행 → C 잠금 재검증/commit을 고정한다. Current·공개 승인은 아니다.
 - [요청별 권한·bootstrap 변경 요청 v1](./proposed/post-mvp-1/guide-runtime-authority-bootstrap-v1.md): CR-A 승인 전 검토 이력과 미승인 CR-B 공식 Identification identity 공급·CR-C 승인 verifier 제안을 보존한다. CR-A 정본은 위 Target이며 CR-B/C는 계속 Proposed다.
 
 
 ## Source run·artifact 원자 발행 — 합성 내부 (2026-11-04)
 
-[Owner Decision](../governance/decisions/2026-11-04-source-run-artifact-close.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)·[capture Target](targets/post-mvp-1/candidate-request-guard-audit-v1.md)의 새 run/전체 artifact 원자 저장·기존 run append 제거·잠금/실패 보존·합성 v2 admission을 확정한다. 보장은 Python Writer 경로이며 직접 SQL 차단·운영 수치·실제 Source·운영 DB·Current 승격·공개는 제외한다. 구현·테스트는 계약 확정과 구분해 evidence에 기록한다.
+[Owner Decision](../archive/decisions/2026-11-04-source-run-artifact-close.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)·[capture Target](targets/post-mvp-1/candidate-request-guard-audit-v1.md)의 새 run/전체 artifact 원자 저장·기존 run append 제거·잠금/실패 보존·합성 v2 admission을 확정한다. 보장은 Python Writer 경로이며 직접 SQL 차단·운영 수치·실제 Source·운영 DB·Current 승격·공개는 제외한다. 구현·테스트는 계약 확정과 구분해 evidence에 기록한다.
 
-[Source 원자 발행 합성 검증](../testing/source-run-artifact-close-20261104.md): 지원 Python Writer 경로의 원자 저장·잠금/원본 경합·기존 재시도 검사와 실제 Source/SQL/공개 보장 한계를 기록한다.
+[Source 원자 발행 합성 검증](../archive/testing/source-run-artifact-close-20261104.md): 지원 Python Writer 경로의 원자 저장·잠금/원본 경합·기존 재시도 검사와 실제 Source/SQL/공개 보장 한계를 기록한다.
 
 ## Source Writer run 최소 권한 — 합성 내부 (2026-11-05)
 
-[Owner A 단계 Decision](../governance/decisions/2026-11-05-source-writer-run-privileges.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)의 run UPDATE를 기존 잠금용 zero marker로 제한하고 업무 열 6개의 수정 권한을 제거했다. 기존 atomic 발행·행 잠금·재시도·안전 규칙을 유지한다. A 당시 Writer artifact INSERT의 직접 SQL append는 남았으며 아래 B1에서 credential을 분리한다. [A 단계 합성 권한 경계 검증](../testing/source-writer-role-boundary-20261105.md)은 당시 실행 증거와 한계다.
+[Owner A 단계 Decision](../archive/decisions/2026-11-05-source-writer-run-privileges.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)의 run UPDATE를 기존 잠금용 zero marker로 제한하고 업무 열 6개의 수정 권한을 제거했다. 기존 atomic 발행·행 잠금·재시도·안전 규칙을 유지한다. A 당시 Writer artifact INSERT의 직접 SQL append는 남았으며 아래 B1에서 credential을 분리한다. [A 단계 합성 권한 경계 검증](../archive/testing/source-writer-role-boundary-20261105.md)은 당시 실행 증거와 한계다.
 
 ## Source aggregate publisher B1 — 합성 내부 (2026-11-05)
 
-[Owner B1 Decision](../governance/decisions/2026-11-05-source-trusted-publisher-b1.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)·[Capture Target](targets/post-mvp-1/candidate-request-guard-audit-v1.md)의 기존 Writer run/artifact/snapshot/member INSERT를 회수하고 별도 `SOURCE_PUBLISHER_*` login으로 전체 발행 transaction을 이관한다. Writer 선택·기존 governance, 별도 capture issuer, 기존 재시도·안전·공개 차단을 유지한다. T1 거부 barrier/T2 최소 grant·합성 smoke를 순서대로 검증하며 구 Writer INSERT 복원 fallback은 없다. Publisher 자체 SQL은 신뢰 경계로 남는다. 새 schema/migration·B2/C·실제 Source·운영 DB/credential·공개/Current 승격은 제외한다. 구현 증거와 실제 운영 격리 검증 여부는 별도 testing 기록으로 구분한다.
+[Owner B1 Decision](../archive/decisions/2026-11-05-source-trusted-publisher-b1.md)에 따라 [Source Target](targets/post-mvp-1/rag-source-ingestion-v1.md)·[Capture Target](targets/post-mvp-1/candidate-request-guard-audit-v1.md)의 기존 Writer run/artifact/snapshot/member INSERT를 회수하고 별도 `SOURCE_PUBLISHER_*` login으로 전체 발행 transaction을 이관한다. Writer 선택·기존 governance, 별도 capture issuer, 기존 재시도·안전·공개 차단을 유지한다. T1 거부 barrier/T2 최소 grant·합성 smoke를 순서대로 검증하며 구 Writer INSERT 복원 fallback은 없다. Publisher 자체 SQL은 신뢰 경계로 남는다. 새 schema/migration·B2/C·실제 Source·운영 DB/credential·공개/Current 승격은 제외한다. 구현 증거와 실제 운영 격리 검증 여부는 별도 testing 기록으로 구분한다.
 
-[B1 합성 구현·검증](../testing/source-publisher-b1-20261105.md): 실제 Writer/Publisher login·전체 명령/transaction·fresh-session 권한 재조회·기존 재시도·RET-H Stage1 명시 차단을 검증했다. container/실제 OS·secret/외부 finalizer 실행 격리와 운영 배포는 미실행이다.
+[B1 합성 구현·검증](../archive/testing/source-publisher-b1-20261105.md): 실제 Writer/Publisher login·전체 명령/transaction·fresh-session 권한 재조회·기존 재시도·RET-H Stage1 명시 차단을 검증했다. container/실제 OS·secret/외부 finalizer 실행 격리와 운영 배포는 미실행이다.
 
-[후속 Docker·credential 검증](../testing/source-publisher-docker-readiness-20261105.md): Docker 3건·별도 권한 4건 PASS 및 실제 Worker 이미지 빌드·publisher 컨테이너 격리 probe(`scripts/ci/source_publisher_container_check.py`) 전체 PASS(2026-11-18 재검증 완료). 원본 owner 연결은 아래 Proposed(`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)로 구분한다.
+[후속 Docker·credential 검증](../archive/testing/source-publisher-docker-readiness-20261105.md): Docker 3건·별도 권한 4건 PASS 및 실제 Worker 이미지 빌드·publisher 컨테이너 격리 probe(`scripts/ci/source_publisher_container_check.py`) 전체 PASS(2026-11-18 재검증 완료). 원본 owner 연결은 아래 Proposed(`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)로 구분한다.
 
 ## Source artifact owner 연결 — Proposed (2026-11-12 합성 내부 동결·구현 완료)
 
-[Finalizer owner 경계 변경 요청](proposed/post-mvp-1/source-artifact-finalizer-owner-boundary-v1.md)은 [프로토콜 v1 동결 결정](../governance/decisions/2026-11-12-source-artifact-owner-protocol-v1.md)(`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)에 따라 별도 non-root owner의 합성 UDS `source-artifact-owner@1`(`PUT`·verified `READ`·`OUTCOME`), private intent/outcome 저널, rematerialization 일시 input spool을 구현·검증([검증 근거](../testing/source-artifact-owner-v1-20261112.md))했다. 원본 0700/0600·B1 전체 transaction·기존 재시도·공개 차단을 유지하며, 새 owner root의 business `DELETE`는 닫고 별도 삭제 capability와 gate/fencing 계약은 후속 검토로 남긴다. 기존 로컬 cleanup 계약을 대체하지 않으며 Current/운영 준비 완료를 뜻하지 않는다.
+[Finalizer owner 경계 변경 요청](proposed/post-mvp-1/source-artifact-finalizer-owner-boundary-v1.md)은 [프로토콜 v1 동결 결정](../archive/decisions/2026-11-12-source-artifact-owner-protocol-v1.md)(`PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`)에 따라 별도 non-root owner의 합성 UDS `source-artifact-owner@1`(`PUT`·verified `READ`·`OUTCOME`), private intent/outcome 저널, rematerialization 일시 input spool을 구현·검증([검증 근거](../archive/testing/source-artifact-owner-v1-20261112.md))했다. 원본 0700/0600·B1 전체 transaction·기존 재시도·공개 차단을 유지하며, 새 owner root의 business `DELETE`는 닫고 별도 삭제 capability와 gate/fencing 계약은 후속 검토로 남긴다. 기존 로컬 cleanup 계약을 대체하지 않으며 Current/운영 준비 완료를 뜻하지 않는다.
 
-[Owner 저장·읽기 우선 방향 결정](../governance/decisions/2026-11-05-source-artifact-owner-read-direction.md): 합성 PUT/verified READ/결과 관측과 새 vault 삭제 차단 방향을 채택했으며, 세부 wire/intent 계약 동결과 합성 구현은 위 `PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`에서 완료했다. 운영/공개 승인은 포함하지 않는다.
+[Owner 저장·읽기 우선 방향 결정](../archive/decisions/2026-11-05-source-artifact-owner-read-direction.md): 합성 PUT/verified READ/결과 관측과 새 vault 삭제 차단 방향을 채택했으며, 세부 wire/intent 계약 동결과 합성 구현은 위 `PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1`에서 완료했다. 운영/공개 승인은 포함하지 않는다.

@@ -485,7 +485,7 @@ build_and_push \
   "$docker_repo" \
   "FastAPI" \
   "$APP_VERSION" \
-  "backend/app/Dockerfile" \
+  "apps/backend/app/Dockerfile" \
   "."
 
 build_and_push \
@@ -493,7 +493,7 @@ build_and_push \
   "$docker_repo" \
   "Frontend" \
   "$FRONTEND_VERSION" \
-  "frontend/Dockerfile.prod" \
+  "apps/frontend/Dockerfile.prod" \
   "." \
   "VITE_API_BASE_URL=$PRODUCTION_PUBLIC_ORIGIN" \
   "VITE_SIGNUP_TERMS_APPROVED=$VITE_SIGNUP_TERMS_APPROVED" \
@@ -505,7 +505,7 @@ build_and_push \
   "$docker_repo" \
   "AI Worker" \
   "$AI_WORKER_VERSION" \
-  "ai_worker/Dockerfile" \
+  "apps/ai_worker/Dockerfile" \
   "."
 
 DEPLOY_SERVICES=("fastapi" "ai-worker" "nginx" "checkin-deadline-scheduler")

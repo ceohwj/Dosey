@@ -10,7 +10,7 @@ SCOPE_NAMES = ("lint", "frontend", "migration", "backend", "contract", "worker")
 
 COLLABORATION_TEMPLATE_PREFIX = ".github/ISSUE_TEMPLATE/"
 COLLABORATION_TEMPLATE_FILES = {".github/PULL_REQUEST_TEMPLATE.md", ".github/commit_template.txt"}
-MIGRATION_CONFIG_FILES = {"backend/alembic.ini"}
+MIGRATION_CONFIG_FILES = {"apps/backend/alembic.ini"}
 
 BACKEND_INTEGRATION_FILES = {
     "tests/integration/test_worker_ocr_persistence.py",
@@ -58,13 +58,13 @@ def _scope_for_path(path: PurePosixPath) -> CiScope:
         return CiScope()
     if value.startswith("docs/") or ("/" not in value and value.endswith(".md")):
         return CiScope(contract=True)
-    if _is_under(path, "frontend"):
+    if _is_under(path, "apps/frontend"):
         return CiScope(frontend=True, contract=True)
-    if value in MIGRATION_CONFIG_FILES or _is_under(path, "backend/alembic") or _is_under(path, "tests/migration"):
+    if value in MIGRATION_CONFIG_FILES or _is_under(path, "apps/backend/alembic") or _is_under(path, "tests/migration"):
         return CiScope(lint=True, migration=True, backend=True, contract=True)
-    if _is_under(path, "backend"):
+    if _is_under(path, "apps/backend"):
         return CiScope(lint=True, backend=True, contract=True)
-    if _is_under(path, "ai_worker"):
+    if _is_under(path, "apps/ai_worker"):
         return CiScope(lint=True, contract=True, worker=True)
     if _is_under(path, "tests/contract") or _is_under(path, "tests/services"):
         return CiScope(lint=True, contract=True)

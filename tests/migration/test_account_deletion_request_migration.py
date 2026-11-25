@@ -17,7 +17,9 @@ from sqlalchemy.pool import NullPool
 from app.core import config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "206b2c3d4e5f_create_account_deletion_request.py"
+MIGRATION_PATH = (
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "206b2c3d4e5f_create_account_deletion_request.py"
+)
 
 _SPEC = importlib.util.spec_from_file_location("account_deletion_request_migration", MIGRATION_PATH)
 assert _SPEC is not None and _SPEC.loader is not None

@@ -67,7 +67,7 @@ BUNDLE_ID = UUID("16200000-0000-4000-8000-000000000004")
 
 def _alembic_config() -> Config:
     alembic_config = Config()
-    alembic_config.set_main_option("script_location", str(PROJECT_ROOT / "backend/alembic"))
+    alembic_config.set_main_option("script_location", str(PROJECT_ROOT / "apps/backend/alembic"))
     return alembic_config
 
 

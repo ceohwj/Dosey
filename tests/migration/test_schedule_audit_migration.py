@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _schedule_audit_down_revision() -> str:
-    migration_path = ROOT / "backend/alembic/versions/423a1b2c3d4e_schedule_audit.py"
+    migration_path = ROOT / "apps/backend/alembic/versions/423a1b2c3d4e_schedule_audit.py"
     spec = importlib.util.spec_from_file_location("schedule_audit_migration", migration_path)
     assert spec is not None
     module = importlib.util.module_from_spec(spec)

@@ -49,11 +49,11 @@ from rag_runtime.identification_preflight import (  # noqa: E402
     project_preflight_stale_signals,
 )
 
-KERNEL_PATH = PROJECT_ROOT / "rag_runtime" / "identification_preflight.py"
+KERNEL_PATH = PROJECT_ROOT / "packages" / "rag_runtime" / "identification_preflight.py"
 RUNTIME_CONTRACT_PATH = PROJECT_ROOT / "docs" / "contracts" / "targets" / "post-mvp-1" / "rag-runtime-v1.md"
 SAFETY_CONTRACT_PATH = PROJECT_ROOT / "docs" / "contracts" / "targets" / "post-mvp-1" / "safety-result-v2.md"
 COMPOUND_STALE_DECISION_PATH = (
-    PROJECT_ROOT / "docs" / "governance" / "decisions" / "2026-09-09-rag-preflight-compound-stale-priority.md"
+    PROJECT_ROOT / "docs" / "archive" / "decisions" / "2026-09-09-rag-preflight-compound-stale-priority.md"
 )
 COMPOUND_STALE_CONTRACT_PATH = (
     PROJECT_ROOT / "docs" / "contracts" / "targets" / "post-mvp-1" / "safety-result-compound-stale-priority-v1.md"

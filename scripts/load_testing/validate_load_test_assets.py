@@ -11,7 +11,7 @@ REQUIRED_FILES = (
     "load_tests/schedule_smoke.py",
     "load_tests/track_c_support_smoke.py",
     "load_tests/README.md",
-    "docs/testing/load-testing-627.md",
+    "docs/archive/testing/load-testing-627.md",
 )
 
 REQUIRED_SNIPPETS = {
@@ -60,7 +60,7 @@ REQUIRED_SNIPPETS = {
         "OCR / Worker Smoke Command",
         "Do not use `/api/v1/health`",
     ),
-    "docs/testing/load-testing-627.md": (
+    "docs/archive/testing/load-testing-627.md": (
         "#627",
         "API별 시나리오",
         "OCR / Worker Minimum Smoke",

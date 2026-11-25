@@ -58,7 +58,7 @@ def test_source_and_runtime_heads_merge_preserving_existing_source(previous, mon
     asyncio.run(database_command(f'CREATE DATABASE "{name}"'))
     try:
         monkeypatch.setattr(config, "DB_NAME", name)
-        cfg = Config(str(ROOT / "backend/alembic.ini"))
+        cfg = Config(str(ROOT / "apps/backend/alembic.ini"))
         command.upgrade(cfg, previous)
         before = asyncio.run(source_rows(seed=True))
         command.upgrade(cfg, "head")

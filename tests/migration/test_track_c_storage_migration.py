@@ -42,7 +42,7 @@ TABLES = [
 
 
 def _parent_revision() -> str:
-    path = Path(__file__).resolve().parents[2] / "backend/alembic/versions/192a1b2c3d4e_track_c_storage.py"
+    path = Path(__file__).resolve().parents[2] / "apps/backend/alembic/versions/192a1b2c3d4e_track_c_storage.py"
     spec = importlib.util.spec_from_file_location("track_c_migration", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)

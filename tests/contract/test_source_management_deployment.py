@@ -21,7 +21,7 @@ def test_management_profiles_keep_credentials_out_of_runtime_services():
     assert "DB_ADMIN_PASSWORD" not in str(manager["environment"])
     assert "DB_APP_PASSWORD" not in str(manager["environment"])
     assert "DB_MIGRATION_PASSWORD" not in str(manager["environment"])
-    assert "source_management" not in (ROOT / "backend/app/main.py").read_text()
+    assert "source_management" not in (ROOT / "apps/backend/app/main.py").read_text()
     for service in services.values():
         assert "source-management" not in service.get("depends_on", {})
 

@@ -24,7 +24,7 @@ def test_consent_gate_207_fixture_covers_shared_backend_worker_decision_table() 
     fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
 
     assert fixture["schema_version"] == "consent-gate-207.fixture@1"
-    assert Path(fixture["decision"]).as_posix() == "docs/governance/decisions/2026-09-10-consent-gate-207.md"
+    assert Path(fixture["decision"]).as_posix() == "docs/archive/decisions/2026-09-10-consent-gate-207.md"
     assert set(fixture["purposes"]) == EXPECTED_PURPOSES
     assert set(fixture["statuses"]) == EXPECTED_STATUSES
     assert set(fixture["current_policy_versions"]) == EXPECTED_PURPOSES

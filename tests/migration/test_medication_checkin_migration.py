@@ -27,7 +27,7 @@ CHECKIN_TABLES = {"medication_checkin", "checkin_audit"}
 
 
 def _alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

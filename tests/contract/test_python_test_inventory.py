@@ -26,11 +26,11 @@ def test_python_test_inventory_accepts_only_the_approved_worker_xdist_options() 
             "--max-worker-restart=0",
             "--cov",
             "--cov-report=",
-            "ai_worker/tests/core",
+            "apps/ai_worker/tests/core",
         ]
     )
 
-    assert targets == ["ai_worker/tests/core"]
+    assert targets == ["apps/ai_worker/tests/core"]
     assert unsupported == []
 
 
@@ -45,7 +45,7 @@ def test_python_test_inventory_rejects_worker_xdist_options_that_change_the_appr
             "--max-worker-restart=1",
             "--cov=backend",
             "--cov-report=term",
-            "ai_worker/tests/core",
+            "apps/ai_worker/tests/core",
         ]
     )
 
@@ -70,7 +70,7 @@ def _run_inventory_check(root: Path) -> subprocess.CompletedProcess[str]:
 
 
 def test_python_test_inventory_rejects_unclassified_test_file(tmp_path: Path) -> None:
-    known_test = tmp_path / "backend" / "app" / "tests" / "test_known.py"
+    known_test = tmp_path / "apps" / "backend" / "app" / "tests" / "test_known.py"
     unknown_test = tmp_path / "tests" / "new_suite" / "test_unknown.py"
     known_test.parent.mkdir(parents=True)
     unknown_test.parent.mkdir(parents=True)
@@ -82,7 +82,7 @@ def test_python_test_inventory_rejects_unclassified_test_file(tmp_path: Path) ->
     assert result.returncode == 1
     assert "Unclassified Python test files:" in result.stderr
     assert "tests/new_suite/test_unknown.py" in result.stderr
-    assert "backend/app/tests/test_known.py" not in result.stderr
+    assert "apps/backend/app/tests/test_known.py" not in result.stderr
 
 
 def test_python_test_inventory_rejects_node_specific_default_selection(tmp_path: Path) -> None:
@@ -95,7 +95,7 @@ def test_python_test_inventory_rejects_node_specific_default_selection(tmp_path:
         "          uv run pytest tests/integration/test_worker_job_execution_repository.py::test_one\n",
         encoding="utf-8",
     )
-    runner.write_text("uv run pytest backend/app\n", encoding="utf-8")
+    runner.write_text("uv run pytest apps/backend/app\n", encoding="utf-8")
 
     result = _run_inventory_check(tmp_path)
 
@@ -105,7 +105,7 @@ def test_python_test_inventory_rejects_node_specific_default_selection(tmp_path:
 
 
 def test_python_test_inventory_rejects_missing_execution_configs(tmp_path: Path) -> None:
-    known_test = tmp_path / "backend" / "app" / "tests" / "test_known.py"
+    known_test = tmp_path / "apps" / "backend" / "app" / "tests" / "test_known.py"
     known_test.parent.mkdir(parents=True)
     known_test.touch()
 
@@ -123,8 +123,8 @@ def test_python_test_inventory_requires_exact_pytest_arguments(tmp_path: Path) -
     workflow.parent.mkdir(parents=True)
     runner.parent.mkdir(parents=True, exist_ok=True)
     misleading_config = """
-    # uv run pytest backend/app tests/integration/test_cors_and_errors.py
-    uv run pytest backend/app.backup
+    # uv run pytest apps/backend/app tests/integration/test_cors_and_errors.py
+    uv run pytest apps/backend/app.backup
     TARGET=tests/integration/test_worker_job_execution_repository.py
     uv run pytest "$TARGET::test_one"
     """
@@ -137,7 +137,7 @@ def test_python_test_inventory_requires_exact_pytest_arguments(tmp_path: Path) -
     assert "Node-specific pytest selections prevent automatic collection:" in result.stderr
     assert "$TARGET::test_one" in result.stderr
     assert "Default Python test targets missing from" in result.stderr
-    assert "backend/app" in result.stderr
+    assert "apps/backend/app" in result.stderr
     assert "Opt-in Python tests unexpectedly included" not in result.stderr
 
 
@@ -147,8 +147,8 @@ def test_python_test_inventory_rejects_echoed_and_yaml_metadata_commands(tmp_pat
     workflow.parent.mkdir(parents=True)
     runner.parent.mkdir(parents=True, exist_ok=True)
     fake_command = (
-        "uv run pytest backend/app tests/contract tests/migration tests/integration/rag "
-        "ai_worker/tests/core ai_worker/tests/ocr ai_worker/tests/rag ai_worker/tests/evaluation "
+        "uv run pytest apps/backend/app tests/contract tests/migration tests/integration/rag "
+        "apps/ai_worker/tests/core apps/ai_worker/tests/ocr apps/ai_worker/tests/rag apps/ai_worker/tests/evaluation "
         "tests/integration/test_worker_ocr_persistence.py tests/integration/test_outbox_publisher.py "
         "tests/integration/test_worker_job_execution_repository.py "
         "tests/integration/test_worker_dlq_outbox_repository.py "
@@ -179,7 +179,7 @@ def test_python_test_inventory_rejects_unsupported_pytest_options(tmp_path: Path
     runner = tmp_path / "scripts" / "ci" / "run_test.sh"
     workflow.parent.mkdir(parents=True)
     runner.parent.mkdir(parents=True, exist_ok=True)
-    filtered_command = "uv run pytest -konly_old_test -mSMOKE --rootdir backend/app -o addopts=-kold"
+    filtered_command = "uv run pytest -konly_old_test -mSMOKE --rootdir apps/backend/app -o addopts=-kold"
     workflow.write_text(
         f"jobs:\n  fake:\n    steps:\n      - run: {filtered_command}\n",
         encoding="utf-8",
@@ -194,7 +194,7 @@ def test_python_test_inventory_rejects_unsupported_pytest_options(tmp_path: Path
     assert "-mSMOKE" in result.stderr
     assert "--rootdir" in result.stderr
     assert "-o addopts=-kold" in result.stderr
-    assert "backend/app" in result.stderr
+    assert "apps/backend/app" in result.stderr
 
 
 def test_python_test_inventory_rejects_duplicate_targets_in_one_execution_config(tmp_path: Path) -> None:
@@ -202,7 +202,7 @@ def test_python_test_inventory_rejects_duplicate_targets_in_one_execution_config
     runner = tmp_path / "scripts" / "ci" / "run_test.sh"
     workflow.parent.mkdir(parents=True)
     runner.parent.mkdir(parents=True, exist_ok=True)
-    duplicate_command = "uv run pytest backend/app backend/app"
+    duplicate_command = "uv run pytest apps/backend/app apps/backend/app"
     workflow.write_text(
         f"jobs:\n  fake:\n    steps:\n      - run: {duplicate_command}\n",
         encoding="utf-8",
@@ -213,23 +213,23 @@ def test_python_test_inventory_rejects_duplicate_targets_in_one_execution_config
 
     assert result.returncode == 1
     assert "Duplicate Python test targets in .github/workflows/checks.yml:" in result.stderr
-    assert "backend/app" in result.stderr
+    assert "apps/backend/app" in result.stderr
 
 
 def test_python_test_inventory_rejects_one_test_collected_by_multiple_ci_lanes() -> None:
     duplicate_test_lane_errors = runpy.run_path(str(INVENTORY_CHECKER))["_duplicate_test_lane_errors"]
 
     errors = duplicate_test_lane_errors(
-        {Path("backend/app/tests/test_duplicate.py")},
+        {Path("apps/backend/app/tests/test_duplicate.py")},
         {
-            "test-backend": ["backend/app"],
-            "test-contract": ["backend/app/tests/test_duplicate.py"],
+            "test-backend": ["apps/backend/app"],
+            "test-contract": ["apps/backend/app/tests/test_duplicate.py"],
         },
     )
 
     assert errors == [
         "Python tests collected by multiple GitHub Actions lanes:\n"
-        "  backend/app/tests/test_duplicate.py: test-backend, test-contract"
+        "  apps/backend/app/tests/test_duplicate.py: test-backend, test-contract"
     ]
 
 
@@ -257,11 +257,11 @@ def test_python_test_inventory_rejects_pytest_addopts_from_every_configuration(t
     workflow.write_text(
         "env:\n  PYTEST_ADDOPTS: -konly_old\njobs:\n  fake:\n    steps:\n"
         "      - run: export PYTEST_ADDOPTS=-kfrom_step\n"
-        "      - run: uv run pytest backend/app\n",
+        "      - run: uv run pytest apps/backend/app\n",
         encoding="utf-8",
     )
     runner.write_text(
-        "PYTEST_ADDOPTS=-konly_old uv run pytest backend/app\n",
+        "PYTEST_ADDOPTS=-konly_old uv run pytest apps/backend/app\n",
         encoding="utf-8",
     )
     (tmp_path / "pyproject.toml").write_text(
@@ -277,7 +277,7 @@ def test_python_test_inventory_rejects_pytest_addopts_from_every_configuration(t
     assert "Command sets PYTEST_ADDOPTS in scripts/ci/run_test.sh" in result.stderr
     assert "Inherited PYTEST_ADDOPTS is not pinned empty by scripts/ci/run_test.sh" in result.stderr
     assert "Pytest addopts may prevent automatic collection: -m SMOKE" in result.stderr
-    assert "backend/app" in result.stderr
+    assert "apps/backend/app" in result.stderr
 
 
 def test_python_test_inventory_splits_background_shell_commands(tmp_path: Path) -> None:
@@ -285,7 +285,7 @@ def test_python_test_inventory_splits_background_shell_commands(tmp_path: Path) 
     runner = tmp_path / "scripts" / "ci" / "run_test.sh"
     workflow.parent.mkdir(parents=True)
     runner.parent.mkdir(parents=True, exist_ok=True)
-    background_command = "uv run pytest backend/app & echo pytest tests/contract"
+    background_command = "uv run pytest apps/backend/app & echo pytest tests/contract"
     workflow.write_text(
         f"jobs:\n  fake:\n    steps:\n      - run: {background_command}\n",
         encoding="utf-8",

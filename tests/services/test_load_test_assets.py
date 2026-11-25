@@ -335,7 +335,10 @@ def test_ocr_worker_smoke_imports_with_minimal_locust_stub(monkeypatch) -> None:
 
     module = _load_load_test_module("issue_627_ocr_worker_smoke", "ocr_worker_smoke.py")
 
-    assert module.DEFAULT_MANIFEST_PATH == "backend/app/release_validation/scenarios/ai-one-cycle-clova-openai-v1.json"
+    assert (
+        module.DEFAULT_MANIFEST_PATH
+        == "apps/backend/app/release_validation/scenarios/ai-one-cycle-clova-openai-v1.json"
+    )
     assert module.DEFAULT_FIXTURE_PATH == "tests/fixtures/release_validation/ai_one_cycle_clova_openai_v1.png"
     assert module._idempotency_prefix() == "load-test-ocr"
 
