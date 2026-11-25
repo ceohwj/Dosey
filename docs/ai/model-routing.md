@@ -22,17 +22,18 @@ Codex 설정 정본은 `.codex/config.toml`과 `.codex/agents/*.toml`이며, Ant
 
 ## Antigravity 역할별 모델 배분
 
-Antigravity는 `.codex/agents/*.toml` 대신 [GEMINI.md](../../GEMINI.md)와 이 문서의 기준에 따라 `/teamwork`(Swarm) 워커의 `model` 핀 지정 또는 `invoke_subagent` 티어를 역할별로 배정한다.
+Antigravity는 `.codex/agents/*.toml` 대신 [GEMINI.md](../../GEMINI.md)와 이 문서의 기준에 따라 `/teamwork`(Swarm) 워커의 `model` 핀 지정 또는 `invoke_subagent` 티어를 역할별로 배정한다. Gemini 4 4종(Hydrogen · Neon · Argon · Carbon)과 Orchestrator를 작업 무게에 맞춰 4단계로 나눈다.
 
 | 역할 그룹 | 해당 역할 | Swarm (`/teamwork`) 모델 | Subagent 티어 | 작업 |
 |---|---|---|---|---|
-| **탐색** | `dosey_explore` | `gemini-4-hydrogen-low` | `flash` | bounded 조사 (read-only) |
+| **탐색** | `dosey_explore` | `gemini-4-hydrogen-low` | `flash` | bounded 조사 (read-only, 초고속) |
 | **문서** | `dosey_writer` | `gemini-4-hydrogen-medium` | `flash` | 확정 사실 문서화 |
-| **구현** | `dosey_executor`, `dosey_frontend`, `dosey_backend`, `dosey_llm`, `dosey_ocr`, `dosey_rag` | `gemini-4-neon-medium` | `inherit` | 도메인·혼합 구현 (필요 시 복잡 작업만 `high`) |
+| **구현** | `dosey_executor`, `dosey_frontend`, `dosey_backend`, `dosey_llm`, `dosey_ocr`, `dosey_rag` | `gemini-4-neon-medium` | `inherit` | 일상 도메인·혼합 구현 (다중 파일 난제만 `neon-high` 또는 `argon-medium` 승격) |
 | **통합 검증** | `dosey_integration_verifier` | `gemini-4-argon-medium` | `pro` | 계층 간 독립 검증 (read-only) |
-| **내부 리뷰** | `dosey_reviewer` | `gemini-4-argon-high` | `pro` | 중요 변경 내부 독립 검토 (read-only) |
+| **내부 리뷰** | `dosey_reviewer` | `gemini-4-argon-high` (고위험 변경은 `gemini-4-carbon-medium`) | `pro` | 일반 변경 내부 검토(`argon-high`), 보안·인증·의료 안전·공유 계약·DB 마이그레이션 감사(`carbon-medium`, 필요 시 `high`) |
 
-- 메인 코디네이터(Integrator)는 기본적으로 `gemini-4-neon-medium`에서 전체 맥락·파일 소유권·수리 루프(최대 2~3회 상한)를 관리하고, 계약·DB·안전·최종 승인 지점에서 Human Owner에게 확인을 요청한다.
+- 메인 코디네이터(Integrator)는 일상 개발·소규모 병렬 작업에서는 `gemini-4-neon-medium`(또는 `Orchestrator (Neon)`)을 기본으로 사용하고, 대형 아키텍처 설계·`/goal` 장기 자율 완주·다중 도메인 대규모 `/teamwork` 지휘에서만 `gemini-4-carbon-medium` / `Orchestrator (Carbon)`으로 승격하는 샌드위치 전략(설계·지휘 Carbon -> 구현 Neon/Hydrogen -> 고위험 감사 Carbon)을 사용한다.
+- `Carbon`은 공유 쿼터 소모와 응답 지연이 크므로 상시 고정하지 않고 고난도·고위험 지점에만 선택적으로 투입한다.
 - 이 표는 승인된 모델 라우팅 기준이며, 실행 검증이나 테스트 PASS 증거를 대신하지 않는다.
 
 현재 main의 UI/CLI/profile 선택이나 이미 실행한 에이전트의 모델을 소급 변경하지 않는다. 프로젝트 main 기본값은 이후 해당 설정을 로드하는 실행에 적용된다. 갱신 뒤 현재 App의 Dosey 역할 도구 정의에서도 구현 Terra/검수 Sol 6.1 배분이 노출된 것을 확인했으며, 남은 검수는 새 호출로 수행한다. 도구 정의·TOML 로딩과 실제 provider 모델 실행 기록은 구분하며 이 표 자체는 실행 증거가 아니다.
