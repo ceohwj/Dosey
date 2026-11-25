@@ -7,7 +7,9 @@ from typing import Any
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "431a1b2c3d4e_create_email_verification_token.py"
+MIGRATION_PATH = (
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "431a1b2c3d4e_create_email_verification_token.py"
+)
 
 
 def _load_migration() -> Any:

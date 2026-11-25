@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import os
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -21,7 +22,12 @@ from app.core import config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MIGRATION_PATH = (
-    PROJECT_ROOT / "backend" / "alembic" / "versions" / "180a1b2c3d4e_pin_execution_request_guard_runtime_binding.py"
+    PROJECT_ROOT
+    / "apps"
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "180a1b2c3d4e_pin_execution_request_guard_runtime_binding.py"
 )
 
 
@@ -37,9 +43,14 @@ def _load_migration() -> Any:
 def _alembic_config() -> Config:
     """Avoid locale-decoding the user-facing ini comments during this isolated schema test."""
     alembic_config = Config()
-    alembic_config.set_main_option("script_location", str(PROJECT_ROOT / "backend" / "alembic"))
+    alembic_config.set_main_option("script_location", str(PROJECT_ROOT / "apps" / "backend" / "alembic"))
     alembic_config.set_main_option("path_separator", "os")
-    alembic_config.set_main_option("prepend_sys_path", str(PROJECT_ROOT / "backend"))
+    alembic_config.set_main_option(
+        "prepend_sys_path",
+        os.pathsep.join(
+            [str(PROJECT_ROOT / "apps" / "backend"), str(PROJECT_ROOT / "packages"), str(PROJECT_ROOT / "apps")]
+        ),
+    )
     return alembic_config
 
 

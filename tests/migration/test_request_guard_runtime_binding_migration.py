@@ -9,7 +9,9 @@ from typing import Any
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "806a1b2c3d4e_request_guard_runtime_binding.py"
+MIGRATION_PATH = (
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "806a1b2c3d4e_request_guard_runtime_binding.py"
+)
 
 
 def _load_migration() -> Any:

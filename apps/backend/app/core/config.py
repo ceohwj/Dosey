@@ -61,6 +61,15 @@ def parse_timezone(value: str) -> tzinfo:
         raise
 
 
+def _default_storage_dir() -> str:
+    resolved = Path(__file__).resolve()
+    if len(resolved.parents) > 4 and resolved.parents[3].name == "apps":
+        root = resolved.parents[4]
+    else:
+        root = resolved.parents[2]
+    return os.path.join(root, "uploads", "medical_documents")
+
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=("envs/.local.env", ".env"),
@@ -85,11 +94,7 @@ class Config(BaseSettings):
     )
     # 실제 의료문서 업로드 파일 저장 경로. data/는 비식별 샘플 전용이라 gitignore된 uploads/를 사용합니다.
     # backend/ 폴더 분리 이후에도 저장소 루트의 uploads/를 가리키도록 parent를 한 단계 더 올라갑니다.
-    STORAGE_DIR: str = os.path.join(
-        Path(__file__).resolve().parents[4],
-        "uploads",
-        "medical_documents",
-    )
+    STORAGE_DIR: str = _default_storage_dir()
 
     DB_HOST: str
     # 평소엔 둘 다 5432로 같습니다. 호스트에 5432를 쓰는 다른 프로세스가 있어 충돌할 때만

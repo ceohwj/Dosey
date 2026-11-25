@@ -60,8 +60,6 @@ Frontend, Backend, OCR과 RAG·LLM이 공유하는 의미와 상태를 관리합
 
 ## Proposed 계약
 
-- [복약 Chat RAG 실측 고도화 v1 (요구사항 초안)](./proposed/chat-rag-measured-slice-v1.md): 개인 프로젝트 다음 고도화 후보. 식약처 공개 문서 기반 평가셋, 검색 단계별 ablation, Citation 판정기 비교와 Chat E2E 연결의 요구사항 초안. Human Owner 선정·성공 기준 승인 전이며 구현·계약 변경을 승인하지 않음.
-
 - [Guide CLOSED_DEMO RAG v1 (#927)](./proposed/guide-closed-demo-rag-v1.md): 내부 폐쇄형 시연 한정 Provider 전송 최소화(환자 처방 상세 제거·식약처 근거만 전송), 4대 의료 안전 검증(`_validate_text`), 장애 시 503 fail-closed 및 비정규 인용 경계 계약. Proposed / Awaiting External Approval 상태.
 - [#180 Guide public projection 구현·Chat 후속 경계](./proposed/rag-guide-chat-public-projection-180.md): Sync `201 Created` Guide의 release/fallback·ordered public-safe citation DTO와 persistence/rediscovery를 구현하고 Frontend fail-closed 소비 경계를 정렬. 실제 runtime callable wiring, Chat public DTO/persistence, `202 Accepted` 전환은 후속 범위.
 - [Guide·Chat 피드백 v1 (#633)](./proposed/guide-chat-feedback-v1.md): 완료 결과별 rating·선택 의견 저장 API, SELF 소유권·재제출·합성 Gold 연결 계약. Proposed / Local 구현·제품/운영 기준·AI/RAG synthetic evidence 정리 완료; prompt 전후 비교·사람 검토·실사용 처리 승인과 Production 공개는 별도.

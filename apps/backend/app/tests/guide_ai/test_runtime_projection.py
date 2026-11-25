@@ -24,7 +24,7 @@ from rag_runtime.guide_release_projection import (
     GuideRuntimeVerifiedCitation,
 )
 
-MODULE_PATH = Path("backend/app/services/guide_runtime_projection.py")
+MODULE_PATH = Path("apps/backend/app/services/guide_runtime_projection.py")
 UUIDS = (
     (UUID("00000000-0000-0000-0000-000000000101"), UUID("00000000-0000-0000-0000-000000000102")),
     (UUID("00000000-0000-0000-0000-000000000201"), UUID("00000000-0000-0000-0000-000000000202")),

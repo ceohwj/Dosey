@@ -371,7 +371,7 @@ async def test_separate_cli_process_reloads_and_executes(workflow):
     await approve(workflow)
     environment = {
         **os.environ,
-        "PYTHONPATH": ".",
+        "PYTHONPATH": os.pathsep.join(["apps", "packages", "."]),
         "SOURCE_CLEANUP_TEST_DATABASE_URL": engines["executor"].url.render_as_string(hide_password=False),
     }
     arguments = [

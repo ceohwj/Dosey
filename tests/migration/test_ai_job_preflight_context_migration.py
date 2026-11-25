@@ -32,7 +32,7 @@ PREFLIGHT_CONTEXT_TABLES = {
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 def _preflight_context_hardening_down_revision() -> str:

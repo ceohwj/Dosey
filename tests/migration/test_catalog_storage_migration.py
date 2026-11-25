@@ -39,7 +39,7 @@ def test_catalog_migrations_do_not_define_database_triggers_or_functions() -> No
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 def create_alembic_database_url() -> str:

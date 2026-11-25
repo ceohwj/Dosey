@@ -33,7 +33,12 @@ from rag_runtime.runtime_environment import RuntimeEnvironmentCode
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MIGRATION_PATH = (
-    PROJECT_ROOT / "backend" / "alembic" / "versions" / "810a1b2c3d4e_canonical_runtime_environment_vocabulary.py"
+    PROJECT_ROOT
+    / "apps"
+    / "backend"
+    / "alembic"
+    / "versions"
+    / "810a1b2c3d4e_canonical_runtime_environment_vocabulary.py"
 )
 VOCABULARY_REVISION = "810a1b2c3d4e"
 BASE_REVISION = "809a2b3c4d5e"
@@ -75,7 +80,7 @@ def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
         "DB_USER": config.DB_USER,
         "DB_PASSWORD": config.DB_PASSWORD,
         "DB_NAME": ISOLATED_DATABASE,
-        "PYTHONPATH": f"{PROJECT_ROOT / 'backend'}:{PROJECT_ROOT}",
+        "PYTHONPATH": f"{PROJECT_ROOT / 'apps' / 'backend'}:{PROJECT_ROOT / 'apps'}:{PROJECT_ROOT / 'packages'}:{PROJECT_ROOT}",
     }
     return subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "apps/backend/alembic.ini", *args],

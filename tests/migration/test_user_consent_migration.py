@@ -25,7 +25,7 @@ USER_CONSENT_REVISION = "207b1c2d3e4"
 
 
 def _alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 def _load_migration() -> Any:

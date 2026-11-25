@@ -18,7 +18,9 @@ from sqlalchemy.pool import NullPool
 from app.core import config  # type: ignore[import-untyped]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "235a1b2c3d4e_idempotency_hmac_rotation_scope.py"
+MIGRATION_PATH = (
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "235a1b2c3d4e_idempotency_hmac_rotation_scope.py"
+)
 ASYNC_SCOPE_INDEX = "uq_idempotency_async_scope"
 SYNC_SCOPE_INDEX = "uq_idempotency_sync_scope"
 
@@ -46,7 +48,7 @@ def _migration_down_revision() -> str:
 
 
 def create_alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend" / "alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps" / "backend" / "alembic.ini"))
 
 
 @asynccontextmanager

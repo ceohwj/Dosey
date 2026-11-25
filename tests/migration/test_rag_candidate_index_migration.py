@@ -18,7 +18,9 @@ from app.core import config
 from app.models.rag_candidate_index import RagCandidateIndexMember
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend" / "alembic" / "versions" / "583a1b2c3d4f_candidate_index_lifecycle.py"
+MIGRATION_PATH = (
+    PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "583a1b2c3d4f_candidate_index_lifecycle.py"
+)
 READY_INDEX_NAME = "uq_rag_candidate_index_ready_per_code"
 STORAGE_CHECK_NAMES = {
     "chk_rag_candidate_index_member_lexical_storage_hash",
@@ -208,7 +210,7 @@ def test_candidate_index_downgrade_blocks_when_data_exists_and_preserves_schema(
 
 def test_candidate_index_lock_marker_migration_upgrade_and_downgrade() -> None:
     migration_780_path = (
-        PROJECT_ROOT / "backend" / "alembic" / "versions" / "780a1b2c3d4e_add_candidate_index_lock_marker.py"
+        PROJECT_ROOT / "apps" / "backend" / "alembic" / "versions" / "780a1b2c3d4e_add_candidate_index_lock_marker.py"
     )
     spec = importlib.util.spec_from_file_location("candidate_index_lock_marker_migration", migration_780_path)
     assert spec is not None and spec.loader is not None
