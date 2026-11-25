@@ -89,7 +89,7 @@ pytestmark = pytest.mark.asyncio
 
 def _alembic_config() -> Config:
     cfg = Config()
-    cfg.set_main_option("script_location", str(ROOT / "backend/alembic"))
+    cfg.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
     return cfg
 
 

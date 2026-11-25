@@ -18,14 +18,14 @@ def _load_classifier() -> dict[str, Any]:
 @pytest.mark.parametrize(
     ("path", "expected"),
     [
-        ("frontend/src/App.tsx", {"frontend", "contract"}),
-        ("backend/app/main.py", {"lint", "backend", "contract"}),
+        ("apps/frontend/src/App.tsx", {"frontend", "contract"}),
+        ("apps/backend/app/main.py", {"lint", "backend", "contract"}),
         (
-            "backend/alembic/versions/revision.py",
+            "apps/backend/alembic/versions/revision.py",
             {"lint", "migration", "backend", "contract"},
         ),
-        ("backend/alembic.ini", {"lint", "migration", "backend", "contract"}),
-        ("ai_worker/tasks/ocr.py", {"lint", "worker", "contract"}),
+        ("apps/backend/alembic.ini", {"lint", "migration", "backend", "contract"}),
+        ("apps/ai_worker/tasks/ocr.py", {"lint", "worker", "contract"}),
         ("tests/contract/test_new_policy.py", {"lint", "contract"}),
         ("tests/services/test_new_service.py", {"lint", "contract"}),
         (
@@ -45,7 +45,7 @@ def test_classify_paths_routes_each_domain_without_hiding_unknown_paths(path: st
 def test_classify_paths_unions_multiple_domains() -> None:
     classifier = _load_classifier()
 
-    scope = classifier["classify_paths"](["frontend/src/App.tsx", "ai_worker/tasks/ocr.py"])
+    scope = classifier["classify_paths"](["apps/frontend/src/App.tsx", "apps/ai_worker/tasks/ocr.py"])
 
     assert scope.enabled_names() == {"lint", "frontend", "contract", "worker"}
 
@@ -78,7 +78,7 @@ def test_classify_paths_skips_runtime_suites_for_collaboration_templates(path: s
         "scripts/ci/run_test.sh",
         "pyproject.toml",
         "uv.lock",
-        "provider_contracts/example.py",
+        "packages/provider_contracts/example.py",
         "tests/integration/test_unclassified.py",
     ],
 )
@@ -94,7 +94,7 @@ def test_classify_paths_runs_everything_for_shared_or_ci_sensitive_paths(path: s
 def test_classify_paths_normalizes_windows_separators() -> None:
     classifier = _load_classifier()
 
-    scope = classifier["classify_paths"]([r"ai_worker\tests\core\test_new.py"])
+    scope = classifier["classify_paths"]([r"apps\ai_worker\tests\core\test_new.py"])
 
     assert scope.enabled_names() == {"lint", "worker", "contract"}
 
@@ -113,7 +113,7 @@ def test_cli_classifies_a_real_git_diff_and_writes_github_outputs(tmp_path: Path
     subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
     subprocess.run(["git", "config", "user.email", "ci@example.invalid"], cwd=repository, check=True)
     subprocess.run(["git", "config", "user.name", "CI Test"], cwd=repository, check=True)
-    source = repository / "backend" / "app" / "service.py"
+    source = repository / "apps" / "backend" / "app" / "service.py"
     source.parent.mkdir(parents=True)
     source.write_text("before\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
@@ -171,7 +171,7 @@ def test_cli_uses_the_pull_request_merge_base_instead_of_unrelated_base_branch_c
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
     subprocess.run(["git", "commit", "-qm", "common base"], cwd=repository, check=True)
     subprocess.run(["git", "branch", "feature"], cwd=repository, check=True)
-    frontend = repository / "frontend" / "src" / "App.tsx"
+    frontend = repository / "apps" / "frontend" / "src" / "App.tsx"
     frontend.parent.mkdir(parents=True)
     frontend.write_text("base branch only\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
@@ -180,7 +180,7 @@ def test_cli_uses_the_pull_request_merge_base_instead_of_unrelated_base_branch_c
         ["git", "rev-parse", "HEAD"], cwd=repository, check=True, capture_output=True, text=True
     ).stdout.strip()
     subprocess.run(["git", "switch", "-q", "feature"], cwd=repository, check=True)
-    backend = repository / "backend" / "app" / "service.py"
+    backend = repository / "apps" / "backend" / "app" / "service.py"
     backend.parent.mkdir(parents=True)
     backend.write_text("feature branch only\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
@@ -222,7 +222,7 @@ def test_cli_classifies_both_sides_of_a_cross_domain_rename(tmp_path: Path) -> N
     subprocess.run(["git", "init", "-q"], cwd=repository, check=True)
     subprocess.run(["git", "config", "user.email", "ci@example.invalid"], cwd=repository, check=True)
     subprocess.run(["git", "config", "user.name", "CI Test"], cwd=repository, check=True)
-    backend = repository / "backend" / "app" / "service.py"
+    backend = repository / "apps" / "backend" / "app" / "service.py"
     backend.parent.mkdir(parents=True)
     backend.write_text("unchanged content\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repository, check=True)
@@ -230,7 +230,7 @@ def test_cli_classifies_both_sides_of_a_cross_domain_rename(tmp_path: Path) -> N
     base_sha = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=repository, check=True, capture_output=True, text=True
     ).stdout.strip()
-    worker = repository / "ai_worker" / "tasks" / "service.py"
+    worker = repository / "apps" / "ai_worker" / "tasks" / "service.py"
     worker.parent.mkdir(parents=True)
     subprocess.run(["git", "mv", str(backend), str(worker)], cwd=repository, check=True)
     subprocess.run(["git", "commit", "-qm", "move service"], cwd=repository, check=True)

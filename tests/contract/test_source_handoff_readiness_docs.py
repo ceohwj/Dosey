@@ -4,7 +4,7 @@ from typing import Any
 from ai_worker.core.config import Config
 
 ROOT = Path(__file__).resolve().parents[2]
-READINESS_DOC = ROOT / "docs/validation/rag/issue-593/source-handoff-readiness.md"
+READINESS_DOC = ROOT / "docs/archive/validation/rag/issue-593/source-handoff-readiness.md"
 
 
 def _source_artifact_settings_from_env_example(path: Path) -> dict[str, str]:
@@ -39,15 +39,15 @@ def test_source_handoff_readiness_doc_pins_existing_runtime_boundaries() -> None
 
     required_paths = [
         "docs/runbooks/source-snapshot-handoff-env-593.md",
-        "ai_worker/core/config.py",
-        "ai_worker/README.md",
-        "ai_worker/adapters/source_artifact_store_factory.py",
-        "ai_worker/adapters/local_private_source_artifact_store.py",
-        "ai_worker/adapters/s3_private_source_artifact_store.py",
+        "apps/ai_worker/core/config.py",
+        "apps/ai_worker/README.md",
+        "apps/ai_worker/adapters/source_artifact_store_factory.py",
+        "apps/ai_worker/adapters/local_private_source_artifact_store.py",
+        "apps/ai_worker/adapters/s3_private_source_artifact_store.py",
         "infra/python/source_management_role_policy.py",
         "tests/contract/test_source_management_deployment.py",
         "scripts/rag/verify_mfds_label_candidate.py",
-        "docs/validation/rag/issue-591/local-storage-validation.md",
+        "docs/archive/validation/rag/issue-591/local-storage-validation.md",
     ]
     for relative_path in required_paths:
         assert relative_path in text

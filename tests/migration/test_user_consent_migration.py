@@ -20,7 +20,7 @@ from sqlalchemy.pool import NullPool
 from app.core import config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend/alembic/versions/207b1c2d3e4_create_user_consent.py"
+MIGRATION_PATH = PROJECT_ROOT / "apps/backend/alembic/versions/207b1c2d3e4_create_user_consent.py"
 USER_CONSENT_REVISION = "207b1c2d3e4"
 
 

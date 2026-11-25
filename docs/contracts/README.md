@@ -237,7 +237,7 @@ RAG Source·Runtime·Evaluation·Medication Candidate·Safety/Citation v2는 외
 ### #458 Worker 동의 조회·재검사 로컬 구현
 
 - [후속 계약](proposed/ocr-llm-transfer-458.md)
-- [#465 대조·구현 범위 및 runtime 연결 조건](../designs/ocr-consent-gate-458-implementation.md)
+- [#465 대조·구현 범위 및 runtime 연결 조건](../designs/ocr/ocr-consent-gate-458-implementation.md)
 - [동의 조회·재검사 검증](../testing/ocr-consent-gate-458.md)
 - 내부 조회와 호출 직전 검사 부품. 동의 API·차단 저장·전송 최소화·공개 활성화 완료 아님.
 

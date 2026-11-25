@@ -81,10 +81,10 @@ def test_fastapi_service_declares_local_env_file() -> None:
 
 
 def test_fastapi_dockerfile_copies_from_backend_app() -> None:
-    """빌드 컨텍스트가 저장소 루트일 때 Dockerfile 경로가 backend/app을 가리킵니다."""
+    """빌드 컨텍스트가 저장소 루트일 때 Dockerfile 경로가 apps/backend/app을 가리킵니다."""
     fastapi_service = _load_fastapi_service()
 
-    assert fastapi_service["build"]["dockerfile"] == "backend/app/Dockerfile"
+    assert fastapi_service["build"]["dockerfile"] == "apps/backend/app/Dockerfile"
 
 
 def test_compose_style_env_file_without_storage_dir_falls_back_to_legacy_default(

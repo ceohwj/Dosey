@@ -22,10 +22,11 @@ Human Owner가 다음 고도화 기능을 선정한다. 각 기능은 사용자 
 
 ## 정본 안내
 
-- [프로젝트 소개](README.md): 설치와 전체 탐색. 날짜가 있는 과거 상태 설명은 구현 증거와 대조한다.
+- [프로젝트 소개](README.md): 설치·환경 설정과 전체 구조.
+- [문서 인덱스](docs/README.md): 현행 정본 문서와 과거 팀 이력(`docs/archive/`) 구분.
 - [아키텍처](docs/architecture.md), [API](docs/api.md), [schema](docs/data-schema.md), [계약 상태](docs/contracts/README.md): 기술 구조와 공유 의미.
 - [디자인](DESIGN.md): 현재 Report/clinic 범위. 다른 화면의 설계는 해당 문서·DTO를 사용한다.
 - [테스트](docs/testing.md), [안전](docs/privacy-safety.md), [보안](SECURITY.md): 검증과 보호 조건.
-- [Agent 운영](docs/ai/workflow.md), [작업 템플릿](docs/ai/task-template.md): 실행과 handoff.
+- [Agent 운영](docs/ai/workflow.md), [작업 템플릿](docs/ai/task-template.md), [기능 설계 템플릿](docs/designs/README.md): 실행과 반복 설계 규격.
 
 새 ARCHITECTURE.md·RULES.md·TASK.md·MEMORY.md를 추가해 기존 정본을 복제하지 않는다. 기능 선정 이후 작업별 명세와 기존 Decision/ADR를 연결한다.

@@ -201,7 +201,7 @@ Dataset 원문, 질문·Gold 본문, 경로, 접근 주체의 보호 위치는 �
 ## 10. 관련 문서
 
 - [`PD-368-20260909`](../../../governance/decisions/2026-09-09-protected-retrieval-runner-access-control.md) §8 — 상위 결정, `Approved Target · Not implemented`
-- [Issue #368 Security Kernel 설계](../../../designs/ceohwj/issue-368-protected-retrieval-runner-security-kernel-design.md)
+- [Issue #368 Security Kernel 설계](../../../designs/rag/issue-368-protected-retrieval-runner-security-kernel-design.md)
 - [`source-artifact-retention-cleanup.md`](./source-artifact-retention-cleanup.md) — 삭제 전 `INTENT` 기록 선례
 - `ai_worker/tasks/evaluation/protected_retrieval.py` — journal·chain·재조정 규칙의 현재 구현
 - `ai_worker/tasks/evaluation/schemas/authoring.py` · `DatasetStatus` — 운영 종료 상태의 현재 정본

@@ -9,7 +9,7 @@ def test_only_unix_docker_endpoints_are_accepted():
 
 
 def test_build_context_is_explicit_and_excludes_env_and_repo_root():
-    assert "ai_worker" in CONTEXT_PATHS
+    assert "apps/ai_worker" in CONTEXT_PATHS
     assert "." not in CONTEXT_PATHS
     assert all(".env" not in path for path in CONTEXT_PATHS)
 

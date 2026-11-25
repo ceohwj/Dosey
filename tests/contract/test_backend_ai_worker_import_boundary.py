@@ -27,8 +27,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # `COPY ./backend/app ./app`과 `COPY ./backend/alembic ./alembic`을 모두 수행하므로,
 # migration도 production 표면의 일부다.
 BACKEND_PRODUCTION_ROOTS = (
-    PROJECT_ROOT / "backend" / "app",
-    PROJECT_ROOT / "backend" / "alembic",
+    PROJECT_ROOT / "apps" / "backend" / "app",
+    PROJECT_ROOT / "apps" / "backend" / "alembic",
 )
 PRODUCTION_ROOTS = BACKEND_PRODUCTION_ROOTS
 
@@ -52,7 +52,7 @@ ALLOWED_AI_WORKER_MODULES = BACKEND_ALLOWED_AI_WORKER_MODULES
 # pre-existing retrieval components needed for the sealed 17-product demo.
 # This is deliberately an equality-checked exception, not a global expansion.
 CLOSED_DEMO_BACKEND_AI_WORKER_MODULES: dict[str, frozenset[str]] = {
-    "backend/app/core/closed_demo_retrieval.py": frozenset(
+    "apps/backend/app/core/closed_demo_retrieval.py": frozenset(
         {
             "ai_worker.adapters.openai_text_embedding",
             "ai_worker.adapters.postgresql_evidence_eligibility",
@@ -71,7 +71,7 @@ CLOSED_DEMO_BACKEND_AI_WORKER_MODULES: dict[str, frozenset[str]] = {
 # one Worker-owned public construction module. No Worker adapter or task internals
 # are visible to Backend services or routes.
 GUIDE_RUNTIME_PROVIDER_BACKEND_AI_WORKER_MODULES: dict[str, frozenset[str]] = {
-    "backend/app/main.py": frozenset({"ai_worker.tasks.rag.guide_runtime_provider"})
+    "apps/backend/app/main.py": frozenset({"ai_worker.tasks.rag.guide_runtime_provider"})
 }
 
 # app-${APP_VERSION} 이미지에 COPY되는 production script별 허용 목록.
@@ -110,7 +110,7 @@ def _production_python_files() -> list[Path]:
 
 def _dockerfile_copied_python_scripts() -> tuple[Path, ...]:
     """Parse backend/app/Dockerfile fail-closed to find all repository scripts copied to the app image."""
-    dockerfile_path = PROJECT_ROOT / "backend" / "app" / "Dockerfile"
+    dockerfile_path = PROJECT_ROOT / "apps" / "backend" / "app" / "Dockerfile"
     copied_scripts: list[Path] = []
     for line_number, raw_line in enumerate(dockerfile_path.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw_line.strip()
@@ -227,8 +227,9 @@ def test_allowed_modules_exist_so_the_allowlist_cannot_rot() -> None:
 
     for module in sorted(all_allowed):
         parts = module.split(".")
-        py_file = PROJECT_ROOT.joinpath(*parts).with_suffix(".py")
-        init_file = PROJECT_ROOT.joinpath(*parts) / "__init__.py"
+        base = PROJECT_ROOT / "apps" if parts[0] == "ai_worker" else PROJECT_ROOT
+        py_file = base.joinpath(*parts).with_suffix(".py")
+        init_file = base.joinpath(*parts) / "__init__.py"
         assert py_file.is_file() or init_file.is_file(), (
             f"허용 목록의 {module} 이 존재하지 않습니다 ({py_file} or {init_file})"
         )

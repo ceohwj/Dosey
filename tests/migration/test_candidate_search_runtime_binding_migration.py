@@ -25,7 +25,7 @@ from sqlalchemy.pool import NullPool
 from app.core import config
 
 ROOT = Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "backend/alembic/versions/924a1b2c3d4e_candidate_search_runtime_binding.py"
+MIGRATION = ROOT / "apps/backend/alembic/versions/924a1b2c3d4e_candidate_search_runtime_binding.py"
 
 
 def _module() -> ModuleType:
@@ -37,8 +37,8 @@ def _module() -> ModuleType:
 
 
 def test_single_forward_head() -> None:
-    alembic_config = Config(str(ROOT / "backend/alembic.ini"))
-    alembic_config.set_main_option("script_location", str(ROOT / "backend/alembic"))
+    alembic_config = Config(str(ROOT / "apps/backend/alembic.ini"))
+    alembic_config.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
     assert ScriptDirectory.from_config(alembic_config).get_revision("924a1b2c3d4e") is not None
     assert _module().down_revision == "923a1b2c3d4e"
 

@@ -120,15 +120,15 @@ def test_symlink_components_and_source_trees_are_not_followed(tmp_path):
 def test_bounded_source_names_exclude_data_cache_and_symlinks(tmp_path):
     candidates = [
         "scripts/temp_probe.py",
-        "backend/app/a_old.py",
-        "ai_worker/a_backup.py",
-        "frontend/src/tmp_probe.tsx",
+        "apps/backend/app/a_old.py",
+        "apps/ai_worker/a_backup.py",
+        "apps/frontend/src/tmp_probe.tsx",
     ]
     for name in candidates + [
         "docs/tmp_note.md",
-        "backend/elsewhere/tmp_no.py",
+        "apps/backend/elsewhere/tmp_no.py",
         "scripts/node_modules/tmp_no.js",
-        "ai_worker/data/tmp_no.py",
+        "apps/ai_worker/data/tmp_no.py",
         "scripts/cache/tmp_no.py",
         "scripts/normal.py",
     ]:

@@ -17,8 +17,8 @@ from rag_runtime.guide_release_projection import (
     GuideRuntimeVerifiedCitation,
 )
 
-MODULE_PATH = Path("rag_runtime/guide_release_projection.py")
-ADAPTER_PATH = Path("ai_worker/tasks/rag/guide_release_projection.py")
+MODULE_PATH = Path("packages/rag_runtime/guide_release_projection.py")
+ADAPTER_PATH = Path("apps/ai_worker/tasks/rag/guide_release_projection.py")
 
 
 def _imported_modules() -> set[str]:

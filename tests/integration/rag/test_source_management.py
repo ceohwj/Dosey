@@ -423,7 +423,7 @@ async def test_forward_migration_and_audit_preserving_downgrade(database):
     async def migrate(action, revision):
         return await asyncio.to_thread(
             subprocess.run,
-            [sys.executable, "-m", "alembic", "-c", str(root / "backend/alembic.ini"), action, revision],
+            [sys.executable, "-m", "alembic", "-c", str(root / "apps/backend/alembic.ini"), action, revision],
             cwd=root,
             env=environment,
             capture_output=True,
@@ -785,7 +785,7 @@ async def test_merge_and_snapshot_seal_preserve_historical_rows(database, previo
     async def migrate(action, revision):
         return await asyncio.to_thread(
             subprocess.run,
-            [sys.executable, "-m", "alembic", "-c", str(root / "backend/alembic.ini"), action, revision],
+            [sys.executable, "-m", "alembic", "-c", str(root / "apps/backend/alembic.ini"), action, revision],
             cwd=root,
             env=environment,
             capture_output=True,

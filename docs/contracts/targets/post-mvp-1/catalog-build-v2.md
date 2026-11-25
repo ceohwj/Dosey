@@ -86,6 +86,6 @@ JSON manifest의 최상위·중첩 객체에 중복 key가 있으면 마지막 �
 
 고정 bytes·digest와 Candidate 인계 회귀는 `tests/fixtures/rag/catalog/hash-v2/` 및
 `ai_worker/tests/rag/catalog/test_hash_contract_v2.py`를 따른다. 내부 DB 저장 metadata 설계는
-`docs/designs/jye-rookie/issue-166-db-integration-plan.md`에 기록하며 아직 새 공유 DTO·DB schema가 아니다.
+`docs/designs/rag/issue-166-db-integration-plan.md`에 기록하며 아직 새 공유 DTO·DB schema가 아니다.
 Candidate projection·Runtime medication manifest 분리는 새 계약 버전 제안으로 유지하고,
 D-02 실행 참조를 ingestion run으로 대체하지 않는다.

@@ -43,7 +43,7 @@ services:
   migrate:
     build:
       context: .
-      dockerfile: backend/app/Dockerfile
+      dockerfile: apps/backend/app/Dockerfile
     env_file: ${REAL_STACK_ENV_FILE:-envs/.local.env}
     environment: *app-environment
     command: ["uv", "run", "--no-sync", "alembic", "upgrade", "head"]
@@ -56,7 +56,7 @@ services:
   fastapi:
     build:
       context: .
-      dockerfile: backend/app/Dockerfile
+      dockerfile: apps/backend/app/Dockerfile
     env_file: ${REAL_STACK_ENV_FILE:-envs/.local.env}
     environment:
       <<: *app-environment
@@ -83,7 +83,7 @@ services:
   ai-worker:
     build:
       context: .
-      dockerfile: ai_worker/Dockerfile
+      dockerfile: apps/ai_worker/Dockerfile
     env_file: ${REAL_STACK_ENV_FILE:-envs/.local.env}
     environment: *app-environment
     volumes:
@@ -100,7 +100,7 @@ services:
 
   frontend:
     build:
-      context: frontend
+      context: apps/frontend
       dockerfile: Dockerfile
     environment:
       VITE_API_BASE_URL: http://127.0.0.1:18000

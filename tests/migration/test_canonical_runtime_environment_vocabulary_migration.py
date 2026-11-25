@@ -78,7 +78,7 @@ def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
         "PYTHONPATH": f"{PROJECT_ROOT / 'backend'}:{PROJECT_ROOT}",
     }
     return subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", "backend/alembic.ini", *args],
+        [sys.executable, "-m", "alembic", "-c", "apps/backend/alembic.ini", *args],
         cwd=str(PROJECT_ROOT),
         env=environment,
         capture_output=True,

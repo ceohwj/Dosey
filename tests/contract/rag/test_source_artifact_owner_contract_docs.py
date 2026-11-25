@@ -4,7 +4,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_source_artifact_owner_decision_and_contract_alignment() -> None:
-    decision = (ROOT / "docs/governance/decisions/2026-11-12-source-artifact-owner-protocol-v1.md").read_text(
+    decision = (ROOT / "docs/archive/decisions/2026-11-12-source-artifact-owner-protocol-v1.md").read_text(
         encoding="utf-8"
     )
     assert "PD-DOSEY-20261112-SOURCE-ARTIFACT-OWNER-V1-1" in decision

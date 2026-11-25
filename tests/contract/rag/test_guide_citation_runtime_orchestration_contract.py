@@ -8,7 +8,7 @@ from ai_worker.tasks.rag.guide_citation_runtime_orchestration import (
     GuideCitationRuntimeOrchestrationRequest,
 )
 
-MODULE_PATH = Path("ai_worker/tasks/rag/guide_citation_runtime_orchestration.py")
+MODULE_PATH = Path("apps/ai_worker/tasks/rag/guide_citation_runtime_orchestration.py")
 
 
 def _imports() -> tuple[set[str], dict[str, set[str]]]:

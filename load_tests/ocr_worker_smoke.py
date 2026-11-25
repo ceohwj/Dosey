@@ -17,7 +17,7 @@ from uuid import uuid4
 
 from locust import HttpUser, between, task  # type: ignore[import-not-found]
 
-DEFAULT_MANIFEST_PATH = "backend/app/release_validation/scenarios/ai-one-cycle-clova-openai-v1.json"
+DEFAULT_MANIFEST_PATH = "apps/backend/app/release_validation/scenarios/ai-one-cycle-clova-openai-v1.json"
 DEFAULT_FIXTURE_PATH = "tests/fixtures/release_validation/ai_one_cycle_clova_openai_v1.png"
 DEFAULT_POLL_INTERVAL_SECONDS = 1.0
 DEFAULT_MAX_WAIT_SECONDS = 60.0

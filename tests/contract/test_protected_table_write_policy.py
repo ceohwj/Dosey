@@ -20,42 +20,42 @@ statement = update(snapshot).values(verification_status="CURRENT")
 
 
 def test_rejects_unapproved_writer_and_accepts_reviewed_repository(tmp_path: Path) -> None:
-    unapproved = tmp_path / "backend/app/services/runtime_bypass.py"
+    unapproved = tmp_path / "apps/backend/app/services/runtime_bypass.py"
     unapproved.parent.mkdir(parents=True)
     unapproved.write_text(
         "from app.models.rag_runtime import RagRuntimeEnvironmentTransition\n"
         "row = RagRuntimeEnvironmentTransition(environment_revision=2)\n"
     )
-    approved = tmp_path / "backend/app/repositories/rag_runtime_repository.py"
+    approved = tmp_path / "apps/backend/app/repositories/rag_runtime_repository.py"
     approved.parent.mkdir(parents=True)
     approved.write_text(unapproved.read_text())
 
     assert violations(tmp_path, [str(unapproved.relative_to(tmp_path))]) == [
-        "backend/app/services/runtime_bypass.py:2: unapproved write to rag_runtime_environment_transition"
+        "apps/backend/app/services/runtime_bypass.py:2: unapproved write to rag_runtime_environment_transition"
     ]
     assert violations(tmp_path, [str(approved.relative_to(tmp_path))]) == []
 
 
 def test_detects_raw_sql_write(tmp_path: Path) -> None:
-    path = tmp_path / "ai_worker/tasks/unsafe_writer.py"
+    path = tmp_path / "apps/ai_worker/tasks/unsafe_writer.py"
     path.parent.mkdir(parents=True)
     path.write_text('statement = "DELETE FROM prescription_version WHERE id=:id"\n')
 
     assert violations(tmp_path, [str(path.relative_to(tmp_path))]) == [
-        "ai_worker/tasks/unsafe_writer.py:1: unapproved write to prescription_version"
+        "apps/ai_worker/tasks/unsafe_writer.py:1: unapproved write to prescription_version"
     ]
 
 
 def test_catalog_build_writes_are_limited_to_explicit_adapter(tmp_path: Path) -> None:
-    adapter = tmp_path / "ai_worker/adapters/sqlalchemy_catalog_write_support.py"
+    adapter = tmp_path / "apps/ai_worker/adapters/sqlalchemy_catalog_write_support.py"
     adapter.parent.mkdir(parents=True)
     adapter.write_text('statement = "INSERT INTO rag_catalog_set (id) VALUES (:id)"\n')
-    bypass = tmp_path / "ai_worker/adapters/catalog_bypass.py"
+    bypass = tmp_path / "apps/ai_worker/adapters/catalog_bypass.py"
     bypass.write_text(adapter.read_text())
 
     assert violations(tmp_path, [str(adapter.relative_to(tmp_path))]) == []
     assert violations(tmp_path, [str(bypass.relative_to(tmp_path))]) == [
-        "ai_worker/adapters/catalog_bypass.py:1: unapproved write to rag_catalog_set"
+        "apps/ai_worker/adapters/catalog_bypass.py:1: unapproved write to rag_catalog_set"
     ]
 
 
@@ -64,34 +64,34 @@ def test_request_guard_runtime_binding_writes_are_limited_to_its_repository(tmp_
         "from app.models.rag_request_guard_runtime_binding import RagRequestGuardRuntimeBinding\n"
         "row = RagRequestGuardRuntimeBinding(request_guard_decision_id='synthetic')\n"
     )
-    approved = tmp_path / "backend/app/repositories/rag_request_guard_runtime_binding_repository.py"
+    approved = tmp_path / "apps/backend/app/repositories/rag_request_guard_runtime_binding_repository.py"
     approved.parent.mkdir(parents=True)
     approved.write_text(source)
-    bypass = tmp_path / "backend/app/services/request_guard_bypass.py"
+    bypass = tmp_path / "apps/backend/app/services/request_guard_bypass.py"
     bypass.parent.mkdir(parents=True)
     bypass.write_text(source)
 
     assert violations(tmp_path, [str(approved.relative_to(tmp_path))]) == []
     assert violations(tmp_path, [str(bypass.relative_to(tmp_path))]) == [
-        "backend/app/services/request_guard_bypass.py:2: unapproved write to rag_request_guard_runtime_binding"
+        "apps/backend/app/services/request_guard_bypass.py:2: unapproved write to rag_request_guard_runtime_binding"
     ]
 
 
 def test_source_use_approval_writes_are_limited_to_explicit_repository(tmp_path: Path) -> None:
-    repository = tmp_path / "backend/app/repositories/rag_source_use_approval_repository.py"
+    repository = tmp_path / "apps/backend/app/repositories/rag_source_use_approval_repository.py"
     repository.parent.mkdir(parents=True)
     repository.write_text(
         "from sqlalchemy.dialects.postgresql import insert as pg_insert\n"
         "from app.models.rag_source_use_approval import RagSourceUseApproval\n"
         "statement = pg_insert(RagSourceUseApproval).values(approval_version='v1')\n"
     )
-    bypass = tmp_path / "backend/app/services/source_use_approval_bypass.py"
+    bypass = tmp_path / "apps/backend/app/services/source_use_approval_bypass.py"
     bypass.parent.mkdir(parents=True)
     bypass.write_text(repository.read_text())
 
     assert violations(tmp_path, [str(repository.relative_to(tmp_path))]) == []
     assert violations(tmp_path, [str(bypass.relative_to(tmp_path))]) == [
-        "backend/app/services/source_use_approval_bypass.py:3: unapproved write to rag_source_use_approval"
+        "apps/backend/app/services/source_use_approval_bypass.py:3: unapproved write to rag_source_use_approval"
     ]
 
 

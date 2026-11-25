@@ -101,14 +101,16 @@ def test_metadata_checks_are_preserved(copied_project: Path, field: str) -> None
 def test_unrelated_or_duplicate_traceability_hash_cannot_pass(copied_project: Path) -> None:
     path = copied_project / TRACEABILITY_PATH
     original = path.read_text()
-    path.write_text(original.replace("(../../tests/fixtures/rag/source_contract_receipt.json)", "(other.json)"))
+    path.write_text(original.replace("(../../../tests/fixtures/rag/source_contract_receipt.json)", "(other.json)"))
     with pytest.raises(ValueError, match="Source canonical hash"):
         verify_source_contract_receipt(copied_project)
     path.write_text(
         original
         + "\n"
         + next(
-            line for line in original.splitlines() if "(../../tests/fixtures/rag/source_contract_receipt.json)" in line
+            line
+            for line in original.splitlines()
+            if "(../../../tests/fixtures/rag/source_contract_receipt.json)" in line
         )
     )
     with pytest.raises(ValueError, match="Source canonical hash"):

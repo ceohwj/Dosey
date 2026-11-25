@@ -8,41 +8,47 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PRODUCTION_ROOTS = ("backend/app/", "ai_worker/", "infra/python/", "scripts/", "tools/")
+PRODUCTION_ROOTS = ("apps/backend/app/", "apps/ai_worker/", "infra/python/", "scripts/", "tools/")
 
 _SOURCE_WRITERS = frozenset(
     {
-        "backend/app/repositories/rag_source_catalog_repository.py",
-        "backend/app/admin/source_management_service.py",
-        "ai_worker/adapters/sqlalchemy_source_snapshot_repository.py",
-        "ai_worker/adapters/postgresql_source_cleanup.py",
-        "ai_worker/tasks/rag/source_cleanup/execution.py",
+        "apps/backend/app/repositories/rag_source_catalog_repository.py",
+        "apps/backend/app/admin/source_management_service.py",
+        "apps/ai_worker/adapters/sqlalchemy_source_snapshot_repository.py",
+        "apps/ai_worker/adapters/postgresql_source_cleanup.py",
+        "apps/ai_worker/tasks/rag/source_cleanup/execution.py",
     }
 )
-_EVALUATION_BOOTSTRAP_WRITERS = frozenset({"ai_worker/adapters/sqlalchemy_evaluation_bootstrap_repository.py"})
+_EVALUATION_BOOTSTRAP_WRITERS = frozenset({"apps/ai_worker/adapters/sqlalchemy_evaluation_bootstrap_repository.py"})
 _CATALOG_WRITERS = frozenset(
-    {"backend/app/repositories/rag_source_catalog_repository.py", "backend/app/admin/source_management_service.py"}
+    {
+        "apps/backend/app/repositories/rag_source_catalog_repository.py",
+        "apps/backend/app/admin/source_management_service.py",
+    }
 )
-_CATALOG_BUILD_WRITERS = frozenset({"ai_worker/adapters/sqlalchemy_catalog_write_support.py"})
+_CATALOG_BUILD_WRITERS = frozenset({"apps/ai_worker/adapters/sqlalchemy_catalog_write_support.py"})
 _CATALOG_IDENTITY_WRITERS = _CATALOG_BUILD_WRITERS | frozenset(
-    {"backend/app/repositories/rag_source_catalog_repository.py"}
+    {"apps/backend/app/repositories/rag_source_catalog_repository.py"}
 )
 
-_REQUEST_AUTHORITY_WRITERS = frozenset({"backend/app/repositories/rag_request_authority_repository.py"})
+_REQUEST_AUTHORITY_WRITERS = frozenset({"apps/backend/app/repositories/rag_request_authority_repository.py"})
 _REQUEST_GUARD_RUNTIME_BINDING_WRITERS = frozenset(
-    {"backend/app/repositories/rag_request_guard_runtime_binding_repository.py"}
+    {"apps/backend/app/repositories/rag_request_guard_runtime_binding_repository.py"}
 )
-_EVIDENCE_AUTHORITY_WRITERS = frozenset({"backend/app/repositories/rag_evidence_authority_repository.py"})
-_SOURCE_USE_APPROVAL_WRITERS = frozenset({"backend/app/repositories/rag_source_use_approval_repository.py"})
-_RUNTIME_BUNDLE_CITATION_APPROVAL_WRITERS = frozenset({"backend/app/repositories/rag_runtime_repository.py"})
+_EVIDENCE_AUTHORITY_WRITERS = frozenset({"apps/backend/app/repositories/rag_evidence_authority_repository.py"})
+_SOURCE_USE_APPROVAL_WRITERS = frozenset({"apps/backend/app/repositories/rag_source_use_approval_repository.py"})
+_RUNTIME_BUNDLE_CITATION_APPROVAL_WRITERS = frozenset({"apps/backend/app/repositories/rag_runtime_repository.py"})
 _CITATION_AUTHORIZATION_AUTHORITY_WRITERS = frozenset(
-    {"ai_worker/adapters/sqlalchemy_citation_authorization_authority.py"}
+    {"apps/ai_worker/adapters/sqlalchemy_citation_authorization_authority.py"}
 )
 
 APPROVED_WRITERS: dict[str, frozenset[str]] = {
-    "source_management_permission": frozenset({"backend/app/admin/source_management_permissions.py"}),
+    "source_management_permission": frozenset({"apps/backend/app/admin/source_management_permissions.py"}),
     "source_management_audit": frozenset(
-        {"backend/app/admin/source_management_permissions.py", "backend/app/admin/source_management_service.py"}
+        {
+            "apps/backend/app/admin/source_management_permissions.py",
+            "apps/backend/app/admin/source_management_service.py",
+        }
     ),
     "rag_source": _SOURCE_WRITERS | _EVALUATION_BOOTSTRAP_WRITERS,
     "rag_source_endpoint": _SOURCE_WRITERS | _EVALUATION_BOOTSTRAP_WRITERS,
@@ -63,15 +69,17 @@ APPROVED_WRITERS: dict[str, frozenset[str]] = {
     "rag_catalog_set_source": _CATALOG_BUILD_WRITERS,
     "rag_catalog_set_member": _CATALOG_BUILD_WRITERS,
     "rag_catalog_set_hash": _CATALOG_BUILD_WRITERS,
-    "prescription_version": frozenset({"backend/app/repositories/prescription_repository.py"}),
-    "prescription_version_medication": frozenset({"backend/app/repositories/prescription_repository.py"}),
-    "medication_candidate_search_result": frozenset({"backend/app/repositories/medication_candidate_repository.py"}),
-    "medication_schedule_audit": frozenset({"backend/app/repositories/medication_schedule_repository.py"}),
-    "checkin_audit": frozenset({"backend/app/repositories/medication_checkin_repository.py"}),
-    "ai_job_intake_context": frozenset({"backend/app/repositories/rag_runtime_repository.py"}),
-    "ai_job_execution_context": frozenset({"backend/app/repositories/rag_runtime_repository.py"}),
-    "ai_job_execution_identification": frozenset({"backend/app/repositories/rag_runtime_repository.py"}),
-    "rag_runtime_environment_transition": frozenset({"backend/app/repositories/rag_runtime_repository.py"}),
+    "prescription_version": frozenset({"apps/backend/app/repositories/prescription_repository.py"}),
+    "prescription_version_medication": frozenset({"apps/backend/app/repositories/prescription_repository.py"}),
+    "medication_candidate_search_result": frozenset(
+        {"apps/backend/app/repositories/medication_candidate_repository.py"}
+    ),
+    "medication_schedule_audit": frozenset({"apps/backend/app/repositories/medication_schedule_repository.py"}),
+    "checkin_audit": frozenset({"apps/backend/app/repositories/medication_checkin_repository.py"}),
+    "ai_job_intake_context": frozenset({"apps/backend/app/repositories/rag_runtime_repository.py"}),
+    "ai_job_execution_context": frozenset({"apps/backend/app/repositories/rag_runtime_repository.py"}),
+    "ai_job_execution_identification": frozenset({"apps/backend/app/repositories/rag_runtime_repository.py"}),
+    "rag_runtime_environment_transition": frozenset({"apps/backend/app/repositories/rag_runtime_repository.py"}),
     # #713 REQUEST authority는 historical 증거이므로 append-only writer 한 곳만 허용한다.
     "rag_request_guard_authority": _REQUEST_AUTHORITY_WRITERS,
     "rag_request_source_decision": _REQUEST_AUTHORITY_WRITERS,
@@ -79,11 +87,11 @@ APPROVED_WRITERS: dict[str, frozenset[str]] = {
     "rag_request_guard_runtime_binding": _REQUEST_GUARD_RUNTIME_BINDING_WRITERS,
     # #712 Evidence Assessment authority는 historical 증거이므로 append-only writer 한 곳만 허용한다.
     "rag_evidence_authority": _EVIDENCE_AUTHORITY_WRITERS,
-    "rag_evidence_knowledge": frozenset({"backend/app/repositories/rag_evidence_citation_repository.py"}),
-    "rag_evidence": frozenset({"backend/app/repositories/rag_evidence_citation_repository.py"}),
-    "rag_evidence_rule": frozenset({"backend/app/repositories/rag_evidence_citation_repository.py"}),
-    "rag_evidence_guideline": frozenset({"backend/app/repositories/rag_evidence_citation_repository.py"}),
-    "rag_citation": frozenset({"backend/app/repositories/rag_evidence_citation_repository.py"}),
+    "rag_evidence_knowledge": frozenset({"apps/backend/app/repositories/rag_evidence_citation_repository.py"}),
+    "rag_evidence": frozenset({"apps/backend/app/repositories/rag_evidence_citation_repository.py"}),
+    "rag_evidence_rule": frozenset({"apps/backend/app/repositories/rag_evidence_citation_repository.py"}),
+    "rag_evidence_guideline": frozenset({"apps/backend/app/repositories/rag_evidence_citation_repository.py"}),
+    "rag_citation": frozenset({"apps/backend/app/repositories/rag_evidence_citation_repository.py"}),
     # #807 Source Use Approval은 별도 authority 이력이며, 발행/철회 경계를 한 저장소로 제한한다.
     "rag_source_use_approval": _SOURCE_USE_APPROVAL_WRITERS,
     "rag_runtime_bundle_citation_approval": _RUNTIME_BUNDLE_CITATION_APPROVAL_WRITERS,

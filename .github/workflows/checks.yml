@@ -124,7 +124,7 @@ jobs:
         run: uv run ruff format . --check
 
       - name: Run Mypy
-        run: uv run mypy backend/app ai_worker
+        run: uv run mypy apps/backend/app apps/ai_worker
 
   test-migration:
     needs:
@@ -178,8 +178,8 @@ jobs:
 
       - name: Run PostgreSQL migrations
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
-        run: uv run alembic -c backend/alembic.ini upgrade 398b2c3d4e5f
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
+        run: uv run alembic -c apps/backend/alembic.ini upgrade 398b2c3d4e5f
       # PD-368 §4는 protected 권한 경계를 "실제 제한 로그인 통합 테스트로 입증"하도록
       # 요구하고 정적 검색만으로 판정하지 않는다고 명시합니다. 해당 테스트는 fixture가
       # 일회용 schema와 LOGIN role을 만들기 때문에 공용 test DB가 아닌 전용 DB를 씁니다.
@@ -198,22 +198,22 @@ jobs:
           asyncio.run(create_database())
           PY
 
-      # backend/app/tests/conftest.py가 스키마를 재생성하기 전에
+      # apps/backend/app/tests/conftest.py가 스키마를 재생성하기 전에
       # Alembic이 만든 실제 PostgreSQL 구조를 검증합니다.
       - name: Validate migrated PostgreSQL schema
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
           PROTECTED_TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@127.0.0.1:5432/protected368_test
         run: uv run pytest tests/migration -v
 
       - name: Apply irreversible Source cutover
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
-        run: uv run alembic -c backend/alembic.ini upgrade head
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
+        run: uv run alembic -c apps/backend/alembic.ini upgrade head
 
       - name: Verify final database head
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
         run: uv run python scripts/ci/verify_database_head.py
 
   test-backend:
@@ -275,9 +275,9 @@ jobs:
 
       - name: Run Backend Tests with Coverage
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
         run: |
-          uv run coverage run -m pytest backend/app tests/integration/test_worker_ocr_persistence.py tests/integration/test_outbox_publisher.py tests/integration/test_worker_job_execution_repository.py tests/integration/test_worker_dlq_outbox_repository.py tests/integration/test_worker_recovery_repository.py
+          uv run coverage run -m pytest apps/backend/app tests/integration/test_worker_ocr_persistence.py tests/integration/test_outbox_publisher.py tests/integration/test_worker_job_execution_repository.py tests/integration/test_worker_dlq_outbox_repository.py tests/integration/test_worker_recovery_repository.py
 
       - name: Upload Backend Coverage Data
         uses: actions/upload-artifact@v4
@@ -356,7 +356,7 @@ jobs:
       - name: Run RAG Integration Tests with Coverage
         env:
           ISSUE398_TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
           PROTECTED_TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@127.0.0.1:5432/protected368_test
         run: uv run python scripts/ci/select_rag_test_shard.py --root tests/integration/rag --shard "${{ matrix.shard }}" --total-shards 3 --run-coverage
 
@@ -364,7 +364,7 @@ jobs:
       - name: Verify isolated Source cleanup workflow
         if: ${{ matrix.shard == 1 }}
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
           DB_NAME: source_cleanup347_test
           SOURCE_CLEANUP_TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci_test_password@127.0.0.1:5432/source_cleanup347_test
         run: |
@@ -380,7 +380,7 @@ jobs:
                   await connection.close()
           asyncio.run(create_database())
           PY
-          uv run alembic -c backend/alembic.ini upgrade head
+          uv run alembic -c apps/backend/alembic.ini upgrade head
           uv run coverage run --append -m pytest tests/integration/rag/test_source_cleanup_references.py tests/integration/rag/test_source_cleanup_workflow.py -q
 
       - name: Upload RAG Coverage Data
@@ -423,7 +423,7 @@ jobs:
 
       - name: Run Contract Tests with Coverage
         env:
-          PYTHONPATH: ${{ github.workspace }}/backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
         run: uv run coverage run -m pytest tests/contract tests/services
 
       - name: Upload Contract Coverage Data
@@ -458,19 +458,19 @@ jobs:
       - name: Install dependencies
         run: uv sync --group app --group worker --frozen
 
-      # ai_worker/tests/evaluation은 외부 서비스 없이 evals/ artifact의 canonical byte와
+      # apps/ai_worker/tests/evaluation은 외부 서비스 없이 evals/ artifact의 canonical byte와
       # hash 결속만 검증합니다. Dataset·Schema Set 계약의 회귀를 CI에서 잡기 위해 포함합니다.
       - name: Run AI Worker Unit Tests with Coverage
         env:
-          PYTHONPATH: ${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}
         run: |
           uv run pytest \
             -n 2 --dist=loadfile --max-worker-restart=0 --cov --cov-report= \
-            ai_worker/tests/core \
-            ai_worker/tests/adapters \
-            ai_worker/tests/ocr \
-            ai_worker/tests/rag \
-            ai_worker/tests/evaluation
+            apps/ai_worker/tests/core \
+            apps/ai_worker/tests/adapters \
+            apps/ai_worker/tests/ocr \
+            apps/ai_worker/tests/rag \
+            apps/ai_worker/tests/evaluation
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -578,7 +578,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: apps/frontend
     env:
       VITE_API_BASE_URL: http://localhost:8000
     steps:
@@ -588,14 +588,14 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          package_json_file: frontend/package.json
+          package_json_file: apps/frontend/package.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: apps/frontend/pnpm-lock.yaml
 
       - name: Install Frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -613,7 +613,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/frontend/pnpm-lock.yaml') }}
 
       - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
@@ -632,8 +632,8 @@ jobs:
         with:
           name: playwright-requirements-failure
           path: |
-            frontend/playwright-report/requirements/
-            frontend/test-results/requirements/
+            apps/frontend/playwright-report/requirements/
+            apps/frontend/test-results/requirements/
           if-no-files-found: ignore
           retention-days: 14
 

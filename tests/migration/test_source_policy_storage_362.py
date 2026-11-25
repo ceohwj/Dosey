@@ -14,7 +14,7 @@ from sqlalchemy.pool import NullPool
 
 from app.core import config
 
-_PATH = Path(__file__).resolve().parents[2] / "backend/alembic/versions/362a1b2c3d4e_source_policy_storage.py"
+_PATH = Path(__file__).resolve().parents[2] / "apps/backend/alembic/versions/362a1b2c3d4e_source_policy_storage.py"
 _SPEC = importlib.util.spec_from_file_location("source_policy_storage_362", _PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 _MIGRATION = importlib.util.module_from_spec(_SPEC)

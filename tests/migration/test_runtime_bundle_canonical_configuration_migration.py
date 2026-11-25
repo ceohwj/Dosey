@@ -101,7 +101,7 @@ def _isolated_url(database: str) -> URL:
 def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
     """전용 DB를 향해 실제 Alembic을 subprocess로 실행한다.
 
-    `backend/alembic/env.py`가 import 시점에 `app_config.database_url`로 `sqlalchemy.url`을
+    `apps/backend/alembic/env.py`가 import 시점에 `app_config.database_url`로 `sqlalchemy.url`을
     덮어쓰기 때문에, in-process `Config.set_main_option`으로는 대상 DB를 바꿀 수 없다. CI가
     쓰는 방식과 같게 환경변수를 준 별도 프로세스로 실행해 공유 test DB를 전혀 건드리지 않는다.
 
@@ -122,7 +122,7 @@ def _run_alembic(*args: str) -> subprocess.CompletedProcess[str]:
         "PYTHONPATH": f"{PROJECT_ROOT / 'backend'}:{PROJECT_ROOT}",
     }
     return subprocess.run(
-        ["uv", "run", "alembic", "-c", "backend/alembic.ini", *args],
+        ["uv", "run", "alembic", "-c", "apps/backend/alembic.ini", *args],
         cwd=str(PROJECT_ROOT),
         env=environment,
         capture_output=True,

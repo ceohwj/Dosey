@@ -163,7 +163,7 @@ def test_handoff_coordinates_reject_invalid_item_seq(item_seq):
 
 
 def test_committed_precheck_manifest_has_unique_fail_closed_coordinates():
-    manifest_path = Path("docs/validation/rag/issue-591/mfds-16-product-precheck.json")
+    manifest_path = Path("docs/archive/validation/rag/issue-591/mfds-16-product-precheck.json")
     manifest = json.loads(manifest_path.read_text())
     assert manifest["status"] == "LOCAL_PRECHECK_ONLY"
     assert manifest["source_ingested"] is False

@@ -59,7 +59,7 @@ SCOPES = ("GUIDE", "PATIENT_CITATION")
 
 def _alembic_config() -> Config:
     alembic_config = Config()
-    alembic_config.set_main_option("script_location", str(PROJECT_ROOT / "backend/alembic"))
+    alembic_config.set_main_option("script_location", str(PROJECT_ROOT / "apps/backend/alembic"))
     return alembic_config
 
 

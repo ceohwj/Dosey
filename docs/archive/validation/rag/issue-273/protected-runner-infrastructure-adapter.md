@@ -1,0 +1,58 @@
+# Issue #368 Protected Retrieval Infrastructure Adapter
+
+> 저장소 구현 증빙입니다. 실제 protected 환경 활성화나 HOLDOUT 접근 승인 증빙이 아닙니다.
+
+## 상태
+
+- Repository adapter: `IMPLEMENTED_IN_REPOSITORY`
+- Authorization control C1: `IMPLEMENTED_IN_REPOSITORY`
+- Implemented scope: approval ingestion and grant/revoke/expire transaction·audit services
+- Production approval source connector: `IMPLEMENTED_IN_REPOSITORY`
+- Dataset lifecycle/FREEZE service: `IMPLEMENTED_IN_REPOSITORY`
+- Identity registration/disable service: `IMPLEMENTED_IN_REPOSITORY`
+- Effective enforcement: `NOT_IMPLEMENTED`
+- Access authorized: `false`
+- HOLDOUT authored: `false`
+- Freeze recorded: `false`
+- Actual run: `NOT_CREATED`
+- Disposal: `BLOCKED_BY_ISSUE_425`
+- Release eligible: `false`
+
+## 검증
+
+- Authorization-control related suite: `128 passed`
+- Runtime assembly suite: `24 passed`
+- Protected-off Worker image import: `passed`
+- Protected limited-login verification in CI: `passed`
+- Production approval source connector: `21 passed`
+- 실제 환경 좌표와 보호 데이터는 사용하지 않았습니다.
+
+## Evidence self hash 입력
+
+`evidence_sha256`은 아래 구현 파일의 raw SHA-256을 포함해 계산합니다.
+구현 파일이 바뀌면 이 문서의 본문이 같아도 해시는 달라집니다.
+
+| Component | Path | raw_sha256 |
+| --- | --- | --- |
+| `ASYNC_KERNEL_SEAM` | `apps/ai_worker/tasks/evaluation/protected_retrieval.py` | `26d068434d9ec5147a65302aab57958b689855e86e9173659e7489abb1675c38` |
+| `POSTGRESQL_ADAPTER` | `apps/ai_worker/adapters/postgresql_protected_retrieval.py` | `5936abbe9f3a9136760618d082f6dae010b620d647056b075436e19f1a89969b` |
+| `FAIL_CLOSED_CONFIG` | `apps/ai_worker/core/config.py` | `69903aee06f3dbddf8cd07a1dff4bd413cc567a2821a4f225a66509d9030a162` |
+| `EXPLICIT_RUNTIME_ASSEMBLY` | `apps/ai_worker/core/runtime_assembly.py` | `c22fabd9053d86c86d876a28359eb1a9a150a16c908deb06f9457215fa59c2b9` |
+| `PROTECTED_ROLE_POLICY` | `infra/python/protected_retrieval_role_policy.py` | `1df8f8b239d4150dd10e0a7b8137b8b633c88bb3a1f3fa83bc3654976d5748c2` |
+| `ISOLATED_MIGRATION_ENV` | `infra/protected_retrieval/env.py` | `4853f8178ea611df177900573e6593c8bdc76db86a039ebd6f299013895fdbf3` |
+| `ISOLATED_MIGRATION` | `infra/protected_retrieval/versions/368000000001_create_protected_retrieval.py` | `20ed57547853a39ae5254d69dd71873e0a26223a705c5231e50dc8aa7416c68d` |
+| `AUTHORIZATION_CONTROL_CONTRACT` | `apps/ai_worker/tasks/evaluation/protected_retrieval_control.py` | `977b28a8eb3846019c2a989877402fff691b63e710a2165a55bced26716d20ac` |
+| `POSTGRESQL_CONTROL_ADAPTER` | `apps/ai_worker/adapters/postgresql_protected_retrieval_control.py` | `de48e14d997b67f02b0852d480cecf912760f46b9017a4f05b720ee3595fe0b4` |
+| `AUTHORIZATION_CONTROL_MIGRATION` | `infra/protected_retrieval/versions/368000000002_add_authorization_control.py` | `56a7275ebc83ebf69f115230e36e40bc13d0731a7c91bed900ff287b2b42c5b8` |
+| `PRODUCTION_APPROVAL_SOURCE_CONNECTOR` | `apps/ai_worker/adapters/github_trusted_approval_source.py` | `247c5523f6c8908d9a1269e88039f25788511e84378a3711855e11d4736dfdf2` |
+
+재생성·검증: `uv run python scripts/verify_protected_runner_evidence.py [--write]`
+
+## 활성화 전 필수 조건
+
+- `EXT-PRIV-001` 승인
+- 실제 환경 provisioning 및 독립 Backend·Security 검증
+- backup·restore·rotation 운영 증빙
+- Track F external gate 충족
+
+Evidence self hash: `79cc7bea39cd1d7b1f783ddee440c3ce1a9bf3d694e13a07ba7b56cc9d4a60c8`

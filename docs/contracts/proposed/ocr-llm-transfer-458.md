@@ -90,8 +90,8 @@ RLS·DB Trigger·업무용 DB 함수 없이 명시적 Python 검증·transaction
 
 ## 2026-09-14 Backend·PM 답변 및 로컬 구현
 
-[동의 조회·재검사 구현 기록](../../designs/ocr-consent-gate-458-implementation.md) 및
-[Worker 차단 저장 결정안](../../governance/decisions/2026-09-14-ocr-consent-worker-458.md)에
+[동의 조회·재검사 구현 기록](../../designs/ocr/ocr-consent-gate-458-implementation.md) 및
+[Worker 차단 저장 결정안](../../archive/decisions/2026-09-14-ocr-consent-worker-458.md)에
 원문 링크와 구체 사유·상태·재시도·ACK 순서를 기록한다. #465는 develop에 병합됐다.
 Backend는 접수 전, Worker는 CLOVA 직전·LLM 직전 및 결과 성공 반환 전 검사를 담당한다.
 `GET/POST/DELETE /users/me/consents/OCR`과 Frontend Gate·검수 안내를 로컬 연결했다.

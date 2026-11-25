@@ -55,7 +55,7 @@ _MAX_VALIDITY = timedelta(seconds=EVIDENCE_ASSESSMENT_MAX_VALIDITY_DURATION_SECO
 
 def _alembic_config() -> Config:
     alembic_config = Config()
-    alembic_config.set_main_option("script_location", str(ROOT / "backend/alembic"))
+    alembic_config.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
     return alembic_config
 
 

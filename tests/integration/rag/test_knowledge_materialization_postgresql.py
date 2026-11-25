@@ -83,7 +83,7 @@ _ITEM_SEQ = "200610660"
 
 def _alembic_config() -> Config:
     alembic_config = Config()
-    alembic_config.set_main_option("script_location", str(ROOT / "backend/alembic"))
+    alembic_config.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
     return alembic_config
 
 

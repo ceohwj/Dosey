@@ -17,7 +17,7 @@ from app.services.track_c_handler_config import (
     parse_support_copy_catalog,
 )
 
-COPY_DIR = Path("backend/app/config/track_c/support-copy")
+COPY_DIR = Path("apps/backend/app/config/track_c/support-copy")
 
 
 @pytest.mark.parametrize("loader", [load_active_handler_config, load_active_support_copy_catalog])

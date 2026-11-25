@@ -602,7 +602,7 @@ async def test_bootstrap_then_provision_and_redeploy_do_not_reopen_permissions(t
             await connection.execute(text("DROP SCHEMA public CASCADE"))
             await connection.execute(text("CREATE SCHEMA public"))
         migrated = subprocess.run(
-            [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398b2c3d4e5f"],
+            [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "398b2c3d4e5f"],
             cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
             env={**os.environ, "DB_NAME": database},
             capture_output=True,
@@ -682,7 +682,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
             )
         )
     failed = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398c3d4e5f60"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "398c3d4e5f60"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
@@ -706,7 +706,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
         )
         await connection.execute(text("DROP VIEW source_cutover_dependency"))
     result = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398c3d4e5f60"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "398c3d4e5f60"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
@@ -757,7 +757,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
                 await connection.execute(text(sql))
         assert error.value.orig.sqlstate == "42501"
     rollback = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398b2c3d4e5f"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "downgrade", "398b2c3d4e5f"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
@@ -782,7 +782,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
     await _assert_runtime_transition_revisions_are_sealed(admin, runtime_environment_id, environment)
 
     current = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "head"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "head"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
@@ -809,7 +809,7 @@ async def _exercise_source_cutover(admin, reader, producer, environment, url, pa
         await connection.execute(text("DROP SCHEMA public CASCADE"))
         await connection.execute(text("CREATE SCHEMA public"))
     fresh = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "head"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "head"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": database},
         capture_output=True,
@@ -855,7 +855,7 @@ async def _exercise_audit_cutover(admin, reader, producer, environment):
             await connection.execute(text(f'GRANT ALL ON {table} TO PUBLIC, "{runtime}"'))
             await connection.execute(text(f'GRANT UPDATE (id) ON {table} TO "{runtime}"'))
     migration = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "398d4e5f6071"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "398d4e5f6071"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -988,7 +988,7 @@ async def _exercise_audit_cutover(admin, reader, producer, environment):
             await connection.execute(text("DELETE FROM rag_runtime_environment_transition"))
     assert error.value.orig.sqlstate == "42501"
     rollback = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398c3d4e5f60"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "downgrade", "398c3d4e5f60"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1100,7 +1100,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
         )
         await connection.execute(text("ALTER TABLE prescription_version ENABLE TRIGGER ALL"))
     invalid_prescription = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "3980718293a4"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1141,7 +1141,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
         )
         await connection.execute(text("ALTER TABLE medication_candidate_search ENABLE TRIGGER ALL"))
     invalid_candidate = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "3980718293a4"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1158,7 +1158,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
         )
         await connection.execute(text("ALTER TABLE medication_candidate_search ENABLE TRIGGER ALL"))
     migration = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "3980718293a4"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1227,7 +1227,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
                     await connection.execute(text(sql))
             assert error.value.orig.sqlstate == "42501"
     rollback = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398d4e5f6071"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "downgrade", "398d4e5f6071"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1240,7 +1240,7 @@ async def _exercise_prescription_candidate_cutover(admin, reader, environment):
 
 async def _assert_runtime_transition_revisions_are_sealed(admin, environment_id: str, environment) -> None:
     downgrade = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "downgrade", "398e5f607182"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "downgrade", "398e5f607182"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1259,7 +1259,7 @@ async def _assert_runtime_transition_revisions_are_sealed(admin, environment_id:
             {"id": duplicate_id, "environment": environment_id},
         )
     rejected = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "3980718293a4"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1275,7 +1275,7 @@ async def _assert_runtime_transition_revisions_are_sealed(admin, environment_id:
             {"id": duplicate_id},
         )
     upgrade = subprocess.run(
-        [sys.executable, "-m", "alembic", "-c", str(ROOT / "backend/alembic.ini"), "upgrade", "3980718293a4"],
+        [sys.executable, "-m", "alembic", "-c", str(ROOT / "apps/backend/alembic.ini"), "upgrade", "3980718293a4"],
         cwd=os.environ.get("ISSUE398_ALEMBIC_CWD", ROOT),
         env={**os.environ, "DB_NAME": environment["DB_NAME"]},
         capture_output=True,
@@ -1937,7 +1937,7 @@ async def database(monkeypatch):
 
     def _alembic_config() -> Config:
         alembic_config = Config()
-        alembic_config.set_main_option("script_location", str(ROOT / "backend/alembic"))
+        alembic_config.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
         return alembic_config
 
     name = "retrieval_acl_" + uuid4().hex

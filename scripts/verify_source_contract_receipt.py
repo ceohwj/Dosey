@@ -8,7 +8,7 @@ from scripts.verify_rag_01_receipt import calculate_receipt_hash, load_receipt, 
 
 RECEIPT_PATH = Path("tests/fixtures/rag/source_contract_receipt.json")
 TARGET_PATH = Path("docs/contracts/targets/post-mvp-1/rag-source-ingestion-v1.md")
-TRACEABILITY_PATH = Path("docs/testing/post-mvp-1-contract-traceability.md")
+TRACEABILITY_PATH = Path("docs/archive/testing/post-mvp-1-contract-traceability.md")
 
 RECOVERY_GUIDANCE = f"""복구 순서 (저장소 루트에서 실행):
 1. {TARGET_PATH}의 계약 변경 내용을 먼저 검토합니다.
@@ -33,7 +33,9 @@ def verify_source_contract_receipt(project_root: Path) -> str:
     canonical_hash = calculate_receipt_hash(receipt)
     traceability = (project_root / TRACEABILITY_PATH).read_text(encoding="utf-8")
     source_lines = [
-        line for line in traceability.splitlines() if "(../../tests/fixtures/rag/source_contract_receipt.json)" in line
+        line
+        for line in traceability.splitlines()
+        if "(../../../tests/fixtures/rag/source_contract_receipt.json)" in line
     ]
     trace_hashes = [
         digest for line in source_lines for digest in re.findall(r"canonical hash는 `sha256:([^`]+)`", line)

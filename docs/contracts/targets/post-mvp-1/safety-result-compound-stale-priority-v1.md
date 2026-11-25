@@ -7,10 +7,10 @@
 | 승인일 | 2026-09-10 (최종 승인 `2026-09-10T02:15:06Z`) |
 | 작성·구현 | 정현우 (`@ceohwj`) — AI/RAG 구현 담당 |
 | 책임 리뷰 | 권가빈 (`@hazelnutflavoured`) — Safety·제품 수용 `APPROVED`, 송은영 (`@phina-io`) — Backend·공개 DTO `APPROVED`, 남한솔 (`@solia142`) — 환자 표시·오류 UX `APPROVED` |
-| 근거 Decision | [`PD-173-20260909`](../../../governance/decisions/2026-09-09-rag-preflight-compound-stale-priority.md) · 개정 [`PD-173-20260910`](../../../governance/decisions/2026-09-10-rag-preflight-compound-stale-approval-gate-amendment.md) |
+| 근거 Decision | [`PD-173-20260909`](../../../archive/decisions/2026-09-09-rag-preflight-compound-stale-priority.md) · 개정 [`PD-173-20260910`](../../../archive/decisions/2026-09-10-rag-preflight-compound-stale-approval-gate-amendment.md) |
 | 상위 목표 계약 | [Safety Result·Citation 계약 v2](./safety-result-v2.md) |
 | 추적 Issue·PR | [#173](https://github.com/AI-HealthCare-05/AH_05_04/issues/173) · [PR #382](https://github.com/AI-HealthCare-05/AH_05_04/pull/382) · [PR #405](https://github.com/AI-HealthCare-05/AH_05_04/pull/405) |
-| 승인 Evidence | [`docs/validation/rag/issue-173/decision-approval-evidence.json`](../../../validation/rag/issue-173/decision-approval-evidence.json) |
+| 승인 Evidence | [`docs/archive/validation/rag/issue-173/decision-approval-evidence.json`](../../../archive/validation/rag/issue-173/decision-approval-evidence.json) |
 | Last verified | 2026-09-10 |
 
 ## 목적과 적용 범위
@@ -21,7 +21,7 @@
 
 ### 승인 Evidence
 
-지정 책임 리뷰어 3인 전원이 개정 Decision [`PD-173-20260910`](../../../governance/decisions/2026-09-10-rag-preflight-compound-stale-approval-gate-amendment.md)을 담은 [PR #405](https://github.com/AI-HealthCare-05/AH_05_04/pull/405)의 최신 HEAD `0649e466`에서 승인했다. Issue [#273](https://github.com/AI-HealthCare-05/AH_05_04/issues/273) 기준(review ID·actor·submitted timestamp·commit OID)으로 수집했으며 원본은 [`decision-approval-evidence.json`](../../../validation/rag/issue-173/decision-approval-evidence.json)에 보관한다.
+지정 책임 리뷰어 3인 전원이 개정 Decision [`PD-173-20260910`](../../../archive/decisions/2026-09-10-rag-preflight-compound-stale-approval-gate-amendment.md)을 담은 [PR #405](https://github.com/AI-HealthCare-05/AH_05_04/pull/405)의 최신 HEAD `0649e466`에서 승인했다. Issue [#273](https://github.com/AI-HealthCare-05/AH_05_04/issues/273) 기준(review ID·actor·submitted timestamp·commit OID)으로 수집했으며 원본은 [`decision-approval-evidence.json`](../../../archive/validation/rag/issue-173/decision-approval-evidence.json)에 보관한다.
 
 | 리뷰어 | 역할 | 상태 | Review ID | Submitted at (UTC) | 대상 commit OID |
 | --- | --- | --- | --- | --- | --- |
@@ -31,7 +31,7 @@
 
 세 승인 모두 PR #405의 최종 `headRefOid` `0649e466`을 대상으로 하며 최종 승인 이후 추가 커밋이 없다. 해당 commit의 check run `test`·`lint`·`frontend` 모두 `success`. PR #405는 `2026-09-10T02:19:42Z`에 병합되었다(merge commit `548468763a21233860b06deb8bea7e24a8900950`).
 
-선행 PR #382에서 수집한 2인 승인과 그 게이트가 충족되지 않은 채 병합된 경위는 [`PD-173-20260909` § 승인 및 적용 조건](../../../governance/decisions/2026-09-09-rag-preflight-compound-stale-priority.md#승인-및-적용-조건)과 개정 Decision에 기록되어 있다. 본 계약의 승인 근거는 위 3인 승인이다.
+선행 PR #382에서 수집한 2인 승인과 그 게이트가 충족되지 않은 채 병합된 경위는 [`PD-173-20260909` § 승인 및 적용 조건](../../../archive/decisions/2026-09-09-rag-preflight-compound-stale-priority.md#승인-및-적용-조건)과 개정 Decision에 기록되어 있다. 본 계약의 승인 근거는 위 3인 승인이다.
 
 ## 복합 STALE 우선순위와 단일 오류 사영
 

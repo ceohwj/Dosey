@@ -28,7 +28,7 @@ from app.tests.fixtures.prescription_fingerprint import fingerprint_values
 from rag_runtime.guide_release_projection import GUIDE_RUNTIME_RELEASE_PROJECTION_CARRIER_VERSION
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MIGRATION_PATH = PROJECT_ROOT / "backend/alembic/versions/2ba3431f4ef2_guide_release_projection_persistence.py"
+MIGRATION_PATH = PROJECT_ROOT / "apps/backend/alembic/versions/2ba3431f4ef2_guide_release_projection_persistence.py"
 
 
 def _load_migration() -> Any:
@@ -40,7 +40,7 @@ def _load_migration() -> Any:
 
 
 def _alembic_config() -> Config:
-    return Config(str(PROJECT_ROOT / "backend/alembic.ini"))
+    return Config(str(PROJECT_ROOT / "apps/backend/alembic.ini"))
 
 
 @asynccontextmanager

@@ -9,7 +9,7 @@ TABLES = {
     "rag_citation_authorization_receipt",
     "rag_citation_authorization_receipt_selection",
 }
-WRITER = "ai_worker/adapters/sqlalchemy_citation_authorization_authority.py"
+WRITER = "apps/ai_worker/adapters/sqlalchemy_citation_authorization_authority.py"
 
 
 def test_citation_authority_tables_are_runtime_append_only() -> None:

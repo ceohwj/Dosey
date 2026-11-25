@@ -16,7 +16,7 @@ GATE_EXPRESSION = "import.meta.env.VITE_PUBLIC_TRACK_C === 'true' || import.meta
 
 
 def test_build_arg_reaches_the_frontend_image() -> None:
-    dockerfile = (ROOT / "frontend/Dockerfile.prod").read_text()
+    dockerfile = (ROOT / "apps/frontend/Dockerfile.prod").read_text()
     script = (ROOT / "scripts/deployment.sh").read_text()
     assert "ARG VITE_PUBLIC_TRACK_C=false" in dockerfile
     assert "ENV VITE_PUBLIC_TRACK_C=$VITE_PUBLIC_TRACK_C" in dockerfile
@@ -25,7 +25,7 @@ def test_build_arg_reaches_the_frontend_image() -> None:
 
 def test_example_environments_keep_the_gate_closed() -> None:
     assert "VITE_PUBLIC_TRACK_C=false" in (ROOT / "envs/example.prod.env").read_text()
-    assert "VITE_PUBLIC_TRACK_C=false" in (ROOT / "frontend/.env.example").read_text()
+    assert "VITE_PUBLIC_TRACK_C=false" in (ROOT / "apps/frontend/.env.example").read_text()
 
 
 def test_running_shell_value_cannot_substitute_for_the_environment_file() -> None:
@@ -66,8 +66,8 @@ def test_gate_configuration_requires_explicit_boolean(tmp_path: Path, value: str
 
 def test_frontend_entry_points_stay_behind_the_gate() -> None:
     """gate 표현식은 build 시점 상수 접기를 위해 두 파일에 그대로 있어야 한다."""
-    router = (ROOT / "frontend/src/routes/AppRouter.tsx").read_text()
-    schedule = (ROOT / "frontend/src/pages/SchedulePage.tsx").read_text()
+    router = (ROOT / "apps/frontend/src/routes/AppRouter.tsx").read_text()
+    schedule = (ROOT / "apps/frontend/src/pages/SchedulePage.tsx").read_text()
     assert GATE_EXPRESSION in router
     assert GATE_EXPRESSION in schedule
     # Track C 진입 경로 세 곳이 모두 같은 상수를 거친다.

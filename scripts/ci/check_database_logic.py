@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BASELINE = ROOT / "docs/testing/issue-398/legacy-database-logic.json"
+BASELINE = ROOT / "docs/archive/testing/issue-398/legacy-database-logic.json"
 FORBIDDEN = re.compile(
     r"\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\b"
     r"|\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:CONSTRAINT\s+)?TRIGGER\b"

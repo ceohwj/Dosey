@@ -100,7 +100,7 @@ def test_notification_scheduler_restore_does_not_reopen_post_migration_dependenc
     # depends_on(postgres, migrate)을 다시 해석하면 직전 검증 경계를 재진입한다.
     assert "--no-deps" in command
     # 운영 Runbook의 수동 재생성 절차와 같은 형태를 유지한다.
-    runbook = (PROJECT_ROOT / "docs/operations/notification-scheduler.md").read_text()
+    runbook = (PROJECT_ROOT / "docs/runbooks/notification-scheduler.md").read_text()
     assert "--no-deps notification-scheduler" in runbook
 
 

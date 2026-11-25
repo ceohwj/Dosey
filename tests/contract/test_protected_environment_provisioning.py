@@ -315,7 +315,7 @@ def test_compose_profiles_and_security_boundaries() -> None:
 
 
 def test_backend_dockerfile_packages_protected_migrations() -> None:
-    dockerfile_path = REPO_ROOT / "backend/app/Dockerfile"
+    dockerfile_path = REPO_ROOT / "apps/backend/app/Dockerfile"
     assert dockerfile_path.is_file()
     content = dockerfile_path.read_text(encoding="utf-8")
     assert "COPY ./infra/protected_retrieval ./infra/protected_retrieval" in content

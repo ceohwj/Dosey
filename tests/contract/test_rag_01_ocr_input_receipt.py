@@ -8,9 +8,9 @@ from scripts.verify_rag_01_receipt import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-RECEIPT_PATH = PROJECT_ROOT / "docs" / "validation" / "rag" / "rag-01-ocr-input-contract-receipt.json"
-HUMAN_RECEIPT_PATH = PROJECT_ROOT / "docs" / "validation" / "rag" / "rag-01-ocr-input-contract-receipt.md"
-TRACEABILITY_PATH = PROJECT_ROOT / "docs" / "testing" / "post-mvp-1-contract-traceability.md"
+RECEIPT_PATH = PROJECT_ROOT / "docs" / "archive" / "validation" / "rag" / "rag-01-ocr-input-contract-receipt.json"
+HUMAN_RECEIPT_PATH = PROJECT_ROOT / "docs" / "archive" / "validation" / "rag" / "rag-01-ocr-input-contract-receipt.md"
+TRACEABILITY_PATH = PROJECT_ROOT / "docs" / "archive" / "testing" / "post-mvp-1-contract-traceability.md"
 
 
 def test_receipt_has_valid_canonical_hash() -> None:
@@ -41,14 +41,14 @@ def test_required_source_locations_are_machine_readable() -> None:
     locations_by_path = {location["path"]: location for location in source_locations}
 
     required_paths = {
-        "backend/app/services/prescriptions.py",
-        "backend/app/repositories/prescription_repository.py",
-        "backend/app/models/prescriptions.py",
-        "backend/app/dtos/prescriptions.py",
-        "backend/alembic/versions/169a1b2c3d4e_create_prescription_version_foundation.py",
-        "backend/alembic/versions/169b2c3d4e5f_backfill_prescription_versions.py",
-        "backend/alembic/versions/169c3d4e5f6a_cut_over_prescription_version_reads.py",
-        "backend/alembic/versions/169d4e5f6a7b_harden_prescription_version_links.py",
+        "apps/backend/app/services/prescriptions.py",
+        "apps/backend/app/repositories/prescription_repository.py",
+        "apps/backend/app/models/prescriptions.py",
+        "apps/backend/app/dtos/prescriptions.py",
+        "apps/backend/alembic/versions/169a1b2c3d4e_create_prescription_version_foundation.py",
+        "apps/backend/alembic/versions/169b2c3d4e5f_backfill_prescription_versions.py",
+        "apps/backend/alembic/versions/169c3d4e5f6a_cut_over_prescription_version_reads.py",
+        "apps/backend/alembic/versions/169d4e5f6a7b_harden_prescription_version_links.py",
         "tests/migration/test_prescription_version_backfill_migration.py",
     }
 

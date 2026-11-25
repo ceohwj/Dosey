@@ -8,7 +8,7 @@
 
 ## 2026-09-14 갱신
 
-#465가 develop에 병합됐다. [최신 구현 기록](../ocr-consent-gate-458-implementation.md)과
+#465가 develop에 병합됐다. [최신 구현 기록](./ocr-consent-gate-458-implementation.md)과
 [Worker 저장 결정안](../../governance/decisions/2026-09-14-ocr-consent-worker-458.md)에
 가빈·은영 답변 링크, Worker 검사·차단 저장 구현, 남은 Backend/Frontend 경계를 기록했다.
 아래 9/13의 검사 위치·미병합 전제는 최신 기록으로 대체한다. 구체 payload 최소화는 아직 미구현이다.

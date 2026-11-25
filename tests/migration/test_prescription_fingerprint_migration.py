@@ -91,7 +91,7 @@ def test_fingerprint_expand_backfill_and_rollback(monkeypatch, scenario):
     database = f"synthetic398_{uuid4().hex[:12]}"
     asyncio.run(_database(admin_url, database, create=True))
     monkeypatch.setattr(config, "DB_NAME", database)
-    alembic = Config(str(Path(__file__).resolve().parents[2] / "backend/alembic.ini"))
+    alembic = Config(str(Path(__file__).resolve().parents[2] / "apps/backend/alembic.ini"))
     try:
         command.upgrade(alembic, "201a1b2c3d4e")
         ids = asyncio.run(_seed_graph()) if scenario != "empty" else None
@@ -166,7 +166,7 @@ def test_fingerprint_not_null_revalidates_complete_content(monkeypatch, scenario
     database = f"synthetic398_{uuid4().hex[:12]}"
     asyncio.run(_database(admin_url, database, create=True))
     monkeypatch.setattr(config, "DB_NAME", database)
-    alembic = Config(str(Path(__file__).resolve().parents[2] / "backend/alembic.ini"))
+    alembic = Config(str(Path(__file__).resolve().parents[2] / "apps/backend/alembic.ini"))
     try:
         command.upgrade(alembic, "201a1b2c3d4e")
         ids = asyncio.run(_seed_graph())

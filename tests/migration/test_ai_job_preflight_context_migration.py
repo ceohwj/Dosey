@@ -22,7 +22,7 @@ PREFLIGHT_CONTEXT_REVISION = "174a1b2c3d4e"
 PREFLIGHT_CONTEXT_BASE_REVISION = "206a1b2c3d4e"
 PREFLIGHT_CONTEXT_HARDENING_REVISION = "428a1b2c3d4e"
 PREFLIGHT_CONTEXT_HARDENING_MIGRATION = (
-    PROJECT_ROOT / "backend/alembic/versions/428a1b2c3d4e_harden_ai_job_preflight_context.py"
+    PROJECT_ROOT / "apps/backend/alembic/versions/428a1b2c3d4e_harden_ai_job_preflight_context.py"
 )
 PREFLIGHT_CONTEXT_TABLES = {
     "ai_job_intake_context",

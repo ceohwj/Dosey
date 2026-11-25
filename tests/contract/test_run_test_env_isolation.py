@@ -2,7 +2,7 @@
 
 `run_test.sh`는 `uv run --env-file "$ENV_FILE"`로 `envs/.local.env` 전체를 주입합니다.
 그 파일은 컨테이너용이라 `STORAGE_DIR`이 컨테이너 절대경로이고, local live 검증 절차
-(`docs/validation/ai-one-cycle-release.md`)는 `RELEASE_VALIDATION_ALLOWED`와
+(`docs/archive/validation/ai-one-cycle-release.md`)는 `RELEASE_VALIDATION_ALLOWED`와
 `OCR_STRUCTURE_LLM_ENABLED`를 켜두도록 안내합니다. 이 값들이 host 테스트로 새어 들어가면
 실제 결함이 아닌 연쇄 실패가 발생합니다(IT-1 QA 2026-09-02, 25건).
 
@@ -28,7 +28,7 @@ RUN_TEST_SCRIPT = PROJECT_ROOT / "scripts" / "ci" / "run_test.sh"
 PARALLEL_TEST_LANES_SCRIPT = PROJECT_ROOT / "scripts" / "ci" / "parallel_test_lanes.sh"
 TEST_ENVIRONMENT_SCRIPT = PROJECT_ROOT / "scripts" / "ci" / "test_environment.sh"
 GITHUB_ACTIONS_CHECKS = PROJECT_ROOT / ".github" / "workflows" / "checks.yml"
-AI_WORKER_ROOT = PROJECT_ROOT / "ai_worker"
+AI_WORKER_ROOT = PROJECT_ROOT / "apps" / "ai_worker"
 EXAMPLE_LOCAL_ENV = PROJECT_ROOT / "envs" / "example.local.env"
 
 # ENV_FILE에서 값을 물려받으면 host 테스트가 깨지는 설정과, run_test.sh가 강제해야 하는 값입니다.
@@ -286,7 +286,10 @@ def test_run_test_script_exposes_backend_and_shared_contract_packages_for_backen
 
     assert 'REPOSITORY_ROOT="$(pwd)"' in script
     assert "source scripts/ci/test_environment.sh" in script
-    assert 'PYTHONPATH="$REPOSITORY_ROOT/backend:$REPOSITORY_ROOT"' in _run_with_backend_test_database_body()
+    assert (
+        'PYTHONPATH="$REPOSITORY_ROOT/apps/backend:$REPOSITORY_ROOT/apps:$REPOSITORY_ROOT/packages:$REPOSITORY_ROOT"'
+        in _run_with_backend_test_database_body()
+    )
 
 
 def test_run_test_script_excludes_backend_from_ai_worker_unit_test_pythonpath() -> None:
@@ -311,21 +314,21 @@ def test_run_test_script_excludes_backend_from_ai_worker_unit_test_pythonpath() 
         "--cov-report=",
         "-o",
         "cache_dir=$cache_dir",
-        "ai_worker/tests/core",
-        "ai_worker/tests/adapters",
-        "ai_worker/tests/ocr",
-        "ai_worker/tests/rag",
-        "ai_worker/tests/evaluation",
+        "apps/ai_worker/tests/core",
+        "apps/ai_worker/tests/adapters",
+        "apps/ai_worker/tests/ocr",
+        "apps/ai_worker/tests/rag",
+        "apps/ai_worker/tests/evaluation",
     ]
-    assert "ai_worker/tests/core" in worker_lane_body
-    assert "ai_worker/tests/adapters" in worker_lane_body
-    assert "ai_worker/tests/ocr" in worker_lane_body
-    assert "ai_worker/tests/rag" in worker_lane_body
-    assert "ai_worker/tests/evaluation" in worker_lane_body
+    assert "apps/ai_worker/tests/core" in worker_lane_body
+    assert "apps/ai_worker/tests/adapters" in worker_lane_body
+    assert "apps/ai_worker/tests/ocr" in worker_lane_body
+    assert "apps/ai_worker/tests/rag" in worker_lane_body
+    assert "apps/ai_worker/tests/evaluation" in worker_lane_body
     assert "run_with_worker_test_environment" in worker_lane_body
     assert "run_with_backend_test_database" not in worker_lane_body
-    assert 'PYTHONPATH="$REPOSITORY_ROOT"' in worker_body
-    assert 'PYTHONPATH="$REPOSITORY_ROOT/backend:$REPOSITORY_ROOT"' not in worker_body
+    assert 'PYTHONPATH="$REPOSITORY_ROOT/apps:$REPOSITORY_ROOT/packages:$REPOSITORY_ROOT"' in worker_body
+    assert 'PYTHONPATH="$REPOSITORY_ROOT/apps/backend' not in worker_body
 
 
 def test_default_local_backend_lane_does_not_enable_xdist() -> None:
@@ -460,22 +463,34 @@ def test_github_actions_excludes_backend_from_ai_worker_unit_test_pythonpath() -
         step for step in jobs["test-rag"]["steps"] if step["name"] == "Run RAG Integration Tests with Coverage"
     )
 
-    assert backend_step["env"]["PYTHONPATH"] == "${{ github.workspace }}/backend:${{ github.workspace }}"
-    assert contract_step["env"]["PYTHONPATH"] == "${{ github.workspace }}/backend:${{ github.workspace }}"
-    assert rag_step["env"]["PYTHONPATH"] == "${{ github.workspace }}/backend:${{ github.workspace }}"
-    assert worker_step["env"]["PYTHONPATH"] == "${{ github.workspace }}"
-    assert "backend/app" in backend_step["run"]
+    assert (
+        backend_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert (
+        contract_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert (
+        rag_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps/backend:${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert (
+        worker_step["env"]["PYTHONPATH"]
+        == "${{ github.workspace }}/apps:${{ github.workspace }}/packages:${{ github.workspace }}"
+    )
+    assert "apps/backend/app" in backend_step["run"]
     assert "tests/contract" not in backend_step["run"]
     assert "tests/services" not in backend_step["run"]
     assert "tests/integration/rag" not in backend_step["run"]
     assert "tests/integration/rag" in rag_step["run"]
     assert "tests/contract" in contract_step["run"]
     assert "tests/services" in contract_step["run"]
-    assert "ai_worker/tests/core" in worker_step["run"]
-    assert "ai_worker/tests/ocr" in worker_step["run"]
-    assert "ai_worker/tests/rag" in worker_step["run"]
-    assert "ai_worker/tests/evaluation" in worker_step["run"]
-    assert "backend/app" not in worker_step["run"]
+    assert "apps/ai_worker/tests/core" in worker_step["run"]
+    assert "apps/ai_worker/tests/ocr" in worker_step["run"]
+    assert "apps/ai_worker/tests/rag" in worker_step["run"]
+    assert "apps/ai_worker/tests/evaluation" in worker_step["run"]
+    assert "apps/backend/app" not in worker_step["run"]
 
 
 def test_github_actions_uses_fixed_xdist_only_for_the_worker_lane() -> None:

@@ -1,7 +1,7 @@
 [project]
-name = "ai-health-example"
+name = "dosey"
 version = "0.1.0"
-description = "AI 헬스케어 파이널 프로젝트 예시용"
+description = "Dosey — 본인 중심 만성질환 복약관리 개인 프로젝트"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -76,10 +76,13 @@ explicit = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
-pythonpath = ["."]
+pythonpath = [".", "packages", "apps", "apps/backend"]
 filterwarnings = [
     "ignore:Accessing argon2.__version__ is deprecated:DeprecationWarning:passlib.handlers.argon2",
 ]
+
+[tool.mypy]
+mypy_path = ["packages", "apps", "apps/backend"]
 
 [tool.ruff]
 # 기본 라인 길이 설정
@@ -104,6 +107,7 @@ ignore = ["UP046", "E501"]
 # backend/ 폴더 분리 이후에도 `app`을 서드파티가 아닌 프로젝트 코드로 인식하도록 명시합니다.
 known-first-party = [
     "app",
+    "backend",
     "ai_worker",
     "ocr_runtime",
     "provider_contracts",

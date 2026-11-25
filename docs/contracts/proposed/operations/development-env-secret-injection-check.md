@@ -451,7 +451,7 @@ runner는 secret 값을 읽거나 출력하지 않는다. Provider 호출 실행
 
 - `docs/deployment.md`
 - `docs/validation/ai-one-cycle-release.md`
-- `docs/designs/ceohwj/ai-one-cycle-release-validation-plan.md`
+- `docs/designs/provider/ai-one-cycle-release-validation-plan.md`
 - `.github/workflows/checks.yml` 또는 배포 workflow
 
 구현 확인 기준:

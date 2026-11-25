@@ -300,7 +300,7 @@ async def _database_resource(monkeypatch):
         async with cluster.connect() as connection:
             await connection.execute(text(f'CREATE DATABASE "{name}"'))
         monkeypatch.setattr(config, "DB_NAME", name)
-        await asyncio.to_thread(command.upgrade, Config(str(ROOT / "backend/alembic.ini")), "head")
+        await asyncio.to_thread(command.upgrade, Config(str(ROOT / "apps/backend/alembic.ini")), "head")
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory.begin() as session:
             source = RagSource(source_code="SYNTHETIC", display_name="합성 출처")

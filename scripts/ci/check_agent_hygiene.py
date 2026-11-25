@@ -20,7 +20,7 @@ DEFAULT_DOCUMENTS = (
     "docs/ai/knowledge-index.md",
     "docs/failures/README.md",
 )
-SOURCE_ROOTS = ("scripts", "backend/app", "ai_worker", "frontend/src")
+SOURCE_ROOTS = ("scripts", "apps/backend/app", "apps/ai_worker", "apps/frontend/src")
 EXCLUDED = {
     "runtime",
     "state",

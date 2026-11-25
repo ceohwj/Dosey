@@ -8,8 +8,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 @pytest.mark.parametrize(
     "dockerfile",
     [
-        PROJECT_ROOT / "backend" / "app" / "Dockerfile",
-        PROJECT_ROOT / "ai_worker" / "Dockerfile",
+        PROJECT_ROOT / "apps" / "backend" / "app" / "Dockerfile",
+        PROJECT_ROOT / "apps" / "ai_worker" / "Dockerfile",
     ],
 )
 def test_image_copies_provider_contracts_package(dockerfile: Path) -> None:
@@ -19,25 +19,25 @@ def test_image_copies_provider_contracts_package(dockerfile: Path) -> None:
         if line.strip() and not line.lstrip().startswith("#")
     }
 
-    assert "COPY ./provider_contracts ./provider_contracts" in instructions
+    assert "COPY ./packages/provider_contracts ./provider_contracts" in instructions
 
 
 @pytest.mark.parametrize(
     "dockerfile",
     [
-        PROJECT_ROOT / "backend" / "app" / "Dockerfile",
-        PROJECT_ROOT / "ai_worker" / "Dockerfile",
+        PROJECT_ROOT / "apps" / "backend" / "app" / "Dockerfile",
+        PROJECT_ROOT / "apps" / "ai_worker" / "Dockerfile",
     ],
 )
 @pytest.mark.parametrize(
     ("package_name", "expected_instruction"),
     [
-        ("ocr_runtime", "COPY ./ocr_runtime ./ocr_runtime"),
+        ("ocr_runtime", "COPY ./packages/ocr_runtime ./ocr_runtime"),
         (
             "provider_runtime",
-            "COPY ./provider_runtime ./provider_runtime",
+            "COPY ./packages/provider_runtime ./provider_runtime",
         ),
-        ("rag_runtime", "COPY ./rag_runtime ./rag_runtime"),
+        ("rag_runtime", "COPY ./packages/rag_runtime ./rag_runtime"),
     ],
 )
 def test_images_copy_shared_runtime_packages(

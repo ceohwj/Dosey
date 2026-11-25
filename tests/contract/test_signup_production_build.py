@@ -40,7 +40,7 @@ def test_frontend_build_forwards_signup_flags_without_splitting(approved: str) -
 
 
 def test_terms_default_is_closed_and_explicit_setting_is_forwarded() -> None:
-    dockerfile = (ROOT / "frontend/Dockerfile.prod").read_text()
+    dockerfile = (ROOT / "apps/frontend/Dockerfile.prod").read_text()
     script = (ROOT / "scripts/deployment.sh").read_text()
     assert "ARG VITE_SIGNUP_TERMS_APPROVED=false" in dockerfile
     assert "ENV VITE_SIGNUP_TERMS_APPROVED=$VITE_SIGNUP_TERMS_APPROVED" in dockerfile

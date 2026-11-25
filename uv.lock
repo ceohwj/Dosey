@@ -9,7 +9,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "ai-health-example"
+name = "dosey"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

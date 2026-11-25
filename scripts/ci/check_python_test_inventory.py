@@ -10,16 +10,16 @@ from pathlib import Path, PurePath
 import yaml  # type: ignore[import-untyped]
 
 AUTO_COLLECTED_ROOTS = (
-    Path("backend/app"),
+    Path("apps/backend/app"),
     Path("tests/contract"),
     Path("tests/migration"),
     Path("tests/integration/rag"),
     Path("tests/services"),
-    Path("ai_worker/tests/core"),
-    Path("ai_worker/tests/adapters"),
-    Path("ai_worker/tests/ocr"),
-    Path("ai_worker/tests/rag"),
-    Path("ai_worker/tests/evaluation"),
+    Path("apps/ai_worker/tests/core"),
+    Path("apps/ai_worker/tests/adapters"),
+    Path("apps/ai_worker/tests/ocr"),
+    Path("apps/ai_worker/tests/rag"),
+    Path("apps/ai_worker/tests/evaluation"),
 )
 
 DEFAULT_INTEGRATION_FILES = (

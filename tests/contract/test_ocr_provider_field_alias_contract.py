@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 CONTRACT_PATH = PROJECT_ROOT / "docs" / "contracts" / "current" / "ocr-provider-field-aliases.md"
 CONTRACT_INDEX_PATH = PROJECT_ROOT / "docs" / "contracts" / "README.md"
-FRONTEND_API_PATH = PROJECT_ROOT / "frontend" / "src" / "api" / "prescriptions.ts"
+FRONTEND_API_PATH = PROJECT_ROOT / "apps" / "frontend" / "src" / "api" / "prescriptions.ts"
 
 CANONICAL_BACKEND_FIELD = "medication_name"
 CANONICAL_OCR_FIELD_TYPE = "MEDICATION_NAME"

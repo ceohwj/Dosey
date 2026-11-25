@@ -20,7 +20,7 @@ from tests.migration.test_medication_schedule_migration import _cleanup_graph, _
 
 def _notification_down_revision() -> str:
     migration_path = (
-        Path(__file__).resolve().parents[2] / "backend/alembic/versions/203a1b2c3d4e_create_notification_record.py"
+        Path(__file__).resolve().parents[2] / "apps/backend/alembic/versions/203a1b2c3d4e_create_notification_record.py"
     )
     spec = importlib.util.spec_from_file_location("notification_migration", migration_path)
     assert spec is not None and spec.loader is not None
