@@ -1,13 +1,49 @@
+from collections.abc import Sequence
 from datetime import datetime
+from typing import Protocol
 from uuid import UUID
 
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
-from app.models.chat import ChatGenerationStatus, ChatMessage, ChatRole, ChatSession, ChatSessionStatus
+from app.models.chat import (
+    ChatCitation,
+    ChatCitationClaimKind,
+    ChatCitationVerdict,
+    ChatGenerationStatus,
+    ChatMessage,
+    ChatRole,
+    ChatSession,
+    ChatSessionStatus,
+)
 from app.models.prescriptions import Prescription
 from app.repositories.profile_ownership import owned_by_self
+
+
+class ChatCitationPayload(Protocol):
+    @property
+    def claim_key(self) -> str: ...
+    @property
+    def claim_text(self) -> str: ...
+    @property
+    def claim_kind(self) -> str: ...
+    @property
+    def verdict(self) -> str: ...
+    @property
+    def source_code(self) -> str: ...
+    @property
+    def source_version(self) -> str: ...
+    @property
+    def locator(self) -> str: ...
+    @property
+    def display_order(self) -> int: ...
+    @property
+    def knowledge_chunk_id(self) -> UUID | None: ...
+    @property
+    def content_sha256(self) -> str | None: ...
+    @property
+    def cited_text(self) -> str | None: ...
 
 
 class ChatRepository:
@@ -97,7 +133,10 @@ class ChatRepository:
 
     async def list_messages(self, *, session: ChatSession) -> list[ChatMessage]:
         result = await self.session.execute(
-            select(ChatMessage).where(ChatMessage.session_id == session.id).order_by(ChatMessage.message_seq)
+            select(ChatMessage)
+            .options(selectinload(ChatMessage.citations))
+            .where(ChatMessage.session_id == session.id)
+            .order_by(ChatMessage.message_seq)
         )
         return list(result.scalars().all())
 
@@ -170,6 +209,36 @@ class ChatRepository:
         message.generation_status = ChatGenerationStatus.GENERATING
         await self.session.flush()
         return message
+
+    async def create_citations(
+        self,
+        *,
+        message_id: UUID,
+        citations: Sequence[ChatCitationPayload],
+    ) -> list[ChatCitation]:
+        ordered_citations = sorted(citations, key=lambda item: item.display_order)
+        if not ordered_citations:
+            return []
+        rows = [
+            ChatCitation(
+                message_id=message_id,
+                knowledge_chunk_id=item.knowledge_chunk_id,
+                claim_key=item.claim_key,
+                claim_text=item.claim_text,
+                claim_kind=ChatCitationClaimKind(item.claim_kind),
+                verdict=ChatCitationVerdict(item.verdict),
+                source_code=item.source_code,
+                source_version=item.source_version,
+                locator=item.locator,
+                content_sha256=item.content_sha256,
+                cited_text=item.cited_text,
+                display_order=item.display_order,
+            )
+            for item in ordered_citations
+        ]
+        self.session.add_all(rows)
+        await self.session.flush()
+        return rows
 
     async def mark_completed(
         self,

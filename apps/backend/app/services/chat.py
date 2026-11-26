@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime
 from typing import Protocol
 from uuid import UUID
@@ -5,8 +6,24 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from app.core.errors import ApiError, ErrorDetail
-from app.dtos.chat import ChatMessageData, ChatRole, ChatSessionData, SendChatMessageData, SendChatMessageRequest
-from app.models.chat import ChatGenerationStatus, ChatMessage, ChatSession, ChatSessionStatus
+from app.dtos.chat import (
+    ChatCitationItem,
+    ChatCitationVerdict,
+    ChatMessageData,
+    ChatRole,
+    ChatSessionData,
+    SendChatMessageData,
+    SendChatMessageRequest,
+)
+from app.models.chat import (
+    ChatCitation,
+    ChatCitationClaimKind,
+    ChatGenerationStatus,
+    ChatMessage,
+    ChatSession,
+    ChatSessionStatus,
+)
+from app.models.chat import ChatCitationVerdict as ModelChatCitationVerdict
 from app.models.chat import ChatRole as ModelChatRole
 from app.models.user_consents import ConsentPurpose
 from app.models.users import User
@@ -20,24 +37,149 @@ from app.services.chat_ai import (
     ChatReplyInput,
     ChatServiceUnavailableError,
     ChatTimeoutError,
+    ChatVerifiedCitation,
 )
 from app.services.chat_ai.schemas import ChatHistoryItem
 
 _TIMEOUT_ERROR_MESSAGE = "OpenAI 호출이 제한 시간 내에 완료되지 않았습니다."
 _UNAVAILABLE_ERROR_MESSAGE = "OpenAI 서비스 호출에 실패했습니다."
 _GENERATION_FAILED_ERROR_MESSAGE = "챗봇 응답 생성 처리 중 오류가 발생했습니다."
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 HISTORY_PAIR_LIMIT = 3
 HISTORY_CANDIDATE_SCAN_LIMIT = 30
 HISTORY_TOTAL_CHARACTER_LIMIT = 12_000
 
 
+def _to_citation_item(citation: ChatCitation | ChatVerifiedCitation) -> ChatCitationItem:
+    return ChatCitationItem(
+        claim_key=citation.claim_key,
+        claim_text=citation.claim_text,
+        verdict=ChatCitationVerdict(citation.verdict),
+        source_code=citation.source_code,
+        source_version=citation.source_version,
+        locator=citation.locator,
+        display_order=citation.display_order,
+    )
+
+
+def _require_nonblank_str(value: object, *, field_name: str, max_length: int) -> str:
+    if not isinstance(value, str):
+        raise ChatGenerationFailedError(f"{field_name} must be a string")
+    trimmed = value.strip()
+    if not trimmed or len(trimmed) > max_length:
+        raise ChatGenerationFailedError(f"{field_name} must be non-blank and at most {max_length} characters")
+    return trimmed
+
+
+def _validate_citation_verdict_and_evidence(
+    citation: ChatVerifiedCitation,
+) -> tuple[ChatCitationClaimKind, ModelChatCitationVerdict, str | None]:
+    try:
+        claim_kind = ChatCitationClaimKind(citation.claim_kind)
+    except ValueError as exc:
+        raise ChatGenerationFailedError("invalid citation claim_kind") from exc
+
+    try:
+        verdict = ModelChatCitationVerdict(citation.verdict)
+    except ValueError as exc:
+        raise ChatGenerationFailedError("invalid citation verdict") from exc
+
+    if claim_kind == ChatCitationClaimKind.CRITICAL and verdict == ModelChatCitationVerdict.NEEDS_VERIFICATION:
+        raise ChatGenerationFailedError("critical claim cannot have NEEDS_VERIFICATION verdict")
+
+    content_sha256: str | None = None
+    if citation.content_sha256 is not None:
+        if not isinstance(citation.content_sha256, str) or not _SHA256_HEX_RE.fullmatch(citation.content_sha256):
+            raise ChatGenerationFailedError("content_sha256 must be a 64-character lowercase hex digest")
+        content_sha256 = citation.content_sha256
+
+    if citation.knowledge_chunk_id is not None and not isinstance(citation.knowledge_chunk_id, UUID):
+        raise ChatGenerationFailedError("knowledge_chunk_id must be a UUID or None")
+
+    if verdict == ModelChatCitationVerdict.SUPPORTED and (
+        citation.knowledge_chunk_id is None or content_sha256 is None
+    ):
+        raise ChatGenerationFailedError("SUPPORTED citation requires knowledge_chunk_id and content_sha256")
+
+    return claim_kind, verdict, content_sha256
+
+
+def _validate_single_citation(
+    citation: ChatVerifiedCitation,
+    *,
+    seen_claim_keys: set[str],
+    seen_display_orders: set[int],
+) -> ChatVerifiedCitation:
+    if isinstance(citation.display_order, bool) or not isinstance(citation.display_order, int):
+        raise ChatGenerationFailedError("display_order must be an integer")
+    if citation.display_order < 1 or citation.display_order in seen_display_orders:
+        raise ChatGenerationFailedError("display_order must be >= 1 and unique")
+    seen_display_orders.add(citation.display_order)
+
+    claim_key = _require_nonblank_str(citation.claim_key, field_name="claim_key", max_length=64)
+    if claim_key in seen_claim_keys:
+        raise ChatGenerationFailedError("claim_key must be unique per message")
+    seen_claim_keys.add(claim_key)
+
+    claim_text = _require_nonblank_str(citation.claim_text, field_name="claim_text", max_length=1000)
+    source_code = _require_nonblank_str(citation.source_code, field_name="source_code", max_length=100)
+    source_version = _require_nonblank_str(citation.source_version, field_name="source_version", max_length=200)
+    locator = _require_nonblank_str(citation.locator, field_name="locator", max_length=500)
+    cited_text = (
+        None
+        if citation.cited_text is None
+        else _require_nonblank_str(citation.cited_text, field_name="cited_text", max_length=2000)
+    )
+    claim_kind, verdict, content_sha256 = _validate_citation_verdict_and_evidence(citation)
+
+    return ChatVerifiedCitation(
+        claim_key=claim_key,
+        claim_text=claim_text,
+        claim_kind=claim_kind.value,
+        verdict=verdict.value,
+        source_code=source_code,
+        source_version=source_version,
+        locator=locator,
+        display_order=citation.display_order,
+        knowledge_chunk_id=citation.knowledge_chunk_id,
+        content_sha256=content_sha256,
+        cited_text=cited_text,
+    )
+
+
+def _validate_verified_citations(citations: list[ChatVerifiedCitation] | None) -> list[ChatVerifiedCitation] | None:
+    if citations is None:
+        return None
+    if not isinstance(citations, list):
+        raise ChatGenerationFailedError("citations must be a list or None")
+    if not citations:
+        return []
+    seen_claim_keys: set[str] = set()
+    seen_display_orders: set[int] = set()
+    validated = [
+        _validate_single_citation(
+            citation,
+            seen_claim_keys=seen_claim_keys,
+            seen_display_orders=seen_display_orders,
+        )
+        for citation in citations
+    ]
+    return sorted(validated, key=lambda item: item.display_order)
+
+
 def _to_message_data(message: ChatMessage) -> ChatMessageData:
+    raw_citations = getattr(message, "citations", None)
+    citations: list[ChatCitationItem] | None = None
+    if raw_citations:
+        ordered_citations = sorted(raw_citations, key=lambda item: item.display_order)
+        citations = [_to_citation_item(citation) for citation in ordered_citations]
     return ChatMessageData(
         message_id=message.id,
         role=ChatRole(message.role),
         content=message.content,
         generation_status=str(message.generation_status),
         created_at=message.created_at,
+        citations=citations,
     )
 
 
@@ -265,8 +407,10 @@ class ChatService:
         failure_metadata: tuple[str, str] | None = None
         api_error: ApiError | None = None
         result = None
+        validated_citations: list[ChatVerifiedCitation] | None = None
         try:
             result = await self._engine.reply(chat_input)
+            validated_citations = _validate_verified_citations(result.citations)
         except ChatTimeoutError:
             failure_metadata = ("OPENAI_API_TIMEOUT", _TIMEOUT_ERROR_MESSAGE)
             api_error = ApiError(
@@ -317,6 +461,11 @@ class ChatService:
             assistant_message=assistant_message,
             completed_at=completed_at,
         )
+        if validated_citations:
+            await self._chat_repo.create_citations(
+                message_id=assistant_message.id,
+                citations=validated_citations,
+            )
         assistant_message = await self._chat_repo.mark_completed(
             assistant_message,
             content=result.content,
@@ -336,4 +485,9 @@ class ChatService:
             prompt_version=assistant_message.prompt_version,
             created_at=assistant_message.created_at,
             completed_at=assistant_message.completed_at,
+            citations=(
+                None
+                if validated_citations is None
+                else [_to_citation_item(citation) for citation in validated_citations]
+            ),
         )

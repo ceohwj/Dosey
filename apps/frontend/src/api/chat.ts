@@ -8,6 +8,18 @@ export type ChatGenerationStatus =
   | 'COMPLETED'
   | 'FAILED'
 
+export type ChatCitationVerdict = 'SUPPORTED' | 'NEEDS_VERIFICATION'
+
+export type ChatCitationItem = {
+  claim_key: string
+  claim_text: string
+  verdict: ChatCitationVerdict
+  source_code: string
+  source_version: string
+  locator: string
+  display_order: number
+}
+
 export type ChatSessionResponse = {
   data: {
     session_id: string
@@ -24,6 +36,7 @@ export type ChatMessageData = {
   content: string | null
   generation_status: ChatGenerationStatus
   created_at: string
+  citations?: ChatCitationItem[] | null
 }
 
 export type ChatMessageListResponse = {
@@ -44,6 +57,7 @@ export type SendChatMessageResponse = {
     prompt_version: string | null
     created_at: string
     completed_at: string | null
+    citations?: ChatCitationItem[] | null
   }
 }
 

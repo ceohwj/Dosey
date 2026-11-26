@@ -37,11 +37,27 @@ class ChatReplyInput:
     history: list[ChatHistoryPair] = field(default_factory=list)
 
 
+@dataclass(frozen=True, slots=True)
+class ChatVerifiedCitation:
+    claim_key: str
+    claim_text: str
+    claim_kind: str
+    verdict: str
+    source_code: str
+    source_version: str
+    locator: str
+    display_order: int
+    knowledge_chunk_id: UUID | None = None
+    content_sha256: str | None = None
+    cited_text: str | None = None
+
+
 @dataclass(frozen=True)
 class ChatReplyOutput:
     content: str
     model_name: str
     prompt_version: str
+    citations: list[ChatVerifiedCitation] | None = None
 
 
 class ChatServiceUnavailableError(Exception):
@@ -74,5 +90,6 @@ __all__ = [
     "ChatReplyOutput",
     "ChatServiceUnavailableError",
     "ChatTimeoutError",
+    "ChatVerifiedCitation",
     "OpenAIResponsesClient",
 ]

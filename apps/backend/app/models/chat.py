@@ -45,6 +45,16 @@ class ChatGenerationStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class ChatCitationClaimKind(StrEnum):
+    CRITICAL = "CRITICAL"
+    NON_CRITICAL = "NON_CRITICAL"
+
+
+class ChatCitationVerdict(StrEnum):
+    SUPPORTED = "SUPPORTED"
+    NEEDS_VERIFICATION = "NEEDS_VERIFICATION"
+
+
 class ChatSession(Base):
     __tablename__ = "chat_session"
     __table_args__ = (
@@ -135,21 +145,59 @@ class ChatMessage(Base):
     )
 
     session: Mapped["ChatSession"] = relationship(back_populates="messages")
-    citations: Mapped[list["ChatCitation"]] = relationship(back_populates="message")
+    citations: Mapped[list["ChatCitation"]] = relationship(
+        back_populates="message",
+        order_by="ChatCitation.display_order",
+    )
 
 
 class ChatCitation(Base):
     __tablename__ = "chat_citation"
     __table_args__ = (
         UniqueConstraint("message_id", "display_order", name="uq_chat_citation_order"),
+        UniqueConstraint("message_id", "claim_key", name="uq_chat_citation_claim_key"),
         CheckConstraint("display_order > 0", name="chk_chat_citation_order"),
+        CheckConstraint("claim_kind IN ('CRITICAL', 'NON_CRITICAL')", name="chk_chat_citation_claim_kind"),
+        CheckConstraint("verdict IN ('SUPPORTED', 'NEEDS_VERIFICATION')", name="chk_chat_citation_verdict"),
+        CheckConstraint(
+            "NOT (claim_kind = 'CRITICAL' AND verdict = 'NEEDS_VERIFICATION')",
+            name="chk_chat_citation_fail_closed_verdict",
+        ),
+        CheckConstraint(
+            "(verdict = 'SUPPORTED' AND knowledge_chunk_id IS NOT NULL AND content_sha256 IS NOT NULL) "
+            "OR (verdict = 'NEEDS_VERIFICATION')",
+            name="chk_chat_citation_supported_shape",
+        ),
+        CheckConstraint(
+            "content_sha256 IS NULL OR content_sha256 ~ '^[0-9a-f]{64}$'",
+            name="chk_chat_citation_content_hash",
+        ),
+        CheckConstraint(
+            "length(trim(claim_key)) > 0 AND length(trim(claim_text)) > 0 "
+            "AND length(trim(source_code)) > 0 AND length(trim(source_version)) > 0 "
+            "AND length(trim(locator)) > 0",
+            name="chk_chat_citation_nonblank_fields",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(UUIDChar(), primary_key=True, default=uuid4)
     message_id: Mapped[UUID] = mapped_column(UUIDChar(), ForeignKey("chat_message.id"), nullable=False)
-    knowledge_chunk_id: Mapped[UUID] = mapped_column(UUIDChar(), ForeignKey("knowledge_chunk.id"), nullable=False)
+    knowledge_chunk_id: Mapped[UUID | None] = mapped_column(UUIDChar(), ForeignKey("knowledge_chunk.id"), nullable=True)
+    claim_key: Mapped[str] = mapped_column(String(64), nullable=False)
     claim_text: Mapped[str] = mapped_column(String(1000), nullable=False)
-    cited_text: Mapped[str] = mapped_column(String(2000), nullable=False)
+    claim_kind: Mapped[ChatCitationClaimKind] = mapped_column(
+        Enum(ChatCitationClaimKind, native_enum=False, length=20),
+        nullable=False,
+    )
+    verdict: Mapped[ChatCitationVerdict] = mapped_column(
+        Enum(ChatCitationVerdict, native_enum=False, length=30),
+        nullable=False,
+    )
+    source_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(200), nullable=False)
+    locator: Mapped[str] = mapped_column(String(500), nullable=False)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    cited_text: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -158,4 +206,4 @@ class ChatCitation(Base):
     )
 
     message: Mapped["ChatMessage"] = relationship(back_populates="citations")
-    knowledge_chunk: Mapped["KnowledgeChunk"] = relationship(back_populates="chat_citations")
+    knowledge_chunk: Mapped["KnowledgeChunk | None"] = relationship(back_populates="chat_citations")
