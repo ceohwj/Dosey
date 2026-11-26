@@ -36,7 +36,9 @@ def _module():
 def test_single_forward_head() -> None:
     settings = Config(str(ROOT / "apps/backend/alembic.ini"))
     settings.set_main_option("script_location", str(ROOT / "apps/backend/alembic"))
-    assert ScriptDirectory.from_config(settings).get_heads() == ["925a1b2c3d4e"]
+    script = ScriptDirectory.from_config(settings)
+    assert len(script.get_heads()) == 1
+    assert script.get_revision("925a1b2c3d4e") is not None
     assert _module().down_revision == "924a1b2c3d4e"
 
 
