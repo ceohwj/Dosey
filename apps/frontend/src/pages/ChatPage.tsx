@@ -78,7 +78,11 @@ function isOptimisticUserMessage(message: ChatMessageData) {
 }
 
 function getVisibleCitations(message: ChatMessageData): ChatCitationItem[] {
-  if (message.role !== 'ASSISTANT' || !Array.isArray(message.citations)) {
+  if (
+    message.role !== 'ASSISTANT' ||
+    message.generation_status !== 'COMPLETED' ||
+    !Array.isArray(message.citations)
+  ) {
     return []
   }
 

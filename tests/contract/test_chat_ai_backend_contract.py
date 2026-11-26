@@ -136,3 +136,78 @@ def test_current_chat_contract_documents_pin_runtime_prompt_v6() -> None:
     for document_name, (document_path, expected_identity) in documents.items():
         document = document_path.read_text(encoding="utf-8")
         assert expected_identity in document, document_name
+
+
+def test_chat_citation_public_dtos_keep_optional_backward_compatibility_and_safe_fields() -> None:
+    from datetime import UTC, datetime
+
+    from app.dtos.chat import ChatCitationItem, ChatCitationVerdict, ChatMessageData, ChatRole, SendChatMessageData
+    from app.services.chat_ai import ChatReplyOutput, ChatVerifiedCitation
+    from app.services.chat_ai.prompt import CLAIM_CITATION_PROMPT_VERSION
+
+    assert CLAIM_CITATION_PROMPT_VERSION == "chat-prompt-v7-claim-citation"
+    assert set(ChatCitationItem.model_fields) == {
+        "claim_key",
+        "claim_text",
+        "verdict",
+        "source_code",
+        "source_version",
+        "locator",
+        "display_order",
+    }
+    assert {"knowledge_chunk_id", "content_sha256", "claim_kind", "cited_text"}.isdisjoint(
+        ChatCitationItem.model_fields
+    )
+
+    now = datetime.now(UTC)
+    legacy_send = SendChatMessageData(
+        user_message_id=uuid4(),
+        assistant_message_id=uuid4(),
+        session_id=uuid4(),
+        generation_status="COMPLETED",
+        content="답변",
+        model_name="synthetic-model",
+        prompt_version="chat-prompt-v6",
+        created_at=now,
+        completed_at=now,
+    )
+    legacy_get = ChatMessageData(
+        message_id=uuid4(),
+        role=ChatRole.ASSISTANT,
+        content="답변",
+        generation_status="COMPLETED",
+        created_at=now,
+    )
+    assert legacy_send.citations is None
+    assert legacy_get.citations is None
+
+    item = ChatCitationItem(
+        claim_key="c1",
+        claim_text="식후 30분에 복용합니다.",
+        verdict=ChatCitationVerdict.SUPPORTED,
+        source_code="MFDS_EDB",
+        source_version="2026.11.01",
+        locator="용법·용량 제1항",
+        display_order=1,
+    )
+    verified = ChatVerifiedCitation(
+        claim_key="c1",
+        claim_text="식후 30분에 복용합니다.",
+        claim_kind="CRITICAL",
+        verdict="SUPPORTED",
+        source_code="MFDS_EDB",
+        source_version="2026.11.01",
+        locator="용법·용량 제1항",
+        display_order=1,
+        knowledge_chunk_id=uuid4(),
+        content_sha256="a" * 64,
+        cited_text="원문 근거",
+    )
+    reply_output = ChatReplyOutput(
+        content="답변",
+        model_name="synthetic-model",
+        prompt_version=CLAIM_CITATION_PROMPT_VERSION,
+        citations=[verified],
+    )
+    assert item.verdict == ChatCitationVerdict.SUPPORTED
+    assert reply_output.citations is not None and len(reply_output.citations) == 1

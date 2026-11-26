@@ -212,7 +212,7 @@ def _validate_unique_claim_keys(claims: list["ChatGeneratedClaim"]) -> list["Cha
 
 class ChatGeneratedClaim(_StrictGeneratedModel):
     claim_key: str = Field(min_length=1, max_length=64)
-    claim_text: str = Field(min_length=1, max_length=2000)
+    claim_text: str = Field(min_length=1, max_length=1000)
     claim_kind: ChatClaimKind
     evidence_chunk_ids: list[ChunkIdStr] = Field(default_factory=list, max_length=10)
 

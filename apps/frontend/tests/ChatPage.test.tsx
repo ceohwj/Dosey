@@ -2479,4 +2479,37 @@ describe('ChatPage', () => {
       expect(document.querySelector('.chat-citations')).toBeNull()
     },
   )
+
+  it('FAILED 또는 GENERATING 상태의 ASSISTANT 메시지는 citations가 있어도 인용 영역을 렌더링하지 않는다', async () => {
+    vi.mocked(getChatMessages).mockResolvedValue({
+      data: {
+        session_id: sessionId,
+        messages: [
+          {
+            message_id: 'failed-msg',
+            role: 'ASSISTANT',
+            content: '표시되면 안 되는 실패 상태 인용 테스트',
+            generation_status: 'FAILED',
+            created_at: '2026-09-20T00:00:01Z',
+            citations: [
+              {
+                claim_key: 'c1',
+                claim_text: '실패 메시지 인용은 숨겨져야 합니다.',
+                verdict: 'SUPPORTED',
+                source_code: 'MFDS_FAIL',
+                source_version: '2026-09-01',
+                locator: '주의사항',
+                display_order: 1,
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderPage()
+    await waitFor(() => expect(getChatMessages).toHaveBeenCalledWith(sessionId))
+    expect(screen.queryByText('실패 메시지 인용은 숨겨져야 합니다.')).toBeNull()
+    expect(document.querySelector('.chat-citations')).toBeNull()
+  })
 })

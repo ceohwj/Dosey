@@ -410,7 +410,7 @@ snapshot cap 오류 `503 IDEMPOTENCY_RESPONSE_TOO_LARGE`는 공통 오류 형식
 }
 ```
 
-이 endpoint는 streaming이나 별도 결과 조회를 사용하지 않는 동기 one-cycle 계약을 유지합니다. AI 응답과 저장이 완료된 뒤 다음 기존 body를 `201 Created`로 반환합니다.
+이 endpoint는 streaming이나 별도 결과 조회를 사용하지 않는 동기 one-cycle 계약을 유지합니다. AI 응답과 저장이 완료된 뒤 다음 body를 `201 Created`로 반환합니다. (`citations`는 Claim·Citation 검증 경로가 활성화된 경우 verified 목록 또는 `[]`, 비활성·레거시 경로에서는 `null`인 하위 호환 선택 필드이며, `GET /api/v1/chat-sessions/{session_id}/messages`의 각 `ASSISTANT` 메시지 항목에도 동일 선택 필드 `citations`가 포함됩니다.)
 
 ```json
 {
@@ -421,10 +421,25 @@ snapshot cap 오류 `503 IDEMPOTENCY_RESPONSE_TOO_LARGE`는 공통 오류 형식
     "generation_status": "COMPLETED",
     "content": "합성 답변",
     "model_name": "synthetic-model",
-    "prompt_version": "chat-prompt-v5",
+    "prompt_version": "chat-prompt-v6",
     "created_at": "2026-08-21T10:00:00Z",
-    "completed_at": "2026-08-21T10:00:01Z"
+    "completed_at": "2026-08-21T10:00:01Z",
+    "citations": null
   }
+}
+```
+
+Claim·Citation 검증 경로가 활성화된 경우 `citations` 항목은 아래 public-safe 필드만 노출합니다 (`knowledge_chunk_id`, `content_sha256`, `claim_kind`, `cited_text` 등 내부 필드는 제외):
+
+```json
+{
+  "claim_key": "c1",
+  "claim_text": "성인은 1일 1회 1정을 식후에 복용합니다.",
+  "verdict": "SUPPORTED",
+  "source_code": "MFDS_EDB",
+  "source_version": "2026.11.01",
+  "locator": "용법·용량 제1항",
+  "display_order": 1
 }
 ```
 

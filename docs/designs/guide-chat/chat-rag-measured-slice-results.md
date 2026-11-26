@@ -1,14 +1,14 @@
-# 복약 Chat RAG 실측 고도화 v1 중간 결과 및 팀·개인 프로젝트 비교
+# 복약 Chat RAG 실측 고도화 v1 결과 및 팀·개인 프로젝트 비교
 
 - **기준 브랜치 / 기준 리비전**: `feat/chat-rag-measured-slice-v1` (base `3297d83`)
-- **작성일**: 2026-11-26 (KST)
+- **작성일**: 2026-11-26 ~ 2026-11-27 (KST)
 - **관련 정본**:
   - [ADR 0004: 복약 Chat RAG 실측 고도화 v1 선정과 측정 기준](../../adr/0004-chat-rag-measured-slice-selection.md)
   - [제품 요구사항](chat-rag-measured-slice-requirements.md) (`CRM-01`–`CRM-13`)
   - [기능 명세](chat-rag-measured-slice-design.md) · [구현 계획](chat-rag-measured-slice-plan.md)
   - [공유 계약 제안/승인본 (`chat-claim-citation-v1.md`)](../../contracts/proposed/chat-claim-citation-v1.md)
 
-> **상태 및 공개 경계**: 이 문서는 **Wave 1~4(기반 점검·계약·스키마·UI·식약처 평가 코퍼스 수집·검색/판정기 실측)** 완료 결과를 요약한다. Wave 5(런타임 검증기 연결·포트 `5433` 실시간 E2E·`SAFETY_REGRESSION` 93건·독립 리뷰)는 아직 남아 있으며, `PUBLIC_TRACK_F_ENABLED=false`와 [외부 승인 게이트](../../release-gates/post-mvp-1-external-approvals.md)는 닫힌 상태를 유지한다.
+> **상태 및 공개 경계**: 이 문서는 **Wave 1~5(기반 점검·계약·스키마·UI·식약처 평가 코퍼스 수집·검색/판정기 실측·`rule_plus_nli` 런타임 opt-in 연결·포트 `5433` 실DB E2E·안전 회귀·독립 리뷰 보완)** 완료 결과를 요약한다. 계약 `current/` 승격, 기본 DI(`get_chat_engine`) 전역 활성화, `Dockerfile` AI 런타임 패키징, `PUBLIC_TRACK_F_ENABLED=false` 및 [외부 승인 게이트](../../release-gates/post-mvp-1-external-approvals.md)는 닫힌 상태를 유지하며 Human Owner의 별도 결정이 필요하다.
 
 ---
 
@@ -90,12 +90,24 @@ flowchart LR
 
 ---
 
-## 4. 자동 검증 현황 및 Wave 5 남은 범위
+## 4. Wave 5 런타임 연결·실 DB E2E·안전 회귀·독립 리뷰 반영 (`PASS`)
 
-| 구분 | 실행 범위 및 결과 |
-| --- | --- |
-| **Backend / AI Worker / 계약 (`PASS`)** | `chat_ai`·`test_chat_citation_contract.py`·`test_chat_service.py`·`evaluation` 신규 4종 테스트 통과, `tests/contract/` (`chat_ai`, `database_logic_policy`, `backend_ai_worker_import_boundary`) `12 passed`, `ruff`/`mypy`(`987` files)/`verify_database_head.py`(`926a1b2c3d4e`)/`check_agent_hygiene.py` 통과 |
-| **Frontend (`PASS`)** | `ChatApi`·`ChatPage`·`AssistantMessageContent` `88 passed` (전체 `vitest` 49개 파일 `992 passed`), `tsc -b`, `vite build`, `oxlint` 0 오류 |
-| **격리 PostgreSQL (`PASS`)** | 포트 `5433` `dosey-rag-eval-pg`에서 `alembic upgrade head` (`926a1b2c3d4e`) 및 `pgvector 0.8.6`·`pg_trgm 1.6` 적용 완료 |
-| **Wave 5 남은 작업 (`NOT_RUN`)** | `chat-citation-validator-wire` (`rule_plus_nli` 런타임 연결), 실시간 Backend↔DB↔UI E2E 검증, `SAFETY_REGRESSION` 93건 1회 실행, `dosey_reviewer` 최종 리뷰 |
-| **참고 한계** | 1) 검색 90질의·판정 60쌍은 현재 결정적 합성 평가셋 기준이며, 2) `evaluation/` 전체 묶음의 기존 `atomic publish` 테스트 88건은 macOS 샌드박스 `/var/folders` 제약(`EVAL_ATOMIC_PUBLISH_UNSUPPORTED`)으로 별도 격리 실행이 필요하다. |
+Wave 4에서 1순위로 확인된 `rule_plus_nli` 검증기를 [chat_claim_citation_validator.py](../../../packages/rag_runtime/chat_claim_citation_validator.py) (`packages/rag_runtime`, `ai_worker`/`app` 무참조 순수 모듈)로 구현하고, [chat_generator_engine.py](../../../apps/backend/app/services/chat_generator_engine.py)에 opt-in(`closed_demo_retriever` + `citation_validator`)으로 연결했다.
+
+### 4.1 Wave 5 핵심 안전·런타임 정책 (Human Owner A1–A4 확정)
+
+1. **치명적 모순 전체 차단 (`A1`)**: `CRITICAL` Claim 중 `contradict`가 1건이라도 나오면 `CriticalClaimContradictionError` → `ChatGenerationFailedError`로 답변 본문 자체를 `FAILED`(`content=null`, `chat_citation` 0건) 처리한다. `CRITICAL + neutral` 및 `NON_CRITICAL + contradict`는 `citations` 목록에서 fail-closed 제외한다.
+2. **Opt-in 격리 (`A2`)**: `citation_validator=None`이면 기존 `chat-prompt-v6`·`chat-prompt-v7-closed-demo-evidence` 흐름을 100% 보존한다. 검증기 활성화 시 앱 DB `knowledge_chunk_id`가 없는 근거가 들어오면 무음 폐기하지 않고 `ChatGenerationFailedError`로 fail-closed 실패한다.
+3. **다중 문장·한국어 활용형 안전 가드 (`H1`)**: 임의 중단·증량·감량·2배 복용 패턴과 문장 종결 구분자를 적용해 `"상태에 따라 임의 감량할 수 있습니다. 절대 두 배로 복용하지 마세요."` 같은 2문장 우회를 차단하면서, `"임의로 복용을 중단하지 마세요"` 같은 안전 권고는 오탐 없이 `SUPPORTED`로 통과시킨다.
+
+### 4.2 Wave 5 전체 검증 결과 및 `dosey_reviewer` 리뷰 조치
+
+| 구분 | 실행 범위 및 결과 | 비고 |
+| --- | --- | --- |
+| **오프라인 안전 회귀·계약·단위 (`PASS`)** | `test_chat_citation_safety_regression.py`·`test_chat_citation_contract.py`·`test_chat_service.py`·`chat_ai`·`evaluation` 4종 **`365 passed, 1 skipped`**, `tests/contract/` **`13 passed`** | `claim_text` 상한 `1000` 통일, 다중 문장·한국어 활용형·`캡슐`/`알`·타임아웃·기존 `v6` 보존 포함 |
+| **실시간 PostgreSQL `5433` E2E & 마이그레이션 (`PASS`)** | `alembic downgrade 925a1b2c3d4e` → `upgrade head` (`926a1b2c3d4e`) 왕복 PASS, `test_chat_citation_runtime_e2e.py`·`test_chat_message_api.py`·`test_chat_repository.py` **`38 passed in 4.61s`** | 실 PostgreSQL `POST`/`GET` 인용 영속화, `CRITICAL+contradict` `500 FAILED` + 0행, `CHECK` 제약 거부 직접 확인 |
+| **기존 Holdout Safety 기준선** | `test_holdout_safety_dataset.py`·`test_safety_metrics.py` `114 passed`, `1 failed` | 1건 실패는 기존 macOS 샌드박스 `/var/folders` `EVAL_ATOMIC_PUBLISH_UNSUPPORTED` 제약 |
+| **Frontend (`PASS`)** | `ChatApi`·`ChatPage`·`AssistantMessageContent` **`89 passed`**, `tsc -b`, `oxlint` 0 오류 (이전 Wave 3 전체 `vitest` 49파일 `992 passed`·`vite build` PASS) | `FAILED`·`GENERATING` 메시지 인용 숨김 방어 추가 |
+| **정적·DB 정책·위생 (`PASS`)** | `ruff check .`, `ruff format --check` (`1378` files), `mypy` (`1007` source files), `check_python_test_inventory.py`, `check_database_logic.py`, `verify_database_head.py` (`926a1b2c3d4e`), `check_agent_hygiene.py`, `git diff --check` 모두 통과 | 추가 OpenAI 비용 `$0` (누적 Wave 1–5 총액 **`$0.061792`**) |
+| **`dosey_reviewer` 독립 리뷰 반영** | `BLOCKING` 2건(`B1` 무음 폐기 → fail-closed 예외 전환, `B2` `docs/contracts/README.md`·`docs/api.md`·`test_chat_ai_backend_contract.py` 동기화), `HIGH` 1건(`H1`), `MEDIUM` 3건(`M1`~`M3`), `LOW`(`L1`, `L3`) 해결 | **남은 배포 후속 범위**: `source591_staging` ↔ 앱 DB `knowledge_chunk_id` 통합, `dependencies/services.py` DI 연결, `Dockerfile` `ai` 그룹 포함 여부, `chat-claim-citation-v1.md` `current/` 승격 및 PR 생성은 Human Owner 결정 대상 |
+| **참고 한계** | 1) Wave 4 검색 90질의·판정 60쌍은 결정적 합성 평가셋 기준이며, 2) `test_holdout_safety_dataset.py` CLI 1건과 `evaluation/` `atomic publish` 88건은 macOS `/var/folders` 제약으로 별도 환경 검증 대상이다. | — |
