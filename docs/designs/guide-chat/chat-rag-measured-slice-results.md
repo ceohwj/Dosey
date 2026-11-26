@@ -6,9 +6,9 @@
   - [ADR 0004: 복약 Chat RAG 실측 고도화 v1 선정과 측정 기준](../../adr/0004-chat-rag-measured-slice-selection.md)
   - [제품 요구사항](chat-rag-measured-slice-requirements.md) (`CRM-01`–`CRM-13`)
   - [기능 명세](chat-rag-measured-slice-design.md) · [구현 계획](chat-rag-measured-slice-plan.md)
-  - [공유 계약 제안/승인본 (`chat-claim-citation-v1.md`)](../../contracts/proposed/chat-claim-citation-v1.md)
+  - [현행 공유 계약 (`chat-claim-citation-v1.md`)](../../contracts/current/chat-claim-citation-v1.md)
 
-> **상태 및 공개 경계**: 이 문서는 **Wave 1~5(기반 점검·계약·스키마·UI·식약처 평가 코퍼스 수집·검색/판정기 실측·`rule_plus_nli` 런타임 opt-in 연결·포트 `5433` 실DB E2E·안전 회귀·독립 리뷰 보완)** 완료 결과를 요약한다. 계약 `current/` 승격, 기본 DI(`get_chat_engine`) 전역 활성화, `Dockerfile` AI 런타임 패키징, `PUBLIC_TRACK_F_ENABLED=false` 및 [외부 승인 게이트](../../release-gates/post-mvp-1-external-approvals.md)는 닫힌 상태를 유지하며 Human Owner의 별도 결정이 필요하다.
+> **상태 및 공개 경계**: 이 문서는 **Wave 1~5(기반 점검·계약·스키마·UI·식약처 평가 코퍼스 수집·검색/판정기 실측·`rule_plus_nli` 런타임 opt-in 연결·포트 `5433` 실DB E2E·안전 회귀·독립 리뷰 보완)** 완료 및 `chat-claim-citation-v1.md`의 `contracts/current/` 정본 승격 결과를 요약한다. 기본 DI(`get_chat_engine`) 전역 활성화, `Dockerfile` AI 런타임 패키징, `PUBLIC_TRACK_F_ENABLED=false` 및 [외부 승인 게이트](../../release-gates/post-mvp-1-external-approvals.md)는 닫힌 상태를 유지하며 Human Owner의 별도 결정이 필요하다.
 
 ---
 
@@ -42,7 +42,7 @@ flowchart LR
 | **추가된 AI 모델** | OpenAI 생성·임베딩 중심 (로컬 NLI 판정 모델 미사용) | **`MoritzLaurer/mDeBERTa-v3-base-mnli-xnli`** 로컬 CPU NLI(`551.51 MB`, `torch 2.11`·`sentence-transformers 5.2`) 추가 및 `gpt-4o-mini` 비교 기준선 확보 |
 | **근거 검증 방식** | 답변 내 각 주장(Claim) 단위 지지·모순 자동 검증 미구현 | **`rule_plus_nli`**: 한국어 수치·용법(`1일 1회`/`2회`)·시점(`식전`/`식후`)·금기 규칙 + NLI 결합 (`Macro-F1 0.9666`, 치명 오답 통과 `0%`) |
 | **검색 평가 기준** | 단일·합성 구성 중심, 한국어 구어체/기권 분리 정량 비교 없음 | 식약처 실데이터 `26품목·964청크` 기반 `90질의`(`pos 78` / `neg 12`)로 `bm25`·`dense`·`rrf` 동시 비교 및 95% CI 검증 |
-| **공유 계약·DB 스키마** | `chat_citation` 테이블 미사용, `POST`/`GET` Chat DTO에 인용 필드 없음 | 승인 계약([chat-claim-citation-v1.md](../../contracts/proposed/chat-claim-citation-v1.md)) 기반 `SendChatMessageData`·`ChatMessageData` 선택 `citations` 추가, forward migration `926a1b2c3d4e` (Trigger/RLS 없이 `CHECK` 제약만 사용) |
+| **공유 계약·DB 스키마** | `chat_citation` 테이블 미사용, `POST`/`GET` Chat DTO에 인용 필드 없음 | 현행 계약([chat-claim-citation-v1.md](../../contracts/current/chat-claim-citation-v1.md)) 기반 `SendChatMessageData`·`ChatMessageData` 선택 `citations` 추가, forward migration `926a1b2c3d4e` (Trigger/RLS 없이 `CHECK` 제약만 사용) |
 | **프론트엔드 UI** | `AssistantMessageContent` 평문/Markdown 답변만 표시 | Markdown 안전 경계는 유지하면서 답변 하단에 `근거 확인` / `확인 필요` 출처 카드 분리 렌더링 (`ChatPage.tsx`) |
 | **로컬 데이터·DB 격리** | 단일 Compose `postgres:5432` 전제, `nedrug` 수동 XML 의존 | 기존 `ah_05_04`(`5432`) 무변경 보호 + 포트 `5433` 격리 `pgvector 0.8.6` 컨테이너, 승인된 `data.go.kr` `15095677` (`DrugPrdtPrmsnInfoService07/getDrugPrdtPrmsnDtlInq06`) 비공개 로컬 수집 |
 
@@ -109,5 +109,5 @@ Wave 4에서 1순위로 확인된 `rule_plus_nli` 검증기를 [chat_claim_citat
 | **기존 Holdout Safety 기준선** | `test_holdout_safety_dataset.py`·`test_safety_metrics.py` `114 passed`, `1 failed` | 1건 실패는 기존 macOS 샌드박스 `/var/folders` `EVAL_ATOMIC_PUBLISH_UNSUPPORTED` 제약 |
 | **Frontend (`PASS`)** | `ChatApi`·`ChatPage`·`AssistantMessageContent` **`89 passed`**, `tsc -b`, `oxlint` 0 오류 (이전 Wave 3 전체 `vitest` 49파일 `992 passed`·`vite build` PASS) | `FAILED`·`GENERATING` 메시지 인용 숨김 방어 추가 |
 | **정적·DB 정책·위생 (`PASS`)** | `ruff check .`, `ruff format --check` (`1378` files), `mypy` (`1007` source files), `check_python_test_inventory.py`, `check_database_logic.py`, `verify_database_head.py` (`926a1b2c3d4e`), `check_agent_hygiene.py`, `git diff --check` 모두 통과 | 추가 OpenAI 비용 `$0` (누적 Wave 1–5 총액 **`$0.061792`**) |
-| **`dosey_reviewer` 독립 리뷰 반영** | `BLOCKING` 2건(`B1` 무음 폐기 → fail-closed 예외 전환, `B2` `docs/contracts/README.md`·`docs/api.md`·`test_chat_ai_backend_contract.py` 동기화), `HIGH` 1건(`H1`), `MEDIUM` 3건(`M1`~`M3`), `LOW`(`L1`, `L3`) 해결 | **남은 배포 후속 범위**: `source591_staging` ↔ 앱 DB `knowledge_chunk_id` 통합, `dependencies/services.py` DI 연결, `Dockerfile` `ai` 그룹 포함 여부, `chat-claim-citation-v1.md` `current/` 승격 및 PR 생성은 Human Owner 결정 대상 |
+| **`dosey_reviewer` 독립 리뷰 반영** | `BLOCKING` 2건(`B1` 무음 폐기 → fail-closed 예외 전환, `B2` `docs/contracts/README.md`·`docs/api.md`·`test_chat_ai_backend_contract.py` 동기화), `HIGH` 1건(`H1`), `MEDIUM` 3건(`M1`~`M3`), `LOW`(`L1`, `L3`) 해결 및 계약 `current/` 승격 완료 | **남은 배포 후속 범위**: `source591_staging` ↔ 앱 DB `knowledge_chunk_id` 통합, `dependencies/services.py` DI 연결, `Dockerfile` `ai` 그룹 포함 여부, `PUBLIC_TRACK_F_ENABLED=false` 해제는 별도 배포·승인 결정 대상 |
 | **참고 한계** | 1) Wave 4 검색 90질의·판정 60쌍은 결정적 합성 평가셋 기준이며, 2) `test_holdout_safety_dataset.py` CLI 1건과 `evaluation/` `atomic publish` 88건은 macOS `/var/folders` 제약으로 별도 환경 검증 대상이다. | — |

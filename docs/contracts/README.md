@@ -39,6 +39,7 @@ Frontend, Backend, OCR과 RAG·LLM이 공유하는 의미와 상태를 관리합
 - [공통 복약 리포트 v1](./current/medication-report-v1.md): `GET /api/v1/medication-reports`의 7/30일 SELF 집계·상태·두 비율·상세 기록 계약
 - [복약 가이드 Backend–AI 계약](./current/medication-guide-ai-backend.md): `guide-prompt-v3` intent·승인 문구 선택형 동기 one-cycle 입력·출력·오류 경계
 - [복약 챗봇 Backend–AI Core 계약](./current/medication-chat-ai-backend.md): 현재 동기 `201` 생성과 세션 직렬화 경계, v5 짧은 후속 질문 프롬프트 지침
+- [복약 Chat Claim·Citation 응답 및 영속화 계약 v1 (`chat-citation-contract`)](./current/chat-claim-citation-v1.md): `SendChatMessageData`·`ChatMessageData` 선택 `citations` 필드, `chat_citation` migration `926a1b2c3d4e`, `rule_plus_nli` opt-in 검증기·`CRITICAL+contradict` 전체 차단 및 `CRM-10` 원자성 구현 계약 (전역 DI·공개 게이트 별도)
 - [OCR 약품명 정규화 계약](./current/ocr-medication-normalization.md): OCR 원문, 정규화 참고값 및 사용자 확정값의 역할
 - [OCR Provider 약품명 필드 Alias 예방 계약](./current/ocr-provider-field-aliases.md): 현재 외부 alias가 없는 상태에서 `medication_name`·`MEDICATION_NAME` 정본과 향후 Source별 Provider Adapter 변환 경계를 고정
 - [OCR 약품 행 구조화 계약](./current/ocr-medication-structuring.md): #144 빈 검수 필드 개정은 작업 브랜치 검증 완료·리뷰/병합 대기. 현재 약품 행 판정·부분 인식·사용자 확인 경계
@@ -62,7 +63,6 @@ Frontend, Backend, OCR과 RAG·LLM이 공유하는 의미와 상태를 관리합
 
 - [Guide CLOSED_DEMO RAG v1 (#927)](./proposed/guide-closed-demo-rag-v1.md): 내부 폐쇄형 시연 한정 Provider 전송 최소화(환자 처방 상세 제거·식약처 근거만 전송), 4대 의료 안전 검증(`_validate_text`), 장애 시 503 fail-closed 및 비정규 인용 경계 계약. Proposed / Awaiting External Approval 상태.
 - [#180 Guide public projection 구현·Chat 후속 경계](./proposed/rag-guide-chat-public-projection-180.md): Sync `201 Created` Guide의 release/fallback·ordered public-safe citation DTO와 persistence/rediscovery를 구현하고 Frontend fail-closed 소비 경계를 정렬. 실제 runtime callable wiring, Chat public DTO/persistence, `202 Accepted` 전환은 후속 범위.
-- [복약 Chat Claim·Citation 응답 및 영속화 계약 v1 (`chat-citation-contract`)](./proposed/chat-claim-citation-v1.md): `SendChatMessageData`·`ChatMessageData`에 선택 `citations` 필드 추가, `chat_citation` 단일 forward migration 보완, fail-closed(`CRITICAL`+`contradict` 전체 차단 및 `CRITICAL`+`neutral`/`NON_CRITICAL`+`contradict` 제외) 및 `CRM-10` 실패·timeout 원자성 경계를 정의하는 계약. Human Owner `APPROVED` (2026-11-26) · 구현 및 `5433` 실DB 검증 진행 중 (Current 승격·전역 DI 활성화·공개 게이트 별도).
 - [Guide·Chat 피드백 v1 (#633)](./proposed/guide-chat-feedback-v1.md): 완료 결과별 rating·선택 의견 저장 API, SELF 소유권·재제출·합성 Gold 연결 계약. Proposed / Local 구현·제품/운영 기준·AI/RAG synthetic evidence 정리 완료; prompt 전후 비교·사람 검토·실사용 처리 승인과 Production 공개는 별도.
 - [Web Push v1 (#469/#651)](./proposed/web-push-v1.md): Backend Web Push 등록·전송·Production gate 계약. Proposed 상태이며 `WEB_PUSH_PRODUCTION_ENABLED` OFF 반영은 API/scheduler 전 인스턴스 재시작 완료 후 기준으로 해석한다. 실기기 수신 검증은 #471 범위.
 - [Track B 생활 시간 입력 v1 (#422 / #556)](./proposed/track-b-lifestyle-times-v1.md): 식사·반복 행동·복용 곤란 시간의 SELF별 요일 저장·조회 구현 후보. #556 책임 리뷰 전 Proposed; 추천·약별 조건 판정은 별도.

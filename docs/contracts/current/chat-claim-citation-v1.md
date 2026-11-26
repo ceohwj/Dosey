@@ -1,17 +1,18 @@
 # 복약 Chat Claim·Citation 응답 및 영속화 계약 v1
 
-- **Status**: `APPROVED (2026-11-26 — Implementation PR in progress; kept in proposed/ until full end-to-end verification)`
+- **Status**: `CURRENT — Human Owner APPROVED & Promoted (2026-11-27)`
 - **Task / Branch**: `chat-citation-contract` (`feat/chat-rag-measured-slice-v1`)
-- **작성일**: 2026-11-26 (KST)
-- **선행 결정 근거**: Human Owner 2026-11-26 A3 방향 선택 — "(Recommended) POST·GET 응답 DTO 모두에 선택 필드 `citations` 추가 + 기존 `chat_citation` 테이블 보완(migration 1개)으로 재조회까지 지원"
+- **작성일 / 승격일**: 2026-11-26 작성 · 2026-11-27 `current/` 승격 (KST)
+- **선행 결정 근거**: Human Owner 2026-11-26 A3 방향 선택 + 2026-11-27 `current/` 승격 지시 — POST·GET 응답 DTO 선택 필드 `citations` 추가 + `chat_citation` migration `926a1b2c3d4e` + `rule_plus_nli` opt-in 검증기·포트 `5433` 실DB E2E·Frontend UI 구현 및 검증 완료
 - **관련 문서**:
   - [복약 Chat RAG 실측 고도화 v1 제품 요구사항](../../designs/guide-chat/chat-rag-measured-slice-requirements.md) (`CRM-05`–`CRM-12`)
   - [복약 Chat RAG 실측 고도화 v1 설계](../../designs/guide-chat/chat-rag-measured-slice-design.md) (3.3절, 4절)
-  - [복약 챗봇 Backend–AI Core 계약](../current/medication-chat-ai-backend.md)
-  - [#180 Guide public projection·Chat 후속 경계](./rag-guide-chat-public-projection-180.md)
+  - [복약 Chat RAG 실측 고도화 v1 결과](../../designs/guide-chat/chat-rag-measured-slice-results.md)
+  - [복약 챗봇 Backend–AI Core 계약](./medication-chat-ai-backend.md)
+  - [#180 Guide public projection·Chat 후속 경계](../proposed/rag-guide-chat-public-projection-180.md)
   - [ADR 0004: 복약 Chat RAG 실측 고도화 v1 선정과 측정 기준](../../adr/0004-chat-rag-measured-slice-selection.md)
 
-> **경계 및 비승인 선언**: 이 문서는 `AGENTS.md`에 따른 `CONTRACT_REQUEST` 초안이다. Human Owner가 `APPROVED`를 결정하기 전까지 runtime DTO, API router, SQLAlchemy 모델, Alembic migration, 테스트를 수정하지 않는다. 또한 이 계약 제안은 기존의 `PUBLIC_TRACK_F`(`PUBLIC_TRACK_F_ENABLED=false` 및 [외부 승인 게이트](../../release-gates/post-mvp-1-external-approvals.md)), `LICENSE_VERIFIED`(MFDS Source 이용 승인 경계), [ADR 0004](../../adr/0004-chat-rag-measured-slice-selection.md)의 비공개·폐쇄형 데모·안전 경계를 약화하거나 해제하지 않는다.
+> **경계 및 비공개 유지 선언**: 이 문서는 코드·Alembic migration `926a1b2c3d4e`·Pydantic DTO·자동 테스트가 함께 뒷받침하는 현행 계약(`current/`)이다. 다만 `get_chat_engine` 전역 DI 연결(`citation_validator=None` 기본 유지), `source591_staging` ↔ 앱 DB `knowledge_chunk_id` 통합, Backend `Dockerfile` `ai` 그룹 포함 여부, `PUBLIC_TRACK_F`(`PUBLIC_TRACK_F_ENABLED=false` 및 [외부 승인 게이트](../../release-gates/post-mvp-1-external-approvals.md)), `LICENSE_VERIFIED`는 별도 배포·공개 결정 대상이며 이 계약 승격으로 자동 해제되지 않는다.
 
 ---
 
@@ -19,7 +20,7 @@
 
 현재 복약 Chat runtime 구현은 아래 경계로 고정되어 있다.
 
-1. **API 및 DTO Baseline** (`apps/backend/app/apis/v1/chat_routers.py`, `apps/backend/app/dtos/chat.py`, [medication-chat-ai-backend.md](../current/medication-chat-ai-backend.md)):
+1. **API 및 DTO Baseline** (`apps/backend/app/apis/v1/chat_routers.py`, `apps/backend/app/dtos/chat.py`, [medication-chat-ai-backend.md](./medication-chat-ai-backend.md)):
    - `POST /api/v1/chat-sessions/{session_id}/messages` (`201 Created`)는 `SendChatMessageData`를 반환한다 (`user_message_id`, `assistant_message_id`, `session_id`, `generation_status`, `content`, `model_name`, `prompt_version`, `created_at`, `completed_at`).
    - `GET /api/v1/chat-sessions/{session_id}/messages` (`200 OK`)는 `ChatMessageData` 목록을 반환한다 (`message_id`, `role`, `content`, `generation_status`, `created_at`).
    - `ChatReplyOutput`(`apps/backend/app/services/chat_ai/__init__.py`)은 `content`, `model_name`, `prompt_version`만 반환하며, 두 HTTP 응답 DTO 모두 `citations` 필드가 없다.
@@ -60,8 +61,9 @@ class ChatCitationItem(BaseModel):
     display_order: int = Field(ge=1)
 ```
 
-- **Fail-closed 제외 규칙 (`CRM-09`)**:
-  - `CRITICAL` Claim이 `neutral` 또는 `contradict`로 판정되거나, `NON_CRITICAL` Claim이 `contradict`로 판정된 경우 영속화 이전 단계에서 반드시 제외(fail-closed)한다.
+- **Fail-closed 제외 및 전체 차단 규칙 (`CRM-09`, Wave 5 A1)**:
+  - `CRITICAL` Claim이 `contradict`로 판정된 경우 `CriticalClaimContradictionError` → `ChatGenerationFailedError`로 답변 본문 자체를 `FAILED`(`content=NULL`, `chat_citation` 0건) 차단한다.
+  - `CRITICAL` Claim이 `neutral`로 판정되거나, `NON_CRITICAL` Claim이 `contradict`로 판정된 경우 영속화 이전 단계에서 `citations` 목록으로부터 반드시 제외(fail-closed)한다.
   - `ChatCitationItem.verdict`는 `"SUPPORTED"`와 비치명적(`NON_CRITICAL`) `"NEEDS_VERIFICATION"`만 허용한다. `CONTRADICT` 또는 미확인 `CRITICAL` Claim은 DB와 API DTO 어느 곳에도 나타나서는 안 된다.
 - **Public-safe 필드 경계 (내부 필드 제외)**:
   - 다음 내부 DB·감사·모델 판정 필드는 public `ChatCitationItem`에서 제외한다.
@@ -155,9 +157,9 @@ class ChatCitationItem(BaseModel):
      a. Retrieval (검색)
      b. Structured Generation (답변 본문 + Claim·후보 근거 매핑)
      c. NLI Claim–Citation Validator (support / neutral / contradict 판정)
-     d. Fail-closed 필터링:
-        - CRITICAL + neutral / contradict → 제외·폐기 (또는 치명적 안전 실패 시 예외)
-        - NON_CRITICAL + contradict → 제외·폐기
+     d. Fail-closed 필터링 및 안전 차단:
+        - CRITICAL + contradict → CriticalClaimContradictionError → 답변 전체 FAILED 차단 (`content = NULL`, `chat_citation` 0건)
+        - CRITICAL + neutral / NON_CRITICAL + contradict → `citations`에서 제외·폐기
         - NON_CRITICAL + neutral → verdict="NEEDS_VERIFICATION" 보존
         - SUPPORTED → verdict="SUPPORTED" + knowledge_chunk_id + content_sha256 보존
 8. 성공 시 저장 직전:
@@ -243,7 +245,7 @@ class ChatCitationItem(BaseModel):
 
 #### Human Owner Decision
 
-- [x] `APPROVED` — 위 DTO·`chat_citation` 단일 migration·트랜잭션 경계로 `chat-citation-api` / `chat-citation-validator-wire` / `chat-citation-ui` 진행 승인 (2026-11-26 Human Owner 승인; 구현 PR 진행 중 — 전체 E2E 검증 완료 전까지 `proposed/` 유지)
+- [x] `APPROVED` — 위 DTO·`chat_citation` 단일 migration·트랜잭션 경계 승인 및 Wave 5(`rule_plus_nli` opt-in 검증기·`5433` 실DB E2E·안전 회귀·Frontend UI) 검증 완료 후 `docs/contracts/current/chat-claim-citation-v1.md`로 정본 승격 (2026-11-27 Human Owner 지시)
 - [ ] `REJECTED` — 반려 (사유: )
 - [ ] `REUSE_EXISTING_CONTRACT` — 기존 계약 재사용 지시 (대상: )
 - [ ] `NEEDS_MORE_EVIDENCE` — 추가 근거 필요 (요청 사항: )
