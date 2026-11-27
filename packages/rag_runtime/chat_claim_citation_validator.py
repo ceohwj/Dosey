@@ -707,6 +707,10 @@ class RulePlusNliClaimValidator:
         self._max_tokens = max_tokens
         self._max_chars = max_chars
 
+    def warmup(self) -> None:
+        """Pre-load the underlying NLI scorer during application startup."""
+        self._ensure_scorer()
+
     def _ensure_scorer(self) -> NliPairScorer:
         if self._scorer is None:
             with self._scorer_lock:

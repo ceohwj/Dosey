@@ -1,12 +1,17 @@
 import asyncio
 import hashlib
 from collections.abc import Sequence
+from typing import Protocol
 from uuid import UUID
 
 from pydantic import ValidationError
 
+from app.core.chat_citation_retrieval import (
+    ChatCitationRetrievalError,
+    ChatEvidenceRetrieverProtocol,
+    RevealedTextProtocol,
+)
 from app.core.closed_demo_retrieval import (
-    ClosedDemoEvidence,
     ClosedDemoRetrievalExecutionError,
     ClosedDemoRetrievalService,
 )
@@ -40,6 +45,23 @@ from rag_runtime.chat_claim_citation_validator import (
 )
 
 
+class _RetrievedEvidenceLike(Protocol):
+    @property
+    def display_order(self) -> int: ...
+
+    @property
+    def source_code(self) -> str: ...
+
+    @property
+    def source_version(self) -> str: ...
+
+    @property
+    def locator(self) -> str: ...
+
+    @property
+    def content(self) -> RevealedTextProtocol: ...
+
+
 class ChatGeneratorEngine(ChatEngine):
     """Runtime Chat engine with optional opt-in `rule_plus_nli` claim verification.
 
@@ -55,7 +77,7 @@ class ChatGeneratorEngine(ChatEngine):
         provider: ChatProvider,
         model: str,
         timeout_seconds: float,
-        closed_demo_retriever: ClosedDemoRetrievalService | None = None,
+        closed_demo_retriever: ClosedDemoRetrievalService | ChatEvidenceRetrieverProtocol | None = None,
         citation_validator: RulePlusNliClaimValidator | None = None,
     ) -> None:
         self._provider = provider
@@ -105,6 +127,7 @@ class ChatGeneratorEngine(ChatEngine):
         except ChatGenerationUnavailableError:
             mapped_error = ChatServiceUnavailableError("챗봇 LLM 호출에 실패했습니다.")
         except (
+            ChatCitationRetrievalError,
             ChatGenerationError,
             ClosedDemoRetrievalExecutionError,
             CriticalClaimContradictionError,
@@ -176,7 +199,7 @@ class ChatGeneratorEngine(ChatEngine):
 
     @staticmethod
     def _build_evidence_inputs(
-        evidence: Sequence[ClosedDemoEvidence],
+        evidence: Sequence[_RetrievedEvidenceLike],
     ) -> tuple[list[ChatEvidenceItem], list[ClaimEvidenceRecord]]:
         evidence_items: list[ChatEvidenceItem] = []
         evidence_records: list[ClaimEvidenceRecord] = []

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from inspect import iscoroutinefunction
+from pathlib import Path
 from typing import Annotated, TypedDict, cast
 
 from fastapi import Depends, Request
@@ -7,13 +8,14 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import config
+from app.core.chat_citation_retrieval import AppDbChatEvidenceRetriever
 from app.core.closed_demo_retrieval import (
     ClosedDemoRetrievalDatabaseConfig,
     ClosedDemoRetrievalService,
     build_closed_demo_retrieval_service,
 )
 from app.core.config import Env
-from app.core.db.databases import AccountWithdrawalCleanupSessionFactory, get_db_session
+from app.core.db.databases import AccountWithdrawalCleanupSessionFactory, AsyncSessionFactory, get_db_session
 from app.core.guide_closed_demo_retrieval import (
     GuideClosedDemoRetrievalService,
     build_guide_closed_demo_retrieval_service,
@@ -52,6 +54,7 @@ from app.services.chat import ChatService
 from app.services.chat_ai import ChatEngine
 from app.services.chat_ai import OpenAIResponsesClient as ChatOpenAIResponsesClient
 from app.services.chat_ai.prompt import (
+    CLAIM_CITATION_PROMPT_VERSION,
     CLOSED_DEMO_EVIDENCE_PROMPT_VERSION,
 )
 from app.services.chat_ai.prompt import (
@@ -104,6 +107,7 @@ from app.services.track_c_revision_invalidation import TrackCCheckinRevisionInva
 from app.services.track_c_support import TrackCSupportService
 from app.services.user_consents import ConsentGateService, OcrConsentService
 from app.services.users import UserConsentService, UserManageService
+from rag_runtime.chat_claim_citation_validator import RulePlusNliClaimValidator
 from rag_runtime.closed_demo_chat_query_binding import (
     ApprovedClosedDemoChatQueryHmacKey,
     ClosedDemoChatQueryBindingDependencyError,
@@ -788,6 +792,24 @@ def build_configured_closed_demo_retrieval_service(client: AsyncOpenAI) -> Close
     )
 
 
+def build_configured_chat_citation_retriever(client: AsyncOpenAI) -> AppDbChatEvidenceRetriever:
+    """Build the opt-in local app-DB Chat evidence retriever."""
+    raw_cache_path = config.CHAT_CITATION_RAG_EMBEDDING_CACHE_PATH.strip()
+    cache_path = Path(raw_cache_path) if raw_cache_path else None
+    return AppDbChatEvidenceRetriever(
+        session_factory=AsyncSessionFactory,
+        openai_client=client,
+        embedding_cache_path=cache_path,
+        top_k=config.CHAT_CITATION_RAG_TOP_K,
+        min_dense_score=config.CHAT_CITATION_RAG_MIN_DENSE_SCORE,
+    )
+
+
+def build_configured_chat_citation_validator() -> RulePlusNliClaimValidator:
+    """Build the `rule_plus_nli` runtime claim-citation validator."""
+    return RulePlusNliClaimValidator()
+
+
 def get_closed_demo_retrieval_service(request: Request) -> ClosedDemoRetrievalService | None:
     """Return the lifespan-owned CLOSED_DEMO retriever without opening a new pool."""
     if not config.CHAT_CLOSED_DEMO_RAG_ENABLED:
@@ -796,6 +818,26 @@ def get_closed_demo_retrieval_service(request: Request) -> ClosedDemoRetrievalSe
     if retriever is None:
         raise RuntimeError("CLOSED_DEMO retrieval service was not initialized at startup")
     return retriever
+
+
+def get_chat_citation_retriever(request: Request) -> AppDbChatEvidenceRetriever | None:
+    """Return the opt-in app-DB Chat citation retriever initialized at startup."""
+    if not config.CHAT_CITATION_RAG_ENABLED:
+        return None
+    retriever = getattr(request.app.state, "chat_citation_retriever", None)
+    if retriever is None:
+        raise RuntimeError("Chat citation retriever was not initialized at startup")
+    return retriever
+
+
+def get_chat_citation_validator(request: Request) -> RulePlusNliClaimValidator | None:
+    """Return the opt-in `rule_plus_nli` validator warmed at startup."""
+    if not config.CHAT_CITATION_RAG_ENABLED:
+        return None
+    validator = getattr(request.app.state, "chat_citation_validator", None)
+    if validator is None:
+        raise RuntimeError("Chat citation validator was not initialized at startup")
+    return validator
 
 
 def get_chat_engine(
@@ -811,8 +853,25 @@ def get_chat_engine(
         ClosedDemoRetrievalService | None,
         Depends(get_closed_demo_retrieval_service),
     ] = None,
+    chat_citation_retriever: Annotated[
+        AppDbChatEvidenceRetriever | None,
+        Depends(get_chat_citation_retriever),
+    ] = None,
+    chat_citation_validator: Annotated[
+        RulePlusNliClaimValidator | None,
+        Depends(get_chat_citation_validator),
+    ] = None,
 ) -> ChatEngine:
-    prompt_version = CLOSED_DEMO_EVIDENCE_PROMPT_VERSION if closed_demo_retriever is not None else CHAT_PROMPT_VERSION
+    citation_mode = chat_citation_retriever is not None and chat_citation_validator is not None
+    if config.CHAT_CITATION_RAG_ENABLED and not citation_mode:
+        raise RuntimeError("CHAT_CITATION_RAG_ENABLED requires chat citation retriever and validator")
+    if citation_mode:
+        prompt_version = CLAIM_CITATION_PROMPT_VERSION
+    elif closed_demo_retriever is not None:
+        prompt_version = CLOSED_DEMO_EVIDENCE_PROMPT_VERSION
+    else:
+        prompt_version = CHAT_PROMPT_VERSION
+
     provider = ChatOpenAIResponsesClient(
         client,
         **_provider_observability_kwargs(
@@ -822,6 +881,14 @@ def get_chat_engine(
             prompt_version=prompt_version,
         ),
     )
+    if citation_mode:
+        return ChatGeneratorEngine(
+            provider=provider,
+            model=config.OPENAI_MODEL,
+            timeout_seconds=config.OPENAI_TIMEOUT_SECONDS,
+            closed_demo_retriever=chat_citation_retriever,
+            citation_validator=chat_citation_validator,
+        )
     if closed_demo_retriever is None:
         return ChatGeneratorEngine(
             provider=provider,
