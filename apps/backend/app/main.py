@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ from app.core.errors import ApiError, ErrorDetail, register_exception_handlers
 from app.core.no_store_middleware import NoStoreMiddleware
 from app.core.validation_trace_middleware import RequestTraceMiddleware, ValidationTraceMiddleware
 from app.dependencies.services import (
+    build_configured_chat_citation_retriever,
+    build_configured_chat_citation_validator,
     build_configured_closed_demo_retrieval_service,
     build_configured_guide_closed_demo_retrieval_service,
     get_email_sender,
@@ -138,6 +141,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             closed_demo_retrieval_service = build_configured_closed_demo_retrieval_service(app.state.openai_client)
             cleanup.push_async_callback(closed_demo_retrieval_service.aclose)
             app.state.closed_demo_retrieval_service = closed_demo_retrieval_service
+        if config.CHAT_CITATION_RAG_ENABLED:
+            chat_citation_retriever = build_configured_chat_citation_retriever(app.state.openai_client)
+            chat_citation_validator = build_configured_chat_citation_validator()
+            if config.CHAT_CITATION_RAG_WARMUP_NLI:
+                await asyncio.to_thread(chat_citation_validator.warmup)
+            app.state.chat_citation_retriever = chat_citation_retriever
+            app.state.chat_citation_validator = chat_citation_validator
         if config.GUIDE_CLOSED_DEMO_RAG_ENABLED:
             guide_closed_demo_retrieval_service = build_configured_guide_closed_demo_retrieval_service(
                 app.state.openai_client

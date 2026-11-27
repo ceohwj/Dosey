@@ -286,6 +286,11 @@ class Config(BaseSettings):
     GUIDE_RUNTIME_BOOTSTRAP_FACTORY: str = ""
     CHAT_HISTORY_CONTEXT_ENABLED: bool = False
     CHAT_CLOSED_DEMO_RAG_ENABLED: bool = False
+    CHAT_CITATION_RAG_ENABLED: bool = False
+    CHAT_CITATION_RAG_EMBEDDING_CACHE_PATH: str = ""
+    CHAT_CITATION_RAG_WARMUP_NLI: bool = True
+    CHAT_CITATION_RAG_TOP_K: int = 5
+    CHAT_CITATION_RAG_MIN_DENSE_SCORE: float = 0.50
     SOURCE591_STAGING_DB_HOST: str = ""
     SOURCE591_STAGING_DB_PORT: int = 5432
     SOURCE591_CONSUMER_PASSWORD: SecretStr | None = None
@@ -345,6 +350,23 @@ class Config(BaseSettings):
             raise ValueError("CHAT_CLOSED_DEMO_RAG_ENABLED is allowed only in local environment")
         if self.PUBLIC_TRACK_F_ENABLED:
             raise ValueError("CHAT_CLOSED_DEMO_RAG_ENABLED requires PUBLIC_TRACK_F_ENABLED=false")
+        return self
+
+    @model_validator(mode="after")
+    def validate_chat_citation_rag_scope(self) -> "Config":
+        """Restrict opt-in app-DB claim-citation RAG + NLI warmup to isolated local runtime."""
+        if not 1 <= self.CHAT_CITATION_RAG_TOP_K <= 5:
+            raise ValueError("CHAT_CITATION_RAG_TOP_K must be between 1 and 5")
+        if not 0.0 <= self.CHAT_CITATION_RAG_MIN_DENSE_SCORE <= 1.0:
+            raise ValueError("CHAT_CITATION_RAG_MIN_DENSE_SCORE must be in [0, 1]")
+        if not self.CHAT_CITATION_RAG_ENABLED:
+            return self
+        if self.ENV is not Env.LOCAL:
+            raise ValueError("CHAT_CITATION_RAG_ENABLED is allowed only in local environment")
+        if self.PUBLIC_TRACK_F_ENABLED:
+            raise ValueError("CHAT_CITATION_RAG_ENABLED requires PUBLIC_TRACK_F_ENABLED=false")
+        if self.CHAT_CLOSED_DEMO_RAG_ENABLED:
+            raise ValueError("CHAT_CITATION_RAG_ENABLED cannot be combined with CHAT_CLOSED_DEMO_RAG_ENABLED")
         return self
 
     GUIDE_CLOSED_DEMO_RAG_ENABLED: bool = False
