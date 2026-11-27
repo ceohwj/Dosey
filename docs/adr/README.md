@@ -18,6 +18,7 @@
 - [ADR 0001](./0001-synchronous-chat-generation-with-session-row-lock.md) — Accepted, 현재 동기 MVP
 - [ADR 0002](./0002-post-mvp-1-async-execution.md) — Accepted target / Not implemented, 승인된 목표 결정·미구현
 - [ADR 0003](./0003-chat-recent-context-single-v2.md) — Proposed, 단일 `chat-prompt-v2`와 Local-only 최근 대화 조회 결정
+- [ADR 0004](./0004-chat-rag-measured-slice-selection.md) — Accepted, 복약 Chat RAG 실측 고도화 v1 선정과 측정 기준(구현·계약·공개 승인 아님)
 - [809: Normalized OCR Image](./809-normalized-ocr-image.md) — OCR 정규화 이미지 처리 결정
 - [838: Production Chat History Context Activation](./838-production-chat-history-context-activation.md) — 운영 환경 최근 대화 문맥 활성화 경계
 

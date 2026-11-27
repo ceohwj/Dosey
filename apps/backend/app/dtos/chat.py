@@ -10,6 +10,21 @@ class ChatRole(StrEnum):
     ASSISTANT = "ASSISTANT"
 
 
+class ChatCitationVerdict(StrEnum):
+    SUPPORTED = "SUPPORTED"
+    NEEDS_VERIFICATION = "NEEDS_VERIFICATION"
+
+
+class ChatCitationItem(BaseModel):
+    claim_key: str = Field(min_length=1, max_length=64)
+    claim_text: str = Field(min_length=1, max_length=1000)
+    verdict: ChatCitationVerdict
+    source_code: str = Field(min_length=1, max_length=100)
+    source_version: str = Field(min_length=1, max_length=200)
+    locator: str = Field(min_length=1, max_length=500)
+    display_order: int = Field(ge=1)
+
+
 class ChatSessionData(BaseModel):
     session_id: UUID
     prescription_id: UUID
@@ -28,6 +43,7 @@ class ChatMessageData(BaseModel):
     content: str | None = None
     generation_status: str
     created_at: datetime
+    citations: list[ChatCitationItem] | None = None
 
 
 class ChatMessageListData(BaseModel):
@@ -54,6 +70,7 @@ class SendChatMessageData(BaseModel):
     prompt_version: str | None
     created_at: datetime
     completed_at: datetime | None
+    citations: list[ChatCitationItem] | None = None
 
 
 class SendChatMessageResponse(BaseModel):

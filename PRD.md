@@ -1,6 +1,6 @@
 # Dosey 개인 프로젝트 방향
 
-상태: 개인 프로젝트 목적 확정, 다음 고도화 기능은 미선정. 이 문서는 미래 제품 범위를 결정하며 현재 기능 완료·배포 승인 기록을 대신하지 않는다.
+상태: 개인 프로젝트 목적 확정, 다음 고도화 기능 선정(2026-11-25). 이 문서는 미래 제품 범위를 결정하며 현재 기능 완료·배포 승인 기록을 대신하지 않는다.
 
 ## 목적
 
@@ -11,6 +11,12 @@
 Human Owner가 다음 고도화 기능을 선정한다. 각 기능은 사용자 문제, 포함/제외 범위, 현재 baseline, 목표, 평가 데이터와 재현 명령, 통합 범위, 안전 조건을 먼저 기록한다. OCR·검색·생성·사용자 화면을 모두 동시에 개편하는 것을 기본 범위로 삼지 않는다.
 
 정확도·검색 품질·생성 품질·지연시간 같은 지표는 해당 기능에 적합한 경우만 선택한다. 실제 비교 결과 없이 성능 향상을 주장하지 않는다. 합성/승인 데이터와 baseline·candidate 버전을 고정하고, 결과와 제한 사항을 함께 설명한다.
+
+## 선정된 고도화 기능
+
+- **복약 Chat RAG 실측 고도화 v1** (2026-11-25 선정, 4주): 복약 Chat Q&A 한 흐름에서 검색 구성과 Citation 판정기를 같은 평가셋으로 측정하고, 측정 결과로 고른 구성을 Chat 화면의 근거·인용 표시까지 연결한다.
+- 결정: [ADR 0004](docs/adr/0004-chat-rag-measured-slice-selection.md). 정본: [제품 요구사항](docs/designs/guide-chat/chat-rag-measured-slice-requirements.md), [기능 명세](docs/designs/guide-chat/chat-rag-measured-slice-design.md), [구현 계획](docs/designs/guide-chat/chat-rag-measured-slice-plan.md), [중간 실측·비교 결과](docs/designs/guide-chat/chat-rag-measured-slice-results.md).
+- 이 선정은 공유 계약 변경, Source 이용 승인, 공개를 승인하지 않는다.
 
 ## 완료 기준
 

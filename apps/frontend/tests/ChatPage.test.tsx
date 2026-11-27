@@ -14,6 +14,7 @@ import {
   getChatMessages,
   getChatSessionForPrescription,
   sendChatMessage,
+  type ChatCitationItem,
 } from '../src/api/chat'
 import { ApiError } from '../src/api/client'
 import { getLatestPrescription } from '../src/api/prescriptions'
@@ -2266,5 +2267,249 @@ describe('ChatPage', () => {
     expect(screen.queryByText('처방 A 질문')).toBeNull()
     expect(screen.queryByText('처방 A의 늦은 답변')).toBeNull()
     expect(screen.getByLabelText('복약 질문')).toHaveProperty('value', '')
+  })
+
+  it('POST 응답의 citations를 Markdown 본문 아래에 display_order 순으로 표시한다', async () => {
+    const citations: ChatCitationItem[] = [
+      {
+        claim_key: 'claim-2',
+        claim_text: '카페인 음료와 함께 복용하는 것은 주의가 필요합니다.',
+        verdict: 'NEEDS_VERIFICATION',
+        source_code: 'MFDS_DRUG_B',
+        source_version: '2026-09-02',
+        locator: '상호작용',
+        display_order: 2,
+      },
+      {
+        claim_key: 'claim-1',
+        claim_text: '식후 30분에 복용하는 약입니다.',
+        verdict: 'SUPPORTED',
+        source_code: 'MFDS_DRUG_A',
+        source_version: '2026-09-01',
+        locator: '용법·용량',
+        display_order: 1,
+      },
+    ]
+
+    vi.mocked(sendChatMessage).mockResolvedValue({
+      data: {
+        user_message_id: 'citation-post-user',
+        assistant_message_id: 'citation-post-assistant',
+        session_id: sessionId,
+        generation_status: 'COMPLETED',
+        content: '**식후 30분**에 물과 함께 복용하세요.',
+        model_name: 'chat-model',
+        prompt_version: 'chat-v1',
+        created_at: '2026-09-20T00:00:01Z',
+        completed_at: '2026-09-20T00:00:02Z',
+        citations,
+      },
+    })
+    renderPage()
+
+    const input = await screen.findByLabelText('복약 질문')
+    fireEvent.change(input, { target: { value: '이 약 복용법 알려주세요' } })
+    fireEvent.click(screen.getByRole('button', { name: '질문 전송' }))
+
+    const boldText = await screen.findByText('식후 30분')
+    expect(boldText.tagName).toBe('STRONG')
+    const markdownContainer = boldText.closest('.chat-message__markdown')
+    expect(markdownContainer).toBeTruthy()
+    expect(markdownContainer?.textContent).not.toContain('MFDS_DRUG_A')
+
+    const citationRegion = screen.getByRole('region', { name: '복약 답변 근거' })
+    expect(citationRegion.closest('.chat-message')?.classList).toContain('assistant')
+
+    const items = within(citationRegion).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+
+    expect(within(items[0]).getByText('근거 확인')).toBeTruthy()
+    expect(within(items[0]).getByText('식후 30분에 복용하는 약입니다.')).toBeTruthy()
+    expect(within(items[0]).getByText('MFDS_DRUG_A')).toBeTruthy()
+    expect(within(items[0]).getByText('2026-09-01')).toBeTruthy()
+    expect(within(items[0]).getByText('용법·용량')).toBeTruthy()
+
+    expect(within(items[1]).getByText('확인 필요')).toBeTruthy()
+    expect(
+      within(items[1]).getByText('카페인 음료와 함께 복용하는 것은 주의가 필요합니다.'),
+    ).toBeTruthy()
+    expect(within(items[1]).getByText('MFDS_DRUG_B')).toBeTruthy()
+    expect(within(items[1]).getByText('2026-09-02')).toBeTruthy()
+    expect(within(items[1]).getByText('상호작용')).toBeTruthy()
+  })
+
+  it('GET으로 불러온 메시지의 SUPPORTED와 NEEDS_VERIFICATION 인용을 정렬해 표시하고 알 수 없는 verdict는 숨긴다', async () => {
+    const unknownCitation = {
+      claim_key: 'claim-unknown',
+      claim_text: '표시되면 안 되는 미지 verdict 주장',
+      verdict: 'CONTRADICT',
+      source_code: 'HIDDEN_SRC',
+      source_version: '2026-09-03',
+      locator: '금기',
+      display_order: 3,
+    } as unknown as ChatCitationItem
+
+    const loadedCitations: ChatCitationItem[] = [
+      {
+        claim_key: 'claim-second',
+        claim_text: '어지러움이 있을 수 있어 운전 시 주의가 필요합니다.',
+        verdict: 'NEEDS_VERIFICATION',
+        source_code: 'MFDS_WARN',
+        source_version: '2026-09-02',
+        locator: '일반적 주의',
+        display_order: 2,
+      },
+      unknownCitation,
+      {
+        claim_key: 'claim-first',
+        claim_text: '하루 2회 아침과 저녁에 복용합니다.',
+        verdict: 'SUPPORTED',
+        source_code: 'MFDS_DOSE',
+        source_version: '2026-09-01',
+        locator: '용법·용량 제1항',
+        display_order: 1,
+      },
+    ]
+
+    vi.mocked(sendChatMessage).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(getChatMessages)
+      .mockResolvedValueOnce({
+        data: { session_id: sessionId, messages: [] },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          session_id: sessionId,
+          messages: [
+            {
+              message_id: 'get-user-1',
+              role: 'USER',
+              content: '주의할 점이 있나요?',
+              generation_status: 'NOT_APPLICABLE',
+              created_at: '2026-09-20T00:00:01Z',
+              citations: [
+                {
+                  claim_key: 'user-ignored',
+                  claim_text: 'USER 메시지 인용은 표시하지 않음',
+                  verdict: 'SUPPORTED',
+                  source_code: 'USER_SRC',
+                  source_version: '1.0',
+                  locator: 'loc',
+                  display_order: 1,
+                },
+              ],
+            },
+            {
+              message_id: 'get-assistant-1',
+              role: 'ASSISTANT',
+              content: '**하루 2회** 복용하고 어지러움에 주의하세요.',
+              generation_status: 'COMPLETED',
+              created_at: '2026-09-20T00:00:02Z',
+              citations: loadedCitations,
+            },
+          ],
+        },
+      })
+
+    renderPage()
+
+    const input = await screen.findByLabelText('복약 질문')
+    fireEvent.change(input, { target: { value: '주의할 점이 있나요?' } })
+    fireEvent.click(screen.getByRole('button', { name: '질문 전송' }))
+
+    const boldText = await screen.findByText('하루 2회')
+    expect(boldText.tagName).toBe('STRONG')
+
+    const citationRegions = screen.getAllByRole('region', { name: '복약 답변 근거' })
+    expect(citationRegions).toHaveLength(1)
+
+    const items = within(citationRegions[0]).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+
+    expect(within(items[0]).getByText('근거 확인')).toBeTruthy()
+    expect(within(items[0]).getByText('하루 2회 아침과 저녁에 복용합니다.')).toBeTruthy()
+    expect(within(items[0]).getByText('MFDS_DOSE')).toBeTruthy()
+    expect(within(items[0]).getByText('2026-09-01')).toBeTruthy()
+    expect(within(items[0]).getByText('용법·용량 제1항')).toBeTruthy()
+
+    expect(within(items[1]).getByText('확인 필요')).toBeTruthy()
+    expect(
+      within(items[1]).getByText('어지러움이 있을 수 있어 운전 시 주의가 필요합니다.'),
+    ).toBeTruthy()
+    expect(within(items[1]).getByText('MFDS_WARN')).toBeTruthy()
+    expect(within(items[1]).getByText('2026-09-02')).toBeTruthy()
+    expect(within(items[1]).getByText('일반적 주의')).toBeTruthy()
+
+    expect(screen.queryByText('표시되면 안 되는 미지 verdict 주장')).toBeNull()
+    expect(screen.queryByText('CONTRADICT')).toBeNull()
+    expect(screen.queryByText('USER 메시지 인용은 표시하지 않음')).toBeNull()
+    expect(loadedCitations.map((item) => item.display_order)).toEqual([2, 3, 1])
+  })
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['빈 배열', []],
+  ] as const)(
+    'citations가 %s일 때 인용 영역을 렌더링하지 않고 Markdown 본문을 유지한다',
+    async (_label, citations) => {
+      vi.mocked(sendChatMessage).mockResolvedValue({
+        data: {
+          user_message_id: 'no-citation-user',
+          assistant_message_id: 'no-citation-assistant',
+          session_id: sessionId,
+          generation_status: 'COMPLETED',
+          content: '**충분한 물**과 함께 복용하세요.',
+          model_name: 'chat-model',
+          prompt_version: 'chat-v1',
+          created_at: '2026-09-20T00:00:01Z',
+          completed_at: '2026-09-20T00:00:02Z',
+          citations,
+        },
+      })
+      renderPage()
+
+      const input = await screen.findByLabelText('복약 질문')
+      fireEvent.change(input, { target: { value: '물과 함께 먹나요?' } })
+      fireEvent.click(screen.getByRole('button', { name: '질문 전송' }))
+
+      const boldText = await screen.findByText('충분한 물')
+      expect(boldText.tagName).toBe('STRONG')
+      expect(boldText.closest('.chat-message__markdown')).toBeTruthy()
+      expect(screen.queryByRole('region', { name: '복약 답변 근거' })).toBeNull()
+      expect(document.querySelector('.chat-citations')).toBeNull()
+    },
+  )
+
+  it('FAILED 또는 GENERATING 상태의 ASSISTANT 메시지는 citations가 있어도 인용 영역을 렌더링하지 않는다', async () => {
+    vi.mocked(getChatMessages).mockResolvedValue({
+      data: {
+        session_id: sessionId,
+        messages: [
+          {
+            message_id: 'failed-msg',
+            role: 'ASSISTANT',
+            content: '표시되면 안 되는 실패 상태 인용 테스트',
+            generation_status: 'FAILED',
+            created_at: '2026-09-20T00:00:01Z',
+            citations: [
+              {
+                claim_key: 'c1',
+                claim_text: '실패 메시지 인용은 숨겨져야 합니다.',
+                verdict: 'SUPPORTED',
+                source_code: 'MFDS_FAIL',
+                source_version: '2026-09-01',
+                locator: '주의사항',
+                display_order: 1,
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    renderPage()
+    await waitFor(() => expect(getChatMessages).toHaveBeenCalledWith(sessionId))
+    expect(screen.queryByText('실패 메시지 인용은 숨겨져야 합니다.')).toBeNull()
+    expect(document.querySelector('.chat-citations')).toBeNull()
   })
 })

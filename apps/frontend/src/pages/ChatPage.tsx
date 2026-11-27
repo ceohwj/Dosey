@@ -6,6 +6,7 @@ import {
   getChatMessages,
   getChatSessionForPrescription,
   sendChatMessage,
+  type ChatCitationItem,
   type ChatMessageData,
 } from '../api/chat'
 import { ApiError } from '../api/client'
@@ -74,6 +75,24 @@ function isOptimisticUserMessage(message: ChatMessageData) {
     message.role === 'USER' &&
     message.message_id.startsWith(optimisticUserMessageIdPrefix)
   )
+}
+
+function getVisibleCitations(message: ChatMessageData): ChatCitationItem[] {
+  if (
+    message.role !== 'ASSISTANT' ||
+    message.generation_status !== 'COMPLETED' ||
+    !Array.isArray(message.citations)
+  ) {
+    return []
+  }
+
+  return message.citations
+    .filter(
+      (citation): citation is ChatCitationItem =>
+        citation.verdict === 'SUPPORTED' ||
+        citation.verdict === 'NEEDS_VERIFICATION',
+    )
+    .sort((left, right) => left.display_order - right.display_order)
 }
 
 function reconcileHistoryMessages(
@@ -535,6 +554,7 @@ function ChatPage({
             content: response.data.content,
             generation_status: response.data.generation_status,
             created_at: completedAt,
+            citations: response.data.citations ?? null,
           },
         ]
       })
@@ -751,33 +771,77 @@ function ChatPage({
                 </div>
               )}
 
-              {currentMessages.map((message) => (
-                <div
-                  className={`chat-message-row ${message.role === 'USER' ? 'user' : 'assistant'}`}
-                  key={message.message_id}
-                >
-                  {message.role === 'ASSISTANT' && (
-                    <DoseyMascot variant="chat" />
-                  )}
-                  <div className={`chat-message ${message.role === 'USER' ? 'user' : 'assistant'}`}>
-                    {message.role === 'ASSISTANT' && message.content ? (
-                      <AssistantMessageContent content={message.content} />
-                    ) : (
-                      message.content ?? '답변을 생성하지 못했어요.'
+              {currentMessages.map((message) => {
+                const visibleCitations = getVisibleCitations(message)
+
+                return (
+                  <div
+                    className={`chat-message-row ${message.role === 'USER' ? 'user' : 'assistant'}`}
+                    key={message.message_id}
+                  >
+                    {message.role === 'ASSISTANT' && (
+                      <DoseyMascot variant="chat" />
                     )}
-                    {import.meta.env.DEV &&
-                      currentSessionId &&
-                      message.role === 'ASSISTANT' &&
-                      message.generation_status === 'COMPLETED' && (
-                      <ResponseFeedback
-                        key={message.message_id}
-                        target={{ sessionId: currentSessionId, messageId: message.message_id }}
-                        active={message.message_id === feedbackMessageId}
-                      />
-                    )}
+                    <div className={`chat-message ${message.role === 'USER' ? 'user' : 'assistant'}`}>
+                      {message.role === 'ASSISTANT' && message.content ? (
+                        <AssistantMessageContent content={message.content} />
+                      ) : (
+                        message.content ?? '답변을 생성하지 못했어요.'
+                      )}
+                      {visibleCitations.length > 0 && (
+                        <section className="chat-citations" aria-label="복약 답변 근거">
+                          <strong className="chat-citations__heading">답변 근거</strong>
+                          <ol className="chat-citations__list">
+                            {visibleCitations.map((citation) => {
+                              const isSupported = citation.verdict === 'SUPPORTED'
+                              return (
+                                <li
+                                  key={`${citation.claim_key}:${citation.display_order}`}
+                                  className="chat-citations__item"
+                                >
+                                  <div className="chat-citations__header">
+                                    <span
+                                      className={`chat-citations__verdict ${
+                                        isSupported
+                                          ? 'chat-citations__verdict--supported'
+                                          : 'chat-citations__verdict--needs-verification'
+                                      }`}
+                                    >
+                                      {isSupported ? '근거 확인' : '확인 필요'}
+                                    </span>
+                                  </div>
+                                  <p className="chat-citations__claim">{citation.claim_text}</p>
+                                  <div className="chat-citations__source">
+                                    <span className="chat-citations__source-code">
+                                      {citation.source_code}
+                                    </span>
+                                    <span className="chat-citations__source-version">
+                                      {citation.source_version}
+                                    </span>
+                                    <span className="chat-citations__source-locator">
+                                      {citation.locator}
+                                    </span>
+                                  </div>
+                                </li>
+                              )
+                            })}
+                          </ol>
+                        </section>
+                      )}
+                      {import.meta.env.DEV &&
+                        currentSessionId &&
+                        message.role === 'ASSISTANT' &&
+                        message.generation_status === 'COMPLETED' && (
+                        <ResponseFeedback
+                          key={message.message_id}
+                          target={{ sessionId: currentSessionId, messageId: message.message_id }}
+                          active={message.message_id === feedbackMessageId}
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
 
               {currentIsSending && (
                 <div className="chat-page__processing" role="status">

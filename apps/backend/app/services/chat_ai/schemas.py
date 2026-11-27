@@ -1,7 +1,7 @@
 import re
 import unicodedata
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator, model_validator
 
@@ -63,6 +63,16 @@ def normalize_chat_answer(value: object) -> str:
     return normalized
 
 
+def _normalize_trimmed_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    normalized = unicodedata.normalize("NFC", value).strip()
+    _reject_forbidden_input_characters(normalized)
+    if not normalized:
+        raise ValueError(f"{field_name} must not be blank")
+    return normalized
+
+
 class _StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -117,6 +127,14 @@ class ChatEvidenceItem(_StrictModel):
     source_version: str = Field(min_length=1, max_length=200)
     locator: str = Field(min_length=1, max_length=500)
     content: str = Field(min_length=1)
+    chunk_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @field_validator("chunk_id", mode="before")
+    @classmethod
+    def validate_chunk_id(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        return _normalize_trimmed_text(value, field_name="chunk_id")
 
 
 class ChatGenerationInput(_StrictModel):
@@ -177,3 +195,80 @@ class ChatGenerationResult(_StrictGeneratedModel):
         if not normalized:
             raise ValueError("content must not be blank")
         return normalized
+
+
+ChatClaimKind = Literal["critical", "non_critical"]
+ChunkIdStr = Annotated[str, Field(min_length=1, max_length=128)]
+
+
+def _validate_unique_claim_keys(claims: list["ChatGeneratedClaim"]) -> list["ChatGeneratedClaim"]:
+    seen_keys: set[str] = set()
+    for claim in claims:
+        if claim.claim_key in seen_keys:
+            raise ValueError("claims must not contain duplicate claim_key values")
+        seen_keys.add(claim.claim_key)
+    return claims
+
+
+class ChatGeneratedClaim(_StrictGeneratedModel):
+    claim_key: str = Field(min_length=1, max_length=64)
+    claim_text: str = Field(min_length=1, max_length=1000)
+    claim_kind: ChatClaimKind
+    evidence_chunk_ids: list[ChunkIdStr] = Field(default_factory=list, max_length=10)
+
+    @field_validator("claim_key", mode="before")
+    @classmethod
+    def validate_claim_key(cls, value: object) -> str:
+        return _normalize_trimmed_text(value, field_name="claim_key")
+
+    @field_validator("claim_text", mode="before")
+    @classmethod
+    def validate_claim_text(cls, value: object) -> str:
+        return _normalize_trimmed_text(value, field_name="claim_text")
+
+    @field_validator("evidence_chunk_ids", mode="before")
+    @classmethod
+    def validate_evidence_chunk_ids(cls, value: object) -> list[str]:
+        if not isinstance(value, list):
+            raise ValueError("evidence_chunk_ids must be a list")
+        seen: set[str] = set()
+        normalized_ids: list[str] = []
+        for item in value:
+            normalized = _normalize_trimmed_text(item, field_name="evidence_chunk_id")
+            if normalized in seen:
+                raise ValueError("evidence_chunk_ids must not contain duplicates")
+            seen.add(normalized)
+            normalized_ids.append(normalized)
+        return normalized_ids
+
+
+class ChatStructuredAnswerPayload(_StrictGeneratedModel):
+    answer: str = Field(min_length=1, max_length=10_000)
+    claims: list[ChatGeneratedClaim] = Field(default_factory=list, max_length=30)
+
+    @field_validator("answer", mode="before")
+    @classmethod
+    def validate_answer(cls, value: object) -> str:
+        return normalize_chat_answer(value)
+
+    @field_validator("claims")
+    @classmethod
+    def validate_claims_unique(cls, value: list[ChatGeneratedClaim]) -> list[ChatGeneratedClaim]:
+        return _validate_unique_claim_keys(value)
+
+
+class ChatStructuredGenerationResult(_StrictGeneratedModel):
+    content: str = Field(min_length=1, max_length=10_000)
+    claims: list[ChatGeneratedClaim] = Field(default_factory=list, max_length=30)
+    model_name: str = Field(min_length=1, max_length=100)
+    prompt_version: str
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def normalize_content(cls, value: object) -> str:
+        return normalize_chat_answer(value)
+
+    @field_validator("claims")
+    @classmethod
+    def validate_claims_unique(cls, value: list[ChatGeneratedClaim]) -> list[ChatGeneratedClaim]:
+        return _validate_unique_claim_keys(value)
